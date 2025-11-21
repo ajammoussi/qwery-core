@@ -72,9 +72,20 @@ let extensionsLoaded = false;
 async function loadExtensions(): Promise<void> {
   if (extensionsLoaded) return;
 
-  await Promise.all([
-    import('../../features/playground/src/factory/impl/pglite-playground'),
-  ]);
+  const globalRef = globalThis as typeof globalThis & {
+    window?: unknown;
+    document?: unknown;
+  };
+  const isBrowser =
+    typeof globalRef !== 'undefined' &&
+    typeof globalRef.window !== 'undefined' &&
+    typeof globalRef.document !== 'undefined';
+
+  if (isBrowser) {
+    await Promise.all([
+      import('../../features/playground/src/factory/impl/pglite-playground'),
+    ]);
+  }
 
   extensionsLoaded = true;
 }

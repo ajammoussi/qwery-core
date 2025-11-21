@@ -317,7 +317,7 @@ function renderField(
                 {...field}
                 type="number"
                 placeholder={placeholder}
-                onChange={(e) => {
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   const value = e.target.value;
                   field.onChange(value === '' ? undefined : Number(value));
                 }}
@@ -447,10 +447,10 @@ function renderField(
                     ? field.value.join(', ')
                     : field.value || ''
                 }
-                onChange={(e) => {
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
                   const value = e.target.value;
                   field.onChange(
-                    value ? value.split(',').map((s) => s.trim()) : [],
+                    value ? value.split(',').map((s: string) => s.trim()) : [],
                   );
                 }}
                 placeholder={description || 'Enter values separated by commas'}
