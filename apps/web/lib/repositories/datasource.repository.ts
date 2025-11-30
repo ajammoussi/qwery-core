@@ -1,9 +1,9 @@
 import { RepositoryFindOptions } from '@qwery/domain/common';
 import type { Datasource } from '@qwery/domain/entities';
-import { DatasourceRepositoryPort } from '@qwery/domain/repositories';
+import { IDatasourceRepository } from '@qwery/domain/repositories';
 import { apiDelete, apiGet, apiPost, apiPut } from './api-client';
 
-export class DatasourceRepository extends DatasourceRepositoryPort {
+export class DatasourceRepository extends IDatasourceRepository {
   async findAll(_options?: RepositoryFindOptions): Promise<Datasource[]> {
     const result = await apiGet<Datasource[]>('/datasources', false);
     return result || [];

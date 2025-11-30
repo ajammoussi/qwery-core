@@ -8,7 +8,7 @@ Always use relative paths (`../`, `../../`) for imports within the domain packag
 ```typescript
 // ✅ Correct
 import { Project } from '../../entities';
-import { ProjectRepositoryPort } from '../../repositories';
+import { IProjectRepository } from '../../repositories';
 import { CreateProjectUseCase } from '../../usecases';
 
 // ❌ Wrong
@@ -21,11 +21,11 @@ Import from folder index files, not individual files:
 ```typescript
 // ✅ Correct
 import { Datasource } from '../entities';
-import { UserRepositoryPort } from '../repositories';
+import { IUserRepository } from '../repositories';
 
 // ❌ Wrong
 import { Datasource } from '../entities/datasource.type.ts';
-import { UserRepositoryPort } from '../repositories/user-repository.port.ts';
+import { IUserRepository } from '../repositories/user-repository.port.ts';
 ```
 
 This pattern facilitates folder maintenance and reorganization. Each folder exports via `index.ts`.
@@ -75,7 +75,7 @@ const service = new CreateProjectService(repository);
 await service.execute(input);
 
 // ❌ Wrong - Direct repository access
-import { ProjectRepositoryPort } from '@domain/repositories';
+import { IProjectRepository } from '@domain/repositories';
 await repository.create(project); // Bypasses business logic
 ```
 

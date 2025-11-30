@@ -1,9 +1,9 @@
 import { RepositoryFindOptions } from '@qwery/domain/common';
 import type { Project } from '@qwery/domain/entities';
-import { ProjectRepositoryPort } from '@qwery/domain/repositories';
+import { IProjectRepository } from '@qwery/domain/repositories';
 import { apiDelete, apiGet, apiPost, apiPut } from './api-client';
 
-export class ProjectRepository extends ProjectRepositoryPort {
+export class ProjectRepository extends IProjectRepository {
   async findAll(_options?: RepositoryFindOptions): Promise<Project[]> {
     const result = await apiGet<Project[]>('/projects', false);
     return result || [];

@@ -143,7 +143,7 @@ export class MockAIModel extends AIModelPort {
 
   private createMessage(
     content: string,
-    role: MessageRole = MessageRole.AGENT,
+    role: MessageRole = MessageRole.ASSISTANT,
   ): Message {
     const now = new Date();
 

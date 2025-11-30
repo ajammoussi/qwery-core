@@ -1,5 +1,5 @@
 import { NotebookEntity } from '../../entities';
-import { NotebookRepositoryPort } from '../../repositories';
+import { INotebookRepository } from '../../repositories';
 import {
   CreateNotebookInput,
   NotebookOutput,
@@ -7,7 +7,7 @@ import {
 } from '../../usecases';
 
 export class CreateNotebookService implements CreateNotebookUseCase {
-  constructor(private readonly notebookRepository: NotebookRepositoryPort) {}
+  constructor(private readonly notebookRepository: INotebookRepository) {}
 
   public async execute(
     notebookDTO: CreateNotebookInput,

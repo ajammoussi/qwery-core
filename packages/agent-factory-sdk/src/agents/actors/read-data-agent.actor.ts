@@ -2,7 +2,7 @@
 
 import { AgentFactory } from '../..';
 import { Experimental_Agent, stepCountIs, tool } from 'ai';
-import type { LanguageModel } from 'ai';
+import type { LanguageModel, UIMessage } from 'ai';
 import { z } from 'zod';
 import { extractSchema } from '../../tools/extract-schema';
 import { gsheetToDuckdb } from '../../tools/gsheet-to-duckdb';
@@ -18,6 +18,7 @@ export const readDataAgentActor = fromPromise(
     input: {
       inputMessage: string;
       conversationId: string;
+      previousMessages: UIMessage[];
     };
   }) => {
     const agent = new ReadDataAgent({

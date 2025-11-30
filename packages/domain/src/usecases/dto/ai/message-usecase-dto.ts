@@ -1,5 +1,5 @@
 import { Exclude, Expose, plainToClass, Type } from 'class-transformer';
-import { Message, MessageRole } from '../../entities';
+import { Message, MessageRole } from '../../../entities';
 
 @Exclude()
 export class MessageOutput {
@@ -8,7 +8,7 @@ export class MessageOutput {
   @Expose()
   public conversationId!: string;
   @Expose()
-  public content!: string;
+  public content!: Record<string, unknown>;
   @Expose()
   public role!: MessageRole;
   @Expose()
@@ -30,8 +30,7 @@ export class MessageOutput {
 }
 
 export type CreateMessageInput = {
-  conversationId: string;
-  content: string;
+  content: Record<string, unknown>;
   role: MessageRole;
   metadata?: Record<string, unknown>;
   createdBy: string;
@@ -39,7 +38,7 @@ export type CreateMessageInput = {
 
 export type UpdateMessageInput = {
   id: string;
-  content?: string;
+  content?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   updatedBy: string;
 };

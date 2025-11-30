@@ -3,10 +3,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { Roles } from '../../common/roles';
 import { User } from '../../entities';
 import {
-  OrganizationRepositoryPort,
-  ProjectRepositoryPort,
-  UserRepositoryPort,
-  NotebookRepositoryPort,
+  IOrganizationRepository,
+  IProjectRepository,
+  IUserRepository,
+  INotebookRepository,
 } from '../../repositories';
 import {
   InitWorkspaceUseCase,
@@ -37,7 +37,7 @@ function createAnonymousUser(): User {
 
 async function createDefaultOrganization(
   userId: string,
-  organizationRepository: OrganizationRepositoryPort,
+  organizationRepository: IOrganizationRepository,
 ): Promise<OrganizationOutput> {
   const useCase = new CreateOrganizationService(organizationRepository);
   const organization = await useCase.execute({
@@ -51,7 +51,7 @@ async function createDefaultOrganization(
 async function createDefaultProject(
   orgId: string,
   userId: string,
-  projectRepository: ProjectRepositoryPort,
+  projectRepository: IProjectRepository,
 ): Promise<ProjectOutput> {
   const useCase = new CreateProjectService(projectRepository);
   const project = await useCase.execute({
@@ -64,11 +64,11 @@ async function createDefaultProject(
 
 export class InitWorkspaceService implements InitWorkspaceUseCase {
   constructor(
-    private readonly userRepository: UserRepositoryPort,
+    private readonly userRepository: IUserRepository,
     private readonly workspaceRuntimeUseCase: WorkspaceRuntimeUseCase,
-    private readonly organizationRepository?: OrganizationRepositoryPort,
-    private readonly projectRepository?: ProjectRepositoryPort,
-    private readonly notebookRepository?: NotebookRepositoryPort,
+    private readonly organizationRepository?: IOrganizationRepository,
+    private readonly projectRepository?: IProjectRepository,
+    private readonly notebookRepository?: INotebookRepository,
   ) {}
 
   public async execute(port: WorkspaceInput): Promise<WorkspaceOutput> {

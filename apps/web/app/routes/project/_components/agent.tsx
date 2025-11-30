@@ -1,10 +1,15 @@
 import { useRef } from 'react';
 import { AgentUIWrapper, type AgentUIWrapperRef } from './agent-ui-wrapper';
+import { MessageOutput } from '@qwery/domain/usecases';
 
 export interface AgentProps {
   conversationSlug: string;
+  initialMessages?: MessageOutput[];
 }
-export default function Agent({ conversationSlug }: AgentProps) {
+export default function Agent({
+  conversationSlug,
+  initialMessages,
+}: AgentProps) {
   const agentRef = useRef<AgentUIWrapperRef>(null);
 
   return (
@@ -13,6 +18,7 @@ export default function Agent({ conversationSlug }: AgentProps) {
         ref={agentRef}
         agentName={'test-agent'}
         conversationSlug={conversationSlug}
+        initialMessages={initialMessages}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import { Organization, OrganizationEntity } from '../../entities';
-import { OrganizationRepositoryPort } from '../../repositories';
+import { IOrganizationRepository } from '../../repositories';
 import {
   CreateOrganizationInput,
   OrganizationOutput,
@@ -8,7 +8,7 @@ import {
 
 export class CreateOrganizationService implements CreateOrganizationUseCase {
   constructor(
-    private readonly organizationRepository: OrganizationRepositoryPort,
+    private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
   public async execute(

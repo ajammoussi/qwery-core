@@ -5,9 +5,14 @@ import {
   summarizeIntentActor,
   greetingActor,
   readDataAgentActor,
+  loadContextActor,
 } from './actors';
+import { Repositories } from '@qwery/domain/repositories';
 
-export const createStateMachine = (conversationId: string) => {
+export const createStateMachine = (
+  conversationId: string,
+  repositories: Repositories,
+) => {
   const defaultSetup = setup({
     types: {
       context: {} as AgentContext,
@@ -18,6 +23,7 @@ export const createStateMachine = (conversationId: string) => {
       summarizeIntentActor,
       greetingActor,
       readDataAgentActor,
+      loadContextActor,
     },
     guards: {
       //eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,13 +36,13 @@ export const createStateMachine = (conversationId: string) => {
     },
   });
   return defaultSetup.createMachine({
-    /** @xstate-layout N4IgpgJg5mDOIC5QDMCGBjALgewE4E8BaVGAO0wDoBLCAGzAGIBVAZQFEAlAfQEkA5AApMAKgG0ADAF1EoAA7ZYVTFWykZIAB6IArACYANCHyIAHAEYKAZl26AnGYDsN87dsA2SwF9PhtFjxEJGDk1HSMLMIA8gIS0kgg8orKqupaCGbaDpYUutri+Za2ACzi2m66DobGCIXaFA5mum7aJm62JjYV2t6+GDgExGSUuACupKRUpFAMEdGx6olKKmrxaY3ithQm2hnalq264kUeVYiHddtm7kUmlkU32w49IH79gUMUo+OTUBQQYJgwFgeORgpgGBBVGBqKQAG7YADW0IA4mxhLw+MI2Jj5vFFskVqA0kVChR8nozEUHB5HAYjIgihl6vY3A5xJY3EVtPdbM9XgFBmDPmMJlM-gCgZgQYDyBCoTD4UiKKj0fwsTizHE5AolilVgzSeTdJTqZZaacEHtxBQWpYzSZjrZMiYnj4Xn0BUEQl9Rb9-oDgaDZZDSNDJoqUWiMeqxLotQkdQTUgbNkaTTSnBaPBcOtSmq12fY+R6Bl7hiKfuKA1Kg+CwLhcHgKLJaKhMMg8ABbZVRtXYsRSBaJ5bJ9LGzaXbR7A5HE70hC5OpuTnHNyNY7iNytYv+UsfH2V2AjTud1C4KgALzA0rBctDCsR0JYTAAsi+AIIcHgALTY0f7uLakkI76mOVxbDsU77OUs6WBaljiLoFCOhks5tLYWTdG6-J7kKB5ikeJ5npe161gw9aNrgzatu2XYUM+b6fj+f59jig54sOepEogjTgZO04wcccHzoURT1GYzQ3FJrQmLy2Elu8eEVmKUC4GAAI-HeYZwo+9HvgAMkwbCAQmwFcZoPHjhBuzQYcQkWvcFgUro1i5rkxQ7m8grespvyqepyhTORDZNi2bYdrg3YsAZRkmfiIHcWBE6QQJdlztUezZNSrQIQ6OwIXJvS7opPnfGKamoBAAAibaoFpD5KhwbDvlVXBVe+wjvnFnGEhZSXWVBM72fOLTWpkdoZGYLoUlhRVeWWwplb8FXVbVwWUdR4V0U1LVtR1XXsUBuq9WshzJTZQ3pYgrJIR04gNLJUGbmY3huqQ2D-PA8Q4SVmBDmZJ2IIQtgWoQbieZ6Hw0PQ-3HaOlKyRQbhHJSRz7NyZjwU6WwOIy7LmJSjISRDuGlb6sNJqBhTwRJFBOqULkVJYFIk79i2+lWko3uQFMJX1LpZuIJg5MuLoOJkNglK6c2Q0pS0UIRp7nle3N-RxAOjg4DjC9N4hmNY5R2maDlHDkWQklN2V5IV7rFd55by-5GlTLz5lpAWSOWA0douZSrLaBaejC1OWSbi6etmJurP2+zlYrTVmCoK7gMIOYSH3BURMmiY91ZnaEE3TnrT2Lc0cLbAOCyLIkDJ-D-t0xhjL3M0tg2FjYkeJuQu2EcewVK9nhAA */
+    /** @xstate-layout N4IgpgJg5mDOIC5QDMCGBjALgewE4E8BaVGAO0wDoAbbVCAYW3LAA9MBiCJsCgS1IBu2ANY8AMgHkAggBEA+vQkA5ACoBRABoqA2gAYAuolAAHbLF6ZeTIyBaIALLoBsFAIxOPAVgDMADm+eugDsQa4ANCD4iK5BLp5Bvq4BTq723gCcPvYAvtkRaFh4RCRg5NS0DEyYrBxguLh4FMZUqJjIeAC2FJKyCsrqWnqGSCCm5pbWI3YIji7uXn4BwaERUQgATE6+FL7rnp6u6Sn2IYm5+Rg4BMRklLwQVGDsAKoAymoASnIAkkoACs8dAYbGMLFZSDZpp51qtEIkKN51ut0utdPYFgdPOcQAUrsVbnwHk9XioJH8hiCzGDJqBpu57K4KOldL4nOkAidvGjYTN4Y4gvZfIF9hkMtjcUUbqVKLgAK6kUj8KAvd5fX4AoHDExUiYQqaITweCi6fbpUKuVmpbw8vxBY3rbwWoLBda+U7iy6SkplOUKpXsElkikjUG6yHRdb2dI7TEMzZBTKeXw21yeChOLkxXSpdL2dZBbwewrXb0y+WK0hQCgQMDVLDfZjkTjcPiCEQ8ADiahUP1UalUwe143B4ZmnmjuhNMUcvjR3jSPK29nTh3RqTdnnsaSLeKlPvLSurtbA9cbHC4pB4-CEogoXZ7v3UA9cWtGOpH+rHE6nApZc4XkSIAm0YMq4WaoiEaTpDuXoEr6FZVjWdaYA21RNheV5tre969k+OjrK+oYfrSDjjsaP4zv+1qAQgzLLqEaJRm66yHOOMElnBB6VkeyGodK7B1A0uBNC0bSdHe3a4f2mqUsONK2BGZFCqmcZOAm+zJjR3hOGmW6bCcRy6CxSLsfi0oUPBh6wLKHQdKguC8AAXmAfHoS217thQrzPAAsj5UgfN8ABaahSQOwIhu+8l0ps0bKZurjxommlrPY8TpsyuiOoZ46CkEpl7mWfrcdZtn2U5LlngJ9SNM0rTtLgXTeX5AXBaFj7SYOb5yXqJEIIlCYxipiVqclPKbtG7ICqmhlmiEBWlhZXFVlAuBgLW-oYa2N48K8UhiM8ahdUR0URr4cWxiN6lJoueZuL4BnpEcSROM4C2ccVK1rRtlbVUJIn1eJe0HUdEVDtSvUKf1yIXcNSUaTyBbLmkSJ+O4Jr6e95mWdxa10DIrSoM2l7bZ5HxqL0MhSCoUjHVFkMxU9Q0JfDN00bsLijfE8RorOuZY-un0WWA+OE39tWiQ1XTk5T1O02D3UQ6OiUZMzqnXSliDpBaTL5tmGRZWa0K5HkICkNgNbwCMEocdKslK5+9g8oQLiTm77vuyxAuUDQdCMMwbD22Gn7QjySJxSk0LuAcQQw4Wps22ZZT3I8QfEVDqZJhQmyZg6+aRtRqXwoa52RscKQCk43tLZ9aenQg448uidqhA9r3zrMiLVzjiHHqeaGYHXDPRME437MaDJ+CyrgmukD3d8tFClXZDnOa5g+RT1o4JtsG7Zs6uYBAmi4Fm42abA9vgPcy6wL0Lq3rZYlZD6OV+6Om3gH2l7KikEiNmgiIUugURbHiE4PMd8ELC1FpgVAL9Pz+HWBQPSscwJBGhIETWtEjLpgeicLYsQtxvQTp6W2ZRYA4GMMYSA8C+rTmXDpCuDIvApCbrOBEewtxHASE4MuOQTZAA */
     id: 'factory-agent',
     context: {
       inputMessage: '',
       conversationId: conversationId,
       response: '',
-      uiMessages: [],
+      previousMessages: [],
       streamResult: undefined,
       intent: {
         intent: 'other',
@@ -44,14 +50,33 @@ export const createStateMachine = (conversationId: string) => {
       },
       error: undefined,
     },
-    initial: 'idle',
+    initial: 'loadContext',
     states: {
+      loadContext: {
+        invoke: {
+          src: 'loadContextActor',
+          id: 'LOAD_CONTEXT',
+          input: ({ context }: { context: AgentContext }) => ({
+            repositories: repositories,
+            conversationId: context.conversationId,
+          }),
+          onDone: {
+            target: 'idle',
+            actions: assign({
+              previousMessages: ({ event }) => event.output,
+            }),
+          },
+          onError: {
+            target: 'idle',
+          },
+        },
+      },
       idle: {
         on: {
           USER_INPUT: {
             target: 'running',
             actions: assign({
-              uiMessages: ({ event }) => event.messages,
+              previousMessages: ({ event }) => event.messages,
               inputMessage: ({ event }) =>
                 event.messages[event.messages.length - 1]?.parts[0]?.text ?? '',
               streamResult: () => undefined, // Clear previous result when starting new request
@@ -67,7 +92,7 @@ export const createStateMachine = (conversationId: string) => {
           USER_INPUT: {
             target: 'running',
             actions: assign({
-              uiMessages: ({ event }) => event.messages,
+              previousMessages: ({ event }) => event.messages,
               inputMessage: ({ event }) =>
                 event.messages[event.messages.length - 1]?.parts[0]?.text ?? '',
               streamResult: undefined,
@@ -129,7 +154,7 @@ export const createStateMachine = (conversationId: string) => {
               input: ({ context }: { context: AgentContext }) => ({
                 inputMessage: context.inputMessage,
                 intent: context.intent,
-                uiMessages: context.uiMessages,
+                previousMessages: context.previousMessages,
               }),
               onDone: {
                 target: '#factory-agent.idle',
@@ -193,7 +218,7 @@ export const createStateMachine = (conversationId: string) => {
               input: ({ context }: { context: AgentContext }) => ({
                 inputMessage: context.inputMessage,
                 conversationId: context.conversationId,
-                uiMessages: context.uiMessages,
+                previousMessages: context.previousMessages,
               }),
               onDone: {
                 target: '#factory-agent.idle',

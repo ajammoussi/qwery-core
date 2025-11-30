@@ -3,7 +3,7 @@ import { DomainException } from '../../exceptions/domain-exception';
 import { TransitionDefinition } from '../../entities';
 import {
   IAgentSessionRepository,
-  StateMachineRepositoryPort,
+  IStateMachineRepository,
 } from '../../repositories';
 import {
   ApplyAgentCommandInput,
@@ -15,7 +15,7 @@ import { AgentSideEffectsPort } from '../../ports';
 export class ApplyAgentCommandService implements ApplyAgentCommandUseCase {
   constructor(
     private readonly agentSessionRepository: IAgentSessionRepository,
-    private readonly stateMachineRepository: StateMachineRepositoryPort,
+    private readonly stateMachineRepository: IStateMachineRepository,
     private readonly agentSideEffects: AgentSideEffectsPort,
   ) {}
 

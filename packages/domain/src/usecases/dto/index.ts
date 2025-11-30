@@ -5,6 +5,4 @@ export * from './workspace-usecase-dto';
 export * from './project-usecase-dto';
 export * from './organization-usecase-dto';
 export * from './datasource-usecase-dto';
-export * from './conversation-usecase-dto';
-export * from './message-usecase-dto';
 export * from './ai/index';

@@ -1,5 +1,5 @@
 import { Exclude, Expose, plainToClass, Type } from 'class-transformer';
-import { Conversation } from '../../entities';
+import { Conversation } from '../../../entities';
 
 @Exclude()
 export class ConversationOutput {

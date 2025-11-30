@@ -1,7 +1,7 @@
 import { Code } from '../../common/code';
 import { DomainException } from '../../exceptions';
 import { Project, ProjectEntity } from '../../entities';
-import { ProjectRepositoryPort } from '../../repositories';
+import { IProjectRepository } from '../../repositories';
 import {
   ProjectOutput,
   UpdateProjectInput,
@@ -9,7 +9,7 @@ import {
 } from '../../usecases';
 
 export class UpdateProjectService implements UpdateProjectUseCase {
-  constructor(private readonly projectRepository: ProjectRepositoryPort) {}
+  constructor(private readonly projectRepository: IProjectRepository) {}
 
   public async execute(projectDTO: UpdateProjectInput): Promise<ProjectOutput> {
     const existingProject = await this.projectRepository.findById(

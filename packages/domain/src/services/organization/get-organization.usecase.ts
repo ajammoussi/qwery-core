@@ -1,6 +1,6 @@
 import { Code } from '../../common/code';
 import { DomainException } from '../../exceptions';
-import { OrganizationRepositoryPort } from '../../repositories';
+import { IOrganizationRepository } from '../../repositories';
 import {
   GetOrganizationBySlugUseCase,
   GetOrganizationUseCase,
@@ -9,7 +9,7 @@ import {
 
 export class GetOrganizationService implements GetOrganizationUseCase {
   constructor(
-    private readonly organizationRepository: OrganizationRepositoryPort,
+    private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
   public async execute(id: string): Promise<OrganizationOutput> {
@@ -29,7 +29,7 @@ export class GetOrganizationBySlugService
   implements GetOrganizationBySlugUseCase
 {
   constructor(
-    private readonly organizationRepository: OrganizationRepositoryPort,
+    private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
   public async execute(id: string): Promise<OrganizationOutput> {

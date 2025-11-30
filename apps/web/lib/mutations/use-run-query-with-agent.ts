@@ -1,13 +1,13 @@
 import { useMutation } from '@tanstack/react-query';
 
-import type { DatasourceRepositoryPort } from '@qwery/domain/repositories';
+import type { IDatasourceRepository } from '@qwery/domain/repositories';
 import { useAgents } from '~/lib/hooks/use-agents';
 
 type RunQueryWithAgentPayload = {
   cellId: number;
   query: string;
   datasourceId: string;
-  datasourceRepository: DatasourceRepositoryPort;
+  datasourceRepository: IDatasourceRepository;
 };
 
 export function useRunQueryWithAgent(

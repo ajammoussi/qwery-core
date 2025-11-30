@@ -6,10 +6,10 @@ import type { Project } from '../../src/entities';
 import type { User } from '../../src/entities';
 import type { Notebook } from '../../src/entities';
 import { WorkspaceRuntimeEnum } from '../../src/enums/workspace-mode';
-import type { OrganizationRepositoryPort } from '../../src/repositories';
-import type { ProjectRepositoryPort } from '../../src/repositories';
-import type { UserRepositoryPort } from '../../src/repositories';
-import type { NotebookRepositoryPort } from '../../src/repositories';
+import type { IOrganizationRepository } from '../../src/repositories';
+import type { IProjectRepository } from '../../src/repositories';
+import type { IUserRepository } from '../../src/repositories';
+import type { INotebookRepository } from '../../src/repositories';
 import {
   CreateOrganizationService,
   InitWorkspaceService,
@@ -17,7 +17,7 @@ import {
 import type { WorkspaceRuntimeUseCase } from '../../src/usecases';
 
 // Mock in-memory repositories
-class MockUserRepository implements UserRepositoryPort {
+class MockUserRepository implements IUserRepository {
   private users = new Map<string, User>();
 
   async findAll() {
@@ -55,7 +55,7 @@ class MockUserRepository implements UserRepositoryPort {
   }
 }
 
-class MockOrganizationRepository implements OrganizationRepositoryPort {
+class MockOrganizationRepository implements IOrganizationRepository {
   private organizations = new Map<string, Organization>();
 
   async findAll() {
@@ -93,7 +93,7 @@ class MockOrganizationRepository implements OrganizationRepositoryPort {
   }
 }
 
-class MockProjectRepository implements ProjectRepositoryPort {
+class MockProjectRepository implements IProjectRepository {
   private projects = new Map<string, Project>();
 
   async findAll() {
@@ -131,7 +131,7 @@ class MockProjectRepository implements ProjectRepositoryPort {
   }
 }
 
-class MockNotebookRepository implements NotebookRepositoryPort {
+class MockNotebookRepository implements INotebookRepository {
   private notebooks = new Map<string, Notebook>();
 
   async findAll() {

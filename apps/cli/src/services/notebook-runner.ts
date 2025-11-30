@@ -1,12 +1,18 @@
 import type { Datasource } from '@qwery/domain/entities';
 import {
   FactoryAgent,
+  type FactoryAgentOptions,
   validateUIMessages,
   type UIMessage,
 } from '@qwery/agent-factory-sdk';
+import {
+  ConversationRepository,
+  MessageRepository,
+} from '@qwery/repository-in-memory';
 import { createDriverForDatasource } from '../extensions/driver-factory';
 import { CliUsageError } from '../utils/errors';
 import { nanoid } from 'nanoid';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface RunCellOptions {
   datasource: Datasource;
@@ -54,8 +60,42 @@ export class NotebookRunner {
       // Get or create agent for this datasource
       let agent = agents.get(options.datasource.id);
       if (!agent) {
-        const conversationId = `cli-${options.datasource.id}-${nanoid()}`;
-        agent = new FactoryAgent({ conversationId });
+        const conversationSlug = `cli-${options.datasource.id}-${nanoid()}`;
+        // Create in-memory repositories for the agent
+        const conversationRepository = new ConversationRepository();
+        const messageRepository = new MessageRepository();
+        const repositories = {
+          user: null as unknown,
+          organization: null as unknown,
+          project: null as unknown,
+          datasource: null as unknown,
+          notebook: null as unknown,
+          conversation: conversationRepository,
+          message: messageRepository,
+        };
+
+        // Create the conversation before creating the FactoryAgent
+        // (FactoryAgent needs the conversation to exist when persisting messages)
+        // Create directly with the desired slug
+        const conversationId = uuidv4();
+        const now = new Date();
+        await conversationRepository.create({
+          id: conversationId,
+          slug: conversationSlug,
+          title: `CLI Conversation for ${options.datasource.name}`,
+          projectId: uuidv4(), // Use dummy project ID for CLI
+          taskId: uuidv4(), // Use dummy task ID for CLI
+          datasources: [options.datasource.id],
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'cli',
+          updatedBy: 'cli',
+        });
+
+        agent = new FactoryAgent({
+          conversationSlug,
+          repositories: repositories as FactoryAgentOptions['repositories'],
+        });
         agents.set(options.datasource.id, agent);
       }
 

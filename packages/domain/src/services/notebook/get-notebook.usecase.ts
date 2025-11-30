@@ -1,6 +1,6 @@
 import { Code } from '../../common/code';
 import { DomainException } from '../../exceptions';
-import { NotebookRepositoryPort } from '../../repositories';
+import { INotebookRepository } from '../../repositories';
 import {
   GetNotebookBySlugUseCase,
   GetNotebookUseCase,
@@ -8,7 +8,7 @@ import {
 } from '../../usecases';
 
 export class GetNotebookService implements GetNotebookUseCase {
-  constructor(private readonly notebookRepository: NotebookRepositoryPort) {}
+  constructor(private readonly notebookRepository: INotebookRepository) {}
 
   public async execute(id: string): Promise<NotebookOutput> {
     const notebook = await this.notebookRepository.findById(id);
@@ -24,7 +24,7 @@ export class GetNotebookService implements GetNotebookUseCase {
 }
 
 export class GetNotebookBySlugService implements GetNotebookBySlugUseCase {
-  constructor(private readonly notebookRepository: NotebookRepositoryPort) {}
+  constructor(private readonly notebookRepository: INotebookRepository) {}
 
   public async execute(id: string): Promise<NotebookOutput> {
     const notebook = await this.notebookRepository.findBySlug(id);

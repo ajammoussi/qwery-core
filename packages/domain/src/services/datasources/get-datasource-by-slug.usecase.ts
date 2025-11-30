@@ -1,6 +1,6 @@
 import { Code } from '../../common/code';
 import { DomainException } from '../../exceptions';
-import { DatasourceRepositoryPort } from '../../repositories';
+import { IDatasourceRepository } from '../../repositories';
 import {
   DatasourceOutput,
   GetDatasourceUseCase,
@@ -8,9 +8,7 @@ import {
 } from '../../usecases';
 
 export class GetDatasourceService implements GetDatasourceUseCase {
-  constructor(
-    private readonly datasourceRepository: DatasourceRepositoryPort,
-  ) {}
+  constructor(private readonly datasourceRepository: IDatasourceRepository) {}
 
   public async execute(id: string): Promise<DatasourceOutput> {
     const datasource = await this.datasourceRepository.findById(id);
@@ -26,9 +24,7 @@ export class GetDatasourceService implements GetDatasourceUseCase {
 }
 
 export class GetDatasourceBySlugService implements GetDatasourceBySlugUseCase {
-  constructor(
-    private readonly datasourceRepository: DatasourceRepositoryPort,
-  ) {}
+  constructor(private readonly datasourceRepository: IDatasourceRepository) {}
 
   public async execute(slug: string): Promise<DatasourceOutput> {
     const datasource = await this.datasourceRepository.findBySlug(slug);

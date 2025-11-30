@@ -81,12 +81,13 @@ const models = [
 ];
 
 export interface QweryAgentUIProps {
+  initialMessages?: UIMessage[];
   transport: ChatTransport<UIMessage>;
   onOpen?: () => void;
 }
 
 export default function QweryAgentUI(props: QweryAgentUIProps) {
-  const { transport, onOpen } = props;
+  const { initialMessages, transport, onOpen } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const hasFocusedRef = useRef(false);
 
@@ -127,6 +128,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
 
   const { messages, sendMessage, status, regenerate, stop, setMessages } =
     useChat({
+      messages: initialMessages,
       transport: transport,
     });
 
@@ -228,7 +230,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
               {messages.length === 0 ? (
                 <ConversationEmptyState
                   title="Start a conversation"
-                  description="Ask me anything and I'll help you out. You can ask questions, request code, or get explanations."
+                  description="Ask me anything and I'll help you out. You can ask questions or get explanations."
                   icon={<Sparkles className="text-muted-foreground size-12" />}
                 />
               ) : (

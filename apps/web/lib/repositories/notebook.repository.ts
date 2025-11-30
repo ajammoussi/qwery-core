@@ -1,9 +1,9 @@
 import { RepositoryFindOptions } from '@qwery/domain/common';
 import type { Notebook } from '@qwery/domain/entities';
-import { NotebookRepositoryPort } from '@qwery/domain/repositories';
+import { INotebookRepository } from '@qwery/domain/repositories';
 import { apiDelete, apiGet, apiPost, apiPut } from './api-client';
 
-export class NotebookRepository extends NotebookRepositoryPort {
+export class NotebookRepository extends INotebookRepository {
   async findAll(_options?: RepositoryFindOptions): Promise<Notebook[]> {
     const result = await apiGet<Notebook[]>('/notebooks', false);
     return result || [];

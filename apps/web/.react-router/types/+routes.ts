@@ -67,6 +67,9 @@ type Pages = {
       "id": string;
     };
   };
+  "/api/messages": {
+    params: {};
+  };
   "/organizations": {
     params: {};
   };
@@ -126,7 +129,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/version" | "/healthcheck" | "/qwery/*" | "/api/chat/:slug" | "/api/organizations" | "/api/organizations/:id" | "/api/projects" | "/api/projects/:id" | "/api/datasources/:id?" | "/api/notebooks" | "/api/notebooks/:id" | "/api/conversations" | "/api/conversations/:id" | "/organizations" | "/org/:slug" | "/prj/:slug" | "/notebook/:slug" | "/prj/:slug/ds" | "/prj/:slug/ds/new" | "/prj/:slug/ds/:id/new" | "/ds/:slug" | "/prj/:slug/playground" | "/prj/:slug/c" | "/c/:slug";
+    page: "/" | "/version" | "/healthcheck" | "/qwery/*" | "/api/chat/:slug" | "/api/organizations" | "/api/organizations/:id" | "/api/projects" | "/api/projects/:id" | "/api/datasources/:id?" | "/api/notebooks" | "/api/notebooks/:id" | "/api/conversations" | "/api/conversations/:id" | "/api/messages" | "/organizations" | "/org/:slug" | "/prj/:slug" | "/notebook/:slug" | "/prj/:slug/ds" | "/prj/:slug/ds/new" | "/prj/:slug/ds/:id/new" | "/ds/:slug" | "/prj/:slug/playground" | "/prj/:slug/c" | "/c/:slug";
   };
   "routes/version.ts": {
     id: "routes/version";
@@ -179,6 +182,10 @@ type RouteFiles = {
   "routes/api/conversation/conversation.ts": {
     id: "routes/api/conversation/conversation";
     page: "/api/conversations/:id";
+  };
+  "routes/api/conversation/get-messages.ts": {
+    id: "routes/api/conversation/get-messages";
+    page: "/api/messages";
   };
   "routes/layout/layout.tsx": {
     id: "routes/layout/layout";
@@ -261,6 +268,7 @@ type RouteModules = {
   "routes/api/notebook/notebook": typeof import("./app/routes/api/notebook/notebook.ts");
   "routes/api/conversation/get-all-conversations": typeof import("./app/routes/api/conversation/get-all-conversations.ts");
   "routes/api/conversation/conversation": typeof import("./app/routes/api/conversation/conversation.ts");
+  "routes/api/conversation/get-messages": typeof import("./app/routes/api/conversation/get-messages.ts");
   "routes/layout/layout": typeof import("./app/routes/layout/layout.tsx");
   "routes/index": typeof import("./app/routes/index.tsx");
   "routes/organizations/layout": typeof import("./app/routes/organizations/layout.tsx");

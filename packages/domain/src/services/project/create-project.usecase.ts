@@ -1,5 +1,5 @@
 import { Project, ProjectEntity } from '../../entities';
-import { ProjectRepositoryPort } from '../../repositories';
+import { IProjectRepository } from '../../repositories';
 import {
   CreateProjectInput,
   CreateProjectUseCase,
@@ -7,7 +7,7 @@ import {
 } from '../../usecases';
 
 export class CreateProjectService implements CreateProjectUseCase {
-  constructor(private readonly projectRepository: ProjectRepositoryPort) {}
+  constructor(private readonly projectRepository: IProjectRepository) {}
 
   public async execute(projectDTO: CreateProjectInput): Promise<ProjectOutput> {
     const newProject = ProjectEntity.create(projectDTO);

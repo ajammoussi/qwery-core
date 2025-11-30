@@ -1,7 +1,7 @@
-import { Code } from '../../common/code';
-import { DomainException } from '../../exceptions';
-import { IMessageRepository } from '../../repositories';
-import { MessageOutput, GetMessageUseCase } from '../../usecases';
+import { Code } from '../../../common/code';
+import { DomainException } from '../../../exceptions';
+import { IMessageRepository } from '../../../repositories';
+import { MessageOutput, GetMessageUseCase } from '../../../usecases';
 
 export class GetMessageService implements GetMessageUseCase {
   constructor(private readonly messageRepository: IMessageRepository) {}

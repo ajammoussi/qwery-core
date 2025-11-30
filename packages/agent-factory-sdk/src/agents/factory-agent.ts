@@ -2,22 +2,30 @@ import { UIMessage } from 'ai';
 import { createActor } from 'xstate';
 import { nanoid } from 'nanoid';
 import { createStateMachine } from './state-machine';
+import { Repositories } from '@qwery/domain/repositories';
+import { MessagePersistenceService } from '../services/message-persistence.service';
 
 export interface FactoryAgentOptions {
-  conversationId: string;
+  conversationSlug: string;
+  repositories: Repositories;
 }
 
 export class FactoryAgent {
   readonly id: string;
-  private readonly conversationId: string;
+  private readonly conversationSlug: string;
   private lifecycle: ReturnType<typeof createStateMachine>;
   private factoryActor: ReturnType<typeof createActor>;
+  private repositories: Repositories;
 
   constructor(opts: FactoryAgentOptions) {
     this.id = nanoid();
-    this.conversationId = opts.conversationId;
+    this.conversationSlug = opts.conversationSlug;
+    this.repositories = opts.repositories;
 
-    this.lifecycle = createStateMachine(this.conversationId);
+    this.lifecycle = createStateMachine(
+      this.conversationSlug,
+      this.repositories,
+    );
 
     this.factoryActor = createActor(
       this.lifecycle as ReturnType<typeof createStateMachine>,
@@ -44,6 +52,15 @@ export class FactoryAgent {
 
     // Get the current input message to track which request this is for
     const lastMessage = opts.messages[opts.messages.length - 1];
+
+    // Persist latest user message
+    const messagePersistenceService = new MessagePersistenceService(
+      this.repositories.message,
+      this.repositories.conversation,
+      this.conversationSlug,
+    );
+    messagePersistenceService.persistMessages([lastMessage as UIMessage]);
+
     const textPart = lastMessage?.parts.find((p) => p.type === 'text');
     const currentInputMessage =
       textPart && 'text' in textPart ? (textPart.text as string) : '';
@@ -125,7 +142,17 @@ export class FactoryAgent {
               resolved = true;
               clearTimeout(timeout);
               try {
-                const response = ctx.streamResult.toUIMessageStreamResponse();
+                const response = ctx.streamResult.toUIMessageStreamResponse({
+                  onFinish: ({ messages }: { messages: UIMessage[] }) => {
+                    const messagePersistenceService =
+                      new MessagePersistenceService(
+                        this.repositories.message,
+                        this.repositories.conversation,
+                        this.conversationSlug,
+                      );
+                    messagePersistenceService.persistMessages(messages);
+                  },
+                });
                 subscription.unsubscribe();
                 resolve(response);
               } catch (err) {

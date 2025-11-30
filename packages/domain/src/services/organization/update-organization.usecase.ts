@@ -1,7 +1,7 @@
 import { Code } from '../../common/code';
 import { DomainException } from '../../exceptions';
 import { Organization, OrganizationEntity } from '../../entities';
-import { OrganizationRepositoryPort } from '../../repositories';
+import { IOrganizationRepository } from '../../repositories';
 import {
   OrganizationOutput,
   UpdateOrganizationInput,
@@ -10,7 +10,7 @@ import { UpdateOrganizationUseCase } from '../../usecases';
 
 export class UpdateOrganizationService implements UpdateOrganizationUseCase {
   constructor(
-    private readonly organizationRepository: OrganizationRepositoryPort,
+    private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
   public async execute(

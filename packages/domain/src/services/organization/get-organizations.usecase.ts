@@ -1,9 +1,9 @@
-import { OrganizationRepositoryPort } from '../../repositories';
+import { IOrganizationRepository } from '../../repositories';
 import { GetOrganizationsUseCase, OrganizationOutput } from '../../usecases';
 
 export class GetOrganizationsService implements GetOrganizationsUseCase {
   constructor(
-    private readonly organizationRepository: OrganizationRepositoryPort,
+    private readonly organizationRepository: IOrganizationRepository,
   ) {}
 
   public async execute(): Promise<OrganizationOutput[]> {

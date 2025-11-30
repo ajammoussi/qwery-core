@@ -346,7 +346,7 @@ export type AgentContext = {
   conversationId: string;
   inputMessage: string;
   response: string;
-  uiMessages: UIMessage[]; // full UI messages history
+  previousMessages: UIMessage[]; // full UI messages history
   streamResult?:
     | ReturnType<typeof streamText>
     | ReturnType<(typeof Experimental_Agent)['prototype']['stream']>; // holds the streaming result from AI SDK

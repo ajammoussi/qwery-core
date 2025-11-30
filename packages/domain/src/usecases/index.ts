@@ -33,11 +33,6 @@ export * from './conversation/delete-conversation.usecase';
 export * from './conversation/get-conversation.usecase';
 export * from './conversation/get-conversations.usecase';
 export * from './conversation/get-conversations-by-project-id.usecase';
-export * from './message/create-message.usecase';
-export * from './message/update-message.usecase';
-export * from './message/delete-message.usecase';
-export * from './message/get-message.usecase';
-export * from './message/get-messages-by-conversation-id.usecase';
 export * from './usecase';
 
 export * from './ai/index';

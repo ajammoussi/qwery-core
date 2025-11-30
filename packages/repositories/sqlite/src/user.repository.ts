@@ -3,11 +3,11 @@ import type Database from 'better-sqlite3';
 
 import { RepositoryFindOptions, Roles } from '@qwery/domain/common';
 import type { User } from '@qwery/domain/entities';
-import { UserRepositoryPort } from '@qwery/domain/repositories';
+import { IUserRepository } from '@qwery/domain/repositories';
 
 import { createDatabase, initializeSchema } from './db';
 
-export class UserRepository extends UserRepositoryPort {
+export class UserRepository extends IUserRepository {
   private db: Database.Database;
   private initPromise: Promise<void> | null = null;
 

@@ -5,11 +5,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import type { Workspace } from '@qwery/domain/entities';
+import type { Repositories } from '@qwery/domain/repositories';
 import { InitWorkspaceService } from '@qwery/domain/services';
 import { LoadingOverlay } from '@qwery/ui/loading-overlay';
 import { Trans } from '@qwery/ui/trans';
 
-import type { Repositories } from '~/lib/context/workspace-context';
 import { WorkspaceContext } from '~/lib/context/workspace-context';
 import { useWorkspaceMode } from '~/lib/hooks/use-workspace-mode';
 import { createRepositories } from '~/lib/repositories/repositories-factory';

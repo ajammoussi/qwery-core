@@ -5,5 +5,4 @@ export * from './organization/index';
 export * from './project/index';
 export * from './datasources/index';
 export * from './conversation/index';
-export * from './message/index';
 export * from './ai/index';

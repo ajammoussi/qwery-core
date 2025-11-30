@@ -2,11 +2,11 @@ import { v4 as uuidv4 } from 'uuid';
 import type Database from 'better-sqlite3';
 
 import type { Notebook } from '@qwery/domain/entities';
-import { NotebookRepositoryPort } from '@qwery/domain/repositories';
+import { INotebookRepository } from '@qwery/domain/repositories';
 
 import { createDatabase, initializeSchema } from './db';
 
-export class NotebookRepository extends NotebookRepositoryPort {
+export class NotebookRepository extends INotebookRepository {
   private db: Database.Database;
   private initPromise: Promise<void> | null = null;
 

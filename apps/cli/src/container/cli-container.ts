@@ -10,7 +10,9 @@ import {
   InitWorkspaceService,
 } from '@qwery/domain/services';
 import {
+  ConversationRepository,
   DatasourceRepository,
+  MessageRepository,
   NotebookRepository,
   OrganizationRepository,
   ProjectRepository,
@@ -32,6 +34,8 @@ export class CliContainer {
     project: new ProjectRepository(),
     datasource: new DatasourceRepository(),
     notebook: new NotebookRepository(),
+    conversation: new ConversationRepository(),
+    message: new MessageRepository(),
   };
 
   private readonly workspaceModeService = new CliWorkspaceModeService();

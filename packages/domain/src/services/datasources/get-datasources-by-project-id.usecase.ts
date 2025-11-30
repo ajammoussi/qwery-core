@@ -1,4 +1,4 @@
-import { DatasourceRepositoryPort } from '../../repositories';
+import { IDatasourceRepository } from '../../repositories';
 import {
   DatasourceOutput,
   GetDatasourcesByProjectIdUseCase,
@@ -7,9 +7,7 @@ import {
 export class GetDatasourcesByProjectIdService
   implements GetDatasourcesByProjectIdUseCase
 {
-  constructor(
-    private readonly datasourceRepository: DatasourceRepositoryPort,
-  ) {}
+  constructor(private readonly datasourceRepository: IDatasourceRepository) {}
 
   public async execute(projectId: string): Promise<DatasourceOutput[]> {
     const datasources =

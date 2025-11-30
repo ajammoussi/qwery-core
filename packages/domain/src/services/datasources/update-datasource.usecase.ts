@@ -1,14 +1,12 @@
 import { Code } from '../../common/code';
 import { DomainException } from '../../exceptions';
 import { DatasourceEntity, Datasource } from '../../entities';
-import { DatasourceRepositoryPort } from '../../repositories';
+import { IDatasourceRepository } from '../../repositories';
 import { DatasourceOutput, UpdateDatasourceInput } from '../../usecases';
 import { UpdateDatasourceUseCase } from '../../usecases';
 
 export class UpdateDatasourceService implements UpdateDatasourceUseCase {
-  constructor(
-    private readonly datasourceRepository: DatasourceRepositoryPort,
-  ) {}
+  constructor(private readonly datasourceRepository: IDatasourceRepository) {}
 
   public async execute(
     datasourceDTO: UpdateDatasourceInput,

@@ -1,7 +1,7 @@
 import { StateMachineDefinition } from '../../entities';
 import { RepositoryPort } from '../base-repository.port';
 
-export abstract class StateMachineRepositoryPort extends RepositoryPort<
+export abstract class IStateMachineRepository extends RepositoryPort<
   StateMachineDefinition,
   string
 > {}

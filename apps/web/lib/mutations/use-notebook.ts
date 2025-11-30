@@ -1,14 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Notebook } from '@qwery/domain/entities';
-import { NotebookRepositoryPort } from '@qwery/domain/repositories';
+import { INotebookRepository } from '@qwery/domain/repositories';
 import {
   getNotebookKey,
   getNotebooksByProjectIdKey,
 } from '../queries/use-get-notebook';
 
 export function useNotebook(
-  notebookRepository: NotebookRepositoryPort,
+  notebookRepository: INotebookRepository,
   onSuccess: (notebook: Notebook) => void,
   onError: (error: Error) => void,
 ) {
@@ -48,7 +48,7 @@ type DeleteNotebookInput = {
 };
 
 export function useDeleteNotebook(
-  notebookRepository: NotebookRepositoryPort,
+  notebookRepository: INotebookRepository,
   onSuccess?: (input: DeleteNotebookInput) => void,
   onError?: (error: Error) => void,
 ) {

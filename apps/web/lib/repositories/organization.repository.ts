@@ -1,9 +1,9 @@
 import { RepositoryFindOptions } from '@qwery/domain/common';
 import type { Organization } from '@qwery/domain/entities';
-import { OrganizationRepositoryPort } from '@qwery/domain/repositories';
+import { IOrganizationRepository } from '@qwery/domain/repositories';
 import { apiDelete, apiGet, apiPost, apiPut } from './api-client';
 
-export class OrganizationRepository extends OrganizationRepositoryPort {
+export class OrganizationRepository extends IOrganizationRepository {
   async findAll(_options?: RepositoryFindOptions): Promise<Organization[]> {
     const result = await apiGet<Organization[]>('/organizations', false);
     return result || [];

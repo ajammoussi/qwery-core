@@ -28,11 +28,13 @@ export class MessageRepository extends IMessageRepository {
 
   private serialize(message: Message): Record<string, unknown> {
     return {
-      ...message,
+      id: message.id,
+      conversation_id: message.conversationId,
+      content: JSON.stringify(message.content || {}),
+      role: message.role,
+      metadata: JSON.stringify(message.metadata || {}),
       created_at: message.createdAt.toISOString(),
       updated_at: message.updatedAt.toISOString(),
-      conversation_id: message.conversationId,
-      metadata: JSON.stringify(message.metadata || {}),
       created_by: message.createdBy,
       updated_by: message.updatedBy,
     };
@@ -42,7 +44,10 @@ export class MessageRepository extends IMessageRepository {
     return {
       id: row.id as string,
       conversationId: row.conversation_id as string,
-      content: row.content as string,
+      content: JSON.parse((row.content as string) || '{}') as Record<
+        string,
+        unknown
+      >,
       role: row.role as string,
       metadata: JSON.parse((row.metadata as string) || '{}') as Record<
         string,
@@ -72,6 +77,10 @@ export class MessageRepository extends IMessageRepository {
     }
 
     if (options?.offset) {
+      // SQLite requires LIMIT before OFFSET, so if offset is provided without limit, use a large limit
+      if (!options?.limit) {
+        query += ' LIMIT -1';
+      }
       query += ' OFFSET ?';
       params.push(options.offset);
     }

@@ -1,6 +1,6 @@
 import { Code } from '../../common/code';
 import { DomainException } from '../../exceptions';
-import { ProjectRepositoryPort } from '../../repositories';
+import { IProjectRepository } from '../../repositories';
 import {
   GetProjectBySlugUseCase,
   GetProjectUseCase,
@@ -8,7 +8,7 @@ import {
 } from '../../usecases';
 
 export class GetProjectService implements GetProjectUseCase {
-  constructor(private readonly projectRepository: ProjectRepositoryPort) {}
+  constructor(private readonly projectRepository: IProjectRepository) {}
 
   public async execute(id: string): Promise<ProjectOutput> {
     const project = await this.projectRepository.findById(id);
@@ -24,7 +24,7 @@ export class GetProjectService implements GetProjectUseCase {
 }
 
 export class GetProjectBySlugService implements GetProjectBySlugUseCase {
-  constructor(private readonly projectRepository: ProjectRepositoryPort) {}
+  constructor(private readonly projectRepository: IProjectRepository) {}
 
   public async execute(slug: string): Promise<ProjectOutput> {
     const project = await this.projectRepository.findBySlug(slug);

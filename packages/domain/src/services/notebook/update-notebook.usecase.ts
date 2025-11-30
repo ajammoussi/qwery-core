@@ -1,12 +1,12 @@
 import { Code } from '../../common/code';
 import { DomainException } from '../../exceptions';
 import { NotebookEntity } from '../../entities';
-import { NotebookRepositoryPort } from '../../repositories';
+import { INotebookRepository } from '../../repositories';
 import { UpdateNotebookInput, NotebookOutput } from '../../usecases/dto';
 import { UpdateNotebookUseCase } from '../../usecases';
 
 export class UpdateNotebookService implements UpdateNotebookUseCase {
-  constructor(private readonly notebookRepository: NotebookRepositoryPort) {}
+  constructor(private readonly notebookRepository: INotebookRepository) {}
 
   public async execute(
     notebookDTO: UpdateNotebookInput,

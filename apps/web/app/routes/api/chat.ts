@@ -7,9 +7,12 @@ import {
   validateUIMessages,
 } from '@qwery/agent-factory-sdk';
 import {} from '@qwery/agent-factory-sdk';
+import { createRepositories } from '~/lib/repositories/repositories-factory';
 
 // Map to persist manager agent instances by conversation slug
 const agents = new Map<string, FactoryAgent>();
+
+const repositories = await createRepositories();
 
 export async function action({ request, params }: ActionFunctionArgs) {
   if (request.method !== 'POST') {
@@ -27,7 +30,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
   // Get or create manager agent for this conversation
   let agent = agents.get(conversationSlug);
   if (!agent) {
-    agent = new FactoryAgent({ conversationId: conversationSlug });
+    agent = new FactoryAgent({
+      conversationSlug: conversationSlug,
+      repositories: repositories,
+    });
     agents.set(conversationSlug, agent);
     console.log(
       `Agent ${agent.id} created for conversation ${conversationSlug}`,

@@ -6,7 +6,7 @@ import { CreateMessageInput, UpdateMessageInput } from '../../usecases';
 
 export enum MessageRole {
   USER = 'user',
-  AGENT = 'agent',
+  ASSISTANT = 'assistant',
   SYSTEM = 'system',
 }
 
@@ -16,7 +16,7 @@ export const MessageSchema = z.object({
     .string()
     .uuid()
     .describe('The unique identifier for the conversation'),
-  content: z.string().describe('The content of the message'),
+  content: z.record(z.string(), z.any()).describe('The content of the message'),
   role: z.nativeEnum(MessageRole).describe('The role of the message'),
   metadata: z
     .record(z.string(), z.any())
@@ -38,7 +38,7 @@ export class MessageEntity extends Entity<string, typeof MessageSchema> {
   @Expose()
   public conversationId!: string;
   @Expose()
-  public content!: string;
+  public content!: Record<string, unknown>;
   @Expose()
   public role!: MessageRole;
   @Expose()
@@ -52,7 +52,9 @@ export class MessageEntity extends Entity<string, typeof MessageSchema> {
   @Expose()
   public updatedBy!: string;
 
-  public static create(newMessage: CreateMessageInput): MessageEntity {
+  public static create(
+    newMessage: CreateMessageInput & { conversationId: string },
+  ): MessageEntity {
     const { id } = generateIdentity();
     const now = new Date();
     const message: Message = {

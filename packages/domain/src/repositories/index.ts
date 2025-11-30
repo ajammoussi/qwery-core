@@ -5,3 +5,4 @@ export * from './organization-repository.port';
 export * from './project-repository.port';
 export * from './user-repository.port';
 export * from './ai/index';
+export * from './repositories';

@@ -30,6 +30,7 @@ describe('OrganizationsPage', () => {
     shortenId: vi.fn().mockReturnValue(''),
     findByProjectId: vi.fn().mockResolvedValue([]),
     findByTaskId: vi.fn().mockResolvedValue([]),
+    findByConversationId: vi.fn().mockResolvedValue([]),
   };
 
   const mockWorkspace = {
@@ -53,6 +54,7 @@ describe('OrganizationsPage', () => {
         datasource: mockRepository,
         notebook: mockRepository,
         conversation: mockRepository,
+        message: mockRepository,
       },
       workspace: mockWorkspace,
     });

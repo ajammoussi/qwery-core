@@ -3,11 +3,11 @@ import type Database from 'better-sqlite3';
 
 import { RepositoryFindOptions } from '@qwery/domain/common';
 import type { Datasource } from '@qwery/domain/entities';
-import { DatasourceRepositoryPort } from '@qwery/domain/repositories';
+import { IDatasourceRepository } from '@qwery/domain/repositories';
 
 import { createDatabase, initializeSchema } from './db';
 
-export class DatasourceRepository extends DatasourceRepositoryPort {
+export class DatasourceRepository extends IDatasourceRepository {
   private db: Database.Database;
   private initPromise: Promise<void> | null = null;
 

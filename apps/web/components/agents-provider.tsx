@@ -2,13 +2,13 @@
 
 import { createContext, useContext, useMemo } from 'react';
 
-import type { DatasourceRepositoryPort } from '@qwery/domain/repositories';
+import type { IDatasourceRepository } from '@qwery/domain/repositories';
 import { GetDatasourceService } from '@qwery/domain/services';
 import { getExtension } from '@qwery/extensions-sdk';
 
 interface AgentsContextValue {
   runQueryWithAgent: (
-    datasourceRepository: DatasourceRepositoryPort,
+    datasourceRepository: IDatasourceRepository,
     query: string,
     datasourceId: string,
   ) => Promise<string | null>;
@@ -39,7 +39,7 @@ export function AgentsProvider({
   }, [options]);
 
   const runQueryWithAgent = async (
-    datasourceRepository: DatasourceRepositoryPort,
+    datasourceRepository: IDatasourceRepository,
     query: string,
     datasourceId: string,
   ): Promise<string | null> => {

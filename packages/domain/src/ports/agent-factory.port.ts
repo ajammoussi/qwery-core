@@ -81,7 +81,15 @@ export class AgentRunner<T extends StateData> {
     this.history.push(normalizedInput);
     const messages = await this.generateReply(normalizedInput);
 
-    const reply = messages[messages.length - 1]?.content ?? '';
+    const lastMessage = messages[messages.length - 1];
+    const reply =
+      typeof lastMessage?.content === 'string'
+        ? lastMessage.content
+        : typeof lastMessage?.content === 'object' &&
+            lastMessage.content !== null &&
+            'text' in lastMessage.content
+          ? String(lastMessage.content.text)
+          : '';
     const { from, to } = this.transition(resolvedCommand);
     await this.emitSideEffects(from, to, resolvedCommand);
 
@@ -130,7 +138,9 @@ export class AgentRunner<T extends StateData> {
       });
       const startMessages = await this.aiModelPort.start(
         this.system ?? '',
-        userMessage.content,
+        typeof userMessage.content === 'string'
+          ? userMessage.content
+          : JSON.stringify(userMessage.content),
       );
       this.history.push(...startMessages);
       return startMessages;
@@ -138,7 +148,9 @@ export class AgentRunner<T extends StateData> {
 
     const stepMessages = await this.aiModelPort.step(
       this.history,
-      userMessage.content,
+      typeof userMessage.content === 'string'
+        ? userMessage.content
+        : JSON.stringify(userMessage.content),
     );
     this.history.push(...stepMessages);
     return stepMessages;
@@ -182,7 +194,7 @@ export class AgentRunner<T extends StateData> {
     return {
       id: uuidv4(),
       conversationId: this.conversationId,
-      content,
+      content: { text: content },
       role,
       metadata: {},
       createdAt: now,

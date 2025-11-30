@@ -1,11 +1,11 @@
 import { Roles } from '../../common/roles';
 import { User, UserEntity } from '../../entities';
-import { UserRepositoryPort } from '../../repositories';
+import { IUserRepository } from '../../repositories';
 import { CreateUserUseCase } from '../../usecases';
 import { CreateUserInput, UserOutput } from '../../usecases/dto';
 
 export class CreateUserService implements CreateUserUseCase {
-  constructor(private readonly userRepository: UserRepositoryPort) {}
+  constructor(private readonly userRepository: IUserRepository) {}
 
   public async execute(port: CreateUserInput): Promise<UserOutput> {
     const newUser = UserEntity.new({

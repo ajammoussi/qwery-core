@@ -244,10 +244,14 @@ export class InteractiveRepl {
 
   private async processAgentQuery(query: string): Promise<void> {
     try {
-      // Use a persistent agent and conversation ID so follow-up questions work
+      // Use a persistent agent and conversation slug so follow-up questions work
       if (!this.agent || !this.conversationId) {
         this.conversationId = `cli-agent-${nanoid()}`;
-        this.agent = new FactoryAgent({ conversationId: this.conversationId });
+        const repositories = this.container.getRepositories();
+        this.agent = new FactoryAgent({
+          conversationSlug: this.conversationId,
+          repositories,
+        });
       }
       const agent = this.agent;
 
