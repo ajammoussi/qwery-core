@@ -1,0 +1,56 @@
+{
+  "name": "@qwery/extension-parquet-online",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/extension.js",
+  "scripts": {
+    "lint": "echo \"no lint configured\"",
+    "test": "vitest run --coverage --passWithNoTests",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "contributes": {
+    "datasources": [
+      {
+        "id": "parquet-online",
+        "name": "Parquet (Online)",
+        "description": "Connect to public Parquet files via URL",
+        "icon": "media/parquet.svg",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "parquetUrl": {
+              "type": "string",
+              "description": "Public Parquet file URL",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "parquetUrl"
+          ]
+        },
+        "drivers": [
+          "parquet-online.duckdb"
+        ]
+      }
+    ],
+    "drivers": [
+      {
+        "id": "parquet-online.duckdb",
+        "name": "DuckDB (Node)",
+        "description": "Node runtime DuckDB driver for Parquet files",
+        "runtime": "node",
+        "entry": "./dist/driver.js"
+      }
+    ]
+  },
+  "dependencies": {
+    "@duckdb/node-api": "1.4.2-r.1",
+    "@qwery/extensions-sdk": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vitest/coverage-istanbul": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -170,6 +170,60 @@ async function main() {
                   }
                 }
                 
+                // Copy DuckDB WASM worker files if they exist
+                // These are needed at runtime and can't be bundled
+                if (pkg.name === '@qwery/extension-duckdb-wasm') {
+                  const rootNodeModules = path.resolve(
+                    here,
+                    '..',
+                    '..',
+                    'node_modules',
+                  );
+                  
+                  // Try multiple possible paths for pnpm workspace structure
+                  const duckdbPaths = await findDuckDBWasmInPnpm(rootNodeModules);
+                  const possiblePaths = [
+                    path.join(rootNodeModules, '@duckdb', 'duckdb-wasm', 'dist'),
+                    ...duckdbPaths,
+                  ];
+                  
+                  // Copy worker files and WASM files that DuckDB WASM needs
+                  const duckdbFiles = [
+                    'duckdb-browser-eh.worker.js',
+                    'duckdb-browser-mvp.worker.js',
+                    'duckdb-browser-coi.worker.js',
+                    'duckdb-browser-coi.pthread.worker.js',
+                    'duckdb-browser.mjs',
+                    'duckdb-eh.wasm',
+                    'duckdb-mvp.wasm',
+                    'duckdb-coi.wasm',
+                  ];
+                  let copied = false;
+                  for (const duckdbDistPath of possiblePaths) {
+                    const workerPath = path.join(duckdbDistPath, 'duckdb-browser-eh.worker.js');
+                    if (await fileExists(workerPath)) {
+                      for (const file of duckdbFiles) {
+                        const sourceFile = path.join(duckdbDistPath, file);
+                        if (await fileExists(sourceFile)) {
+                          const destFile = path.join(driverOutDir, file);
+                          await fs.copyFile(sourceFile, destFile);
+                          console.log(
+                            `[extensions-build] Copied ${file} for ${driver.id} from ${duckdbDistPath}`,
+                          );
+                          copied = true;
+                        }
+                      }
+                      break; // Found and copied, no need to try other paths
+                    }
+                  }
+                  if (!copied) {
+                    console.warn(
+                      `[extensions-build] Could not find DuckDB WASM files for ${driver.id}. Tried paths:`,
+                      possiblePaths,
+                    );
+                  }
+                }
+                
                 console.log(
                   `[extensions-build] Bundled browser driver ${driver.id} to ${dest}`,
                 );
@@ -269,6 +323,49 @@ async function findPGliteInPnpm(nodeModulesPath) {
             const dataPath = path.join(pglitePath, 'pglite.data');
             if (await fileExists(dataPath)) {
               paths.push(pglitePath);
+            }
+          }
+        } catch {
+          // Skip this path
+        }
+      }
+    }
+  } catch (error) {
+    // Ignore errors
+  }
+  return paths;
+}
+
+async function findDuckDBWasmInPnpm(nodeModulesPath) {
+  const paths = [];
+  try {
+    const pnpmPath = path.join(nodeModulesPath, '.pnpm');
+    let stat;
+    try {
+      stat = await fs.stat(pnpmPath);
+    } catch {
+      return paths;
+    }
+    if (!stat.isDirectory()) {
+      return paths;
+    }
+    const entries = await fs.readdir(pnpmPath);
+    for (const entry of entries) {
+      if (entry.startsWith('@duckdb+duckdb-wasm@')) {
+        const duckdbPath = path.join(
+          pnpmPath,
+          entry,
+          'node_modules',
+          '@duckdb',
+          'duckdb-wasm',
+          'dist',
+        );
+        try {
+          const distStat = await fs.stat(duckdbPath);
+          if (distStat.isDirectory()) {
+            const workerPath = path.join(duckdbPath, 'duckdb-browser-eh.worker.js');
+            if (await fileExists(workerPath)) {
+              paths.push(duckdbPath);
             }
           }
         } catch {

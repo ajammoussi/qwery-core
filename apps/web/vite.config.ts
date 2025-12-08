@@ -1,9 +1,39 @@
 import { reactRouter } from '@react-router/dev/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
 import tailwindCssVitePlugin from '@qwery/tailwind-config/vite';
+
+// Plugin to set correct MIME type for WASM files
+function wasmMimeTypePlugin(): Plugin {
+  return {
+    name: 'wasm-mime-type',
+    enforce: 'pre', // Run before other plugins to set headers early
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = req.url || '';
+
+        // Handle WASM files with correct MIME type
+        if (url.endsWith('.wasm')) {
+          res.setHeader('Content-Type', 'application/wasm');
+        }
+
+        // Handle worker files with correct MIME type
+        if (url.endsWith('.worker.js') || url.includes('.worker.')) {
+          res.setHeader('Content-Type', 'application/javascript');
+        }
+
+        // Handle source map files
+        if (url.endsWith('.map')) {
+          res.setHeader('Content-Type', 'application/json');
+        }
+
+        next();
+      });
+    },
+  };
+}
 
 const ALLOWED_HOSTS =
   process.env.NODE_ENV === 'development' ? ['host.docker.internal'] : [];
@@ -25,6 +55,7 @@ export default defineConfig(({ command }) => ({
     ],
   },
   plugins: [
+    wasmMimeTypePlugin(), // Must run early to set MIME types before other plugins
     devtoolsJson(),
     reactRouter(),
     tsconfigPaths(),
@@ -61,6 +92,7 @@ export default defineConfig(({ command }) => ({
       'fsevents',
       '@electric-sql/pglite',
       '@duckdb/node-api',
+      '@duckdb/duckdb-wasm',
       '@qwery/agent-factory-sdk',
     ],
     entries: [

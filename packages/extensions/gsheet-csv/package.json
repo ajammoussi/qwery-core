@@ -1,0 +1,56 @@
+{
+  "name": "@qwery/extension-gsheet-csv",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/extension.js",
+  "scripts": {
+    "lint": "echo \"no lint configured\"",
+    "test": "vitest run --coverage --passWithNoTests",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "contributes": {
+    "datasources": [
+      {
+        "id": "gsheet-csv",
+        "name": "Google Sheets (CSV)",
+        "description": "Connect to public Google Sheets via CSV export",
+        "icon": "media/gsheet.svg",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "sharedLink": {
+              "type": "string",
+              "description": "Public Google Sheets shared link (https://docs.google.com/spreadsheets/d/...)",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "sharedLink"
+          ]
+        },
+        "drivers": [
+          "gsheet-csv.duckdb"
+        ]
+      }
+    ],
+    "drivers": [
+      {
+        "id": "gsheet-csv.duckdb",
+        "name": "DuckDB (Node)",
+        "description": "Node runtime DuckDB driver for Google Sheets CSV",
+        "runtime": "node",
+        "entry": "./dist/driver.js"
+      }
+    ]
+  },
+  "dependencies": {
+    "@duckdb/node-api": "1.4.2-r.1",
+    "@qwery/extensions-sdk": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vitest/coverage-istanbul": "catalog:",
+    "vitest": "catalog:"
+  }
+}

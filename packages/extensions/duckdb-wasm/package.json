@@ -1,0 +1,53 @@
+{
+  "name": "@qwery/extension-duckdb-wasm",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/extension.js",
+  "scripts": {
+    "lint": "echo \"no lint configured\"",
+    "test": "vitest run --logHeapUsage --coverage --passWithNoTests",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "contributes": {
+    "datasources": [
+      {
+        "id": "duckdb-wasm",
+        "name": "DuckDB (WASM)",
+        "description": "Run DuckDB queries in your browser using WebAssembly",
+        "icon": "media/DuckDB_stack-darkmode.svg",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "database": {
+              "type": "string",
+              "description": "Database name",
+              "default": "playground"
+            }
+          }
+        },
+        "drivers": [
+          "duckdb-wasm.default"
+        ]
+      }
+    ],
+    "drivers": [
+      {
+        "id": "duckdb-wasm.default",
+        "name": "DuckDB WASM (Browser)",
+        "description": "Browser runtime DuckDB WASM driver",
+        "runtime": "browser",
+        "entry": "./dist/driver.js"
+      }
+    ]
+  },
+  "dependencies": {
+    "@duckdb/duckdb-wasm": "1.31.1-dev31.0",
+    "@qwery/extensions-sdk": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vitest/coverage-istanbul": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "name": "@qwery/extension-clickhouse-node",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/extension.js",
+  "scripts": {
+    "lint": "echo \"no lint configured\"",
+    "test": "vitest run --coverage --passWithNoTests",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "contributes": {
+    "datasources": [
+      {
+        "id": "clickhouse-node",
+        "name": "ClickHouse (Node)",
+        "description": "Connect to ClickHouse databases",
+        "icon": "media/ClickHouseLogo_White_FNL.svg",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "connectionUrl": {
+              "type": "string",
+              "description": "ClickHouse connection URL (clickhouse://user:pass@host:port/database or http://host:port)",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "connectionUrl"
+          ]
+        },
+        "drivers": [
+          "clickhouse.node"
+        ]
+      }
+    ],
+    "drivers": [
+      {
+        "id": "clickhouse.node",
+        "name": "ClickHouse (Node)",
+        "description": "Node runtime ClickHouse driver",
+        "runtime": "node",
+        "entry": "./dist/driver.js"
+      }
+    ]
+  },
+  "dependencies": {
+    "@clickhouse/client": "^0.2.10",
+    "@qwery/extensions-sdk": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vitest/coverage-istanbul": "catalog:",
+    "vitest": "catalog:"
+  }
+}

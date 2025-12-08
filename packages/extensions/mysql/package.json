@@ -1,0 +1,56 @@
+{
+  "name": "@qwery/extension-mysql",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/extension.js",
+  "scripts": {
+    "lint": "echo \"no lint configured\"",
+    "test": "vitest run --coverage --passWithNoTests",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "contributes": {
+    "datasources": [
+      {
+        "id": "mysql",
+        "name": "MySQL",
+        "description": "Connect to MySQL databases",
+        "icon": "media/MySQL.svg",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "connectionUrl": {
+              "type": "string",
+              "description": "MySQL connection string (mysql://user:pass@host:port/database)",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "connectionUrl"
+          ]
+        },
+        "drivers": [
+          "mysql.default"
+        ]
+      }
+    ],
+    "drivers": [
+      {
+        "id": "mysql.default",
+        "name": "MySQL (Node)",
+        "description": "Default Node runtime MySQL driver",
+        "runtime": "node",
+        "entry": "./dist/driver.js"
+      }
+    ]
+  },
+  "dependencies": {
+    "@qwery/extensions-sdk": "workspace:*",
+    "mysql2": "^3.15.3",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vitest/coverage-istanbul": "catalog:",
+    "vitest": "catalog:"
+  }
+}

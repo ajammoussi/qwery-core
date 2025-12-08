@@ -77,6 +77,32 @@ export function makeDriver(context: DriverContext): IDataSourceDriver {
 - To be integrated under media directory
 - Reference icons under package.json
 
+## Testing
+
+- Include vitest.config.ts and use istanbul
+- Include  test coverage using "@vitest/coverage-istanbul": "catalog:",
+- package.json test command should be like :     "test": "vitest run --logHeapUsage --coverage --silent",
+```typescript
+import * as path from 'path';
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    coverage: {
+      provider: 'istanbul',
+    },
+    environment: 'node',
+  },
+  resolve: {
+    alias: {
+      '@domain': path.resolve(__dirname, '../domain/src'),
+      '@qwery/extensions-sdk': path.resolve(__dirname, './src'),
+    },
+  },
+});
+
+```
+
 ## Concrete sample
 - `packages/extensions/postgresql/` Server side (nodejs) extension.
 - `packages/extensions/pglite/` Browser side (embedded) extension.

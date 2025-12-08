@@ -1,0 +1,56 @@
+{
+  "name": "@qwery/extension-json-online",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/extension.js",
+  "scripts": {
+    "lint": "echo \"no lint configured\"",
+    "test": "vitest run --coverage --passWithNoTests",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "contributes": {
+    "datasources": [
+      {
+        "id": "json-online",
+        "name": "JSON (Online)",
+        "description": "Connect to public JSON files via URL",
+        "icon": "media/json.svg",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "jsonUrl": {
+              "type": "string",
+              "description": "Public JSON file URL",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "jsonUrl"
+          ]
+        },
+        "drivers": [
+          "json-online.duckdb"
+        ]
+      }
+    ],
+    "drivers": [
+      {
+        "id": "json-online.duckdb",
+        "name": "DuckDB (Node)",
+        "description": "Node runtime DuckDB driver for JSON files",
+        "runtime": "node",
+        "entry": "./dist/driver.js"
+      }
+    ]
+  },
+  "dependencies": {
+    "@duckdb/node-api": "1.4.2-r.1",
+    "@qwery/extensions-sdk": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vitest/coverage-istanbul": "catalog:",
+    "vitest": "catalog:"
+  }
+}
