@@ -351,11 +351,12 @@ export class InteractiveRepl {
 
       console.log('\n' + colored('💬 Processing...', colors.brand) + '\n');
 
-      // Get the stream from readDataAgent (returns StreamTextResult)
+      // Get the stream from readDataAgent function
       const streamResult = await readDataAgent(
-        this.conversationId,
+        conversation.id,
         messages,
         'azure/gpt-5-mini',
+        repositories,
       );
 
       // Iterate over the stream directly using AI SDK's stream methods
@@ -473,7 +474,7 @@ export class InteractiveRepl {
           updatedBy: 'cli',
         });
 
-        this.agent = new FactoryAgent({
+        this.agent = await FactoryAgent.create({
           conversationSlug: this.conversationId,
           model: 'azure/gpt-5-mini', // Default model for CLI
           repositories,

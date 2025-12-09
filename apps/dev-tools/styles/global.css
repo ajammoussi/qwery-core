@@ -1,8 +1,8 @@
 /*
-* global.css
-*
-* Global styles for the dev-tools application
-*/
+ * global.css
+ *
+ * Global styles for the dev-tools application
+ */
 
 /* Tailwind CSS */
 @import 'tailwindcss';
@@ -41,5 +41,46 @@
   textarea::placeholder {
     color: theme(--color-muted-foreground);
   }
+
+  /* ================================
+     Transparent Scrollbar Background
+     Visible Thumb
+     ================================ */
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    /* scrollbar-color: thumb track */
+    scrollbar-color: var(--scrollbar-thumb, rgba(255,255,255,0.3)) transparent;
+  }
+
+  /* WebKit (Chrome, Safari, Edge) */
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: transparent; /* scrollbar background */
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent; /* background only */
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb, rgba(255,255,255,0.3)); /* visible thumb */
+    border-radius: 4px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover, rgba(255,255,255,0.5));
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
+/* Optional: Define thumb colors (theme-friendly) */
+:root {
+  --scrollbar-thumb: rgba(255, 255, 255, 0.25);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.4);
+}

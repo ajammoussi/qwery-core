@@ -36,6 +36,16 @@ export const Suggestion = ({
 }: SuggestionProps) => {
   const handleClick = () => {
     onClick?.(suggestion);
+    // Auto-scroll to bottom after a short delay to allow message to be added
+    setTimeout(() => {
+      const conversationElement = document.querySelector('[role="log"]');
+      if (conversationElement) {
+        conversationElement.scrollTo({
+          top: conversationElement.scrollHeight,
+          behavior: 'smooth',
+        });
+      }
+    }, 100);
   };
 
   return (

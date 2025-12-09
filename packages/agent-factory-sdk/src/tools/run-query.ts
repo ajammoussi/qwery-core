@@ -1,6 +1,8 @@
 export interface RunQueryOptions {
   dbPath: string;
   query: string;
+  datasourceIds?: string[];
+  datasourceRepository?: import('@qwery/domain/repositories').IDatasourceRepository;
 }
 
 export interface RunQueryResult {
@@ -35,11 +37,38 @@ const convertBigInt = (value: unknown): unknown => {
 export const runQuery = async (
   opts: RunQueryOptions,
 ): Promise<RunQueryResult> => {
+  const { mkdir } = await import('node:fs/promises');
+  const { dirname } = await import('node:path');
   const { DuckDBInstance } = await import('@duckdb/node-api');
+
+  const dbDir = dirname(opts.dbPath);
+  await mkdir(dbDir, { recursive: true });
+
   const instance = await DuckDBInstance.create(opts.dbPath);
   const conn = await instance.connect();
 
   try {
+    // Attach foreign datasources if provided (attachments are session-scoped)
+    if (
+      opts.datasourceIds &&
+      opts.datasourceIds.length > 0 &&
+      opts.datasourceRepository
+    ) {
+      const { attachAllForeignDatasourcesToConnection } = await import(
+        './foreign-datasource-attach'
+      );
+      try {
+        await attachAllForeignDatasourcesToConnection({
+          conn,
+          datasourceIds: opts.datasourceIds,
+          datasourceRepository: opts.datasourceRepository,
+        });
+      } catch (error) {
+        // Log but don't fail - query might still work with other datasources
+        console.warn('[RunQuery] Failed to attach foreign datasources:', error);
+      }
+    }
+
     // Execute the query on the view
     const resultReader = await conn.runAndReadAll(opts.query);
     await resultReader.readAll();

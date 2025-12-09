@@ -107,13 +107,13 @@ describe('extractSchema', () => {
     expect(idColumn?.columnType).toBeDefined();
   });
 
-  it('should throw error when database does not exist', async () => {
+  it('should create database and return empty schema when database does not exist', async () => {
     const { extractSchema } = await import('../../src/tools/extract-schema');
-    await expect(
-      extractSchema({
-        dbPath: join(testWorkspace, 'non-existent', 'database.db'),
-      }),
-    ).rejects.toThrow();
+    const result = await extractSchema({
+      dbPath: join(testWorkspace, 'non-existent', 'database.db'),
+    });
+    expect(result).toBeDefined();
+    expect(result.tables).toEqual([]);
   });
 
   it('should handle empty view gracefully', async () => {

@@ -9,10 +9,19 @@ import {
 import { cn } from '../lib/utils';
 import type { ToolUIPart } from 'ai';
 import {
+  BarChart3Icon,
   CheckCircleIcon,
   ChevronDownIcon,
   CircleIcon,
   ClockIcon,
+  CodeIcon,
+  DatabaseIcon,
+  LinkIcon,
+  LoaderIcon,
+  PlugIcon,
+  SheetIcon,
+  TableIcon,
+  Trash2Icon,
   WrenchIcon,
   XCircleIcon,
 } from 'lucide-react';
@@ -25,7 +34,7 @@ export type ToolProps = ComponentProps<typeof Collapsible>;
 export const Tool = ({ className, ...props }: ToolProps) => (
   <Collapsible
     className={cn(
-      'not-prose mb-4 w-full max-w-full rounded-md border',
+      'not-prose mb-4 flex w-full max-w-full flex-col overflow-hidden rounded-md border',
       className,
     )}
     {...props}
@@ -39,33 +48,120 @@ export type ToolHeaderProps = {
   className?: string;
 };
 
-const getStatusBadge = (status: ToolUIPart['state']) => {
-  const labels: Record<string, string> = {
-    'input-streaming': 'Pending',
-    'input-available': 'Running',
-    'approval-requested': 'Awaiting Approval',
-    'approval-responded': 'Responded',
-    'output-available': 'Completed',
-    'output-error': 'Error',
-    'output-denied': 'Denied',
+const getUserFriendlyToolName = (type: string): string => {
+  const nameMap: Record<string, string> = {
+    'tool-testConnection': 'Test Connection',
+    'tool-runQuery': 'Run Query',
+    'tool-getTableSchema': 'Get Table Schema',
+    'tool-generateChart': 'Generate Chart',
+    'tool-selectChartType': 'Select Chart Type',
+    'tool-listAvailableSheets': 'List Available Sheets',
+    'tool-viewSheet': 'View Sheet',
+    'tool-deleteSheet': 'Delete Sheet',
+    'tool-readLinkData': 'Read Link Data',
+    'tool-api_call': 'API Call',
   };
 
-  const icons: Record<string, ReactNode> = {
-    'input-streaming': <CircleIcon className="size-4" />,
-    'input-available': <ClockIcon className="size-4 animate-pulse" />,
-    'approval-requested': <ClockIcon className="size-4 text-yellow-600" />,
-    'approval-responded': <CheckCircleIcon className="size-4 text-blue-600" />,
-    'output-available': <CheckCircleIcon className="size-4 text-green-600" />,
-    'output-error': <XCircleIcon className="size-4 text-red-600" />,
-    'output-denied': <XCircleIcon className="size-4 text-orange-600" />,
+  if (nameMap[type]) {
+    return nameMap[type] as string;
+  }
+
+  // Convert camelCase or kebab-case to Title Case
+  return type
+    .replace('tool-', '')
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/-/g, ' ')
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
+const getStatusConfig = (status: ToolUIPart['state']) => {
+  const configs: Record<
+    string,
+    {
+      label: string;
+      icon: ReactNode;
+      variant: 'default' | 'secondary' | 'destructive' | 'outline';
+      className: string;
+      loadingText?: string;
+    }
+  > = {
+    'input-streaming': {
+      label: 'Pending',
+      icon: <CircleIcon className="size-3" />,
+      variant: 'secondary',
+      className: 'bg-muted text-muted-foreground',
+      loadingText: 'Generating response...',
+    },
+    'input-available': {
+      label: 'Processing',
+      icon: <LoaderIcon className="size-3 animate-spin" />,
+      variant: 'default',
+      className: 'bg-primary/10 text-primary border-primary/20',
+      loadingText: 'Generating response...',
+    },
+    'approval-requested': {
+      label: 'Awaiting Approval',
+      icon: <ClockIcon className="size-3" />,
+      variant: 'outline',
+      className:
+        'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/20 dark:text-yellow-500 dark:border-yellow-800',
+    },
+    'approval-responded': {
+      label: 'Responded',
+      icon: <CheckCircleIcon className="size-3" />,
+      variant: 'default',
+      className:
+        'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-500 dark:border-blue-800',
+    },
+    'output-available': {
+      label: 'Completed',
+      icon: <CheckCircleIcon className="size-3" />,
+      variant: 'default',
+      className:
+        'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-500 dark:border-emerald-800',
+    },
+    'output-error': {
+      label: 'Error',
+      icon: <XCircleIcon className="size-3" />,
+      variant: 'destructive',
+      className: 'bg-destructive/10 text-destructive border-destructive/20',
+    },
+    'output-denied': {
+      label: 'Denied',
+      icon: <XCircleIcon className="size-3" />,
+      variant: 'outline',
+      className:
+        'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/20 dark:text-orange-500 dark:border-orange-800',
+    },
   };
 
   return (
-    <Badge className="gap-1.5 rounded-full text-xs" variant="secondary">
-      {icons[status] ?? <CircleIcon className="size-4" />}
-      {labels[status] ?? status}
-    </Badge>
+    configs[status] ?? {
+      label: status,
+      icon: <CircleIcon className="size-3" />,
+      variant: 'secondary',
+      className: 'bg-muted text-muted-foreground',
+    }
   );
+};
+
+const getToolIcon = (type: string) => {
+  const iconMap: Record<string, ReactNode> = {
+    'tool-testConnection': <PlugIcon className="size-4" />,
+    'tool-runQuery': <DatabaseIcon className="size-4" />,
+    'tool-getTableSchema': <TableIcon className="size-4" />,
+    'tool-generateChart': <BarChart3Icon className="size-4" />,
+    'tool-selectChartType': <BarChart3Icon className="size-4" />,
+    'tool-listAvailableSheets': <SheetIcon className="size-4" />,
+    'tool-viewSheet': <SheetIcon className="size-4" />,
+    'tool-deleteSheet': <Trash2Icon className="size-4" />,
+    'tool-readLinkData': <LinkIcon className="size-4" />,
+    'tool-api_call': <CodeIcon className="size-4" />,
+  };
+
+  return iconMap[type] ?? <WrenchIcon className="size-4" />;
 };
 
 export const ToolHeader = ({
@@ -74,24 +170,37 @@ export const ToolHeader = ({
   type,
   state,
   ...props
-}: ToolHeaderProps) => (
-  <CollapsibleTrigger
-    className={cn(
-      'flex w-full items-center justify-between gap-4 p-3',
-      className,
-    )}
-    {...props}
-  >
-    <div className="flex items-center gap-2">
-      <WrenchIcon className="text-muted-foreground size-4" />
-      <span className="text-sm font-medium">
-        {title ?? type.split('-').slice(1).join('-')}
-      </span>
-      {getStatusBadge(state)}
-    </div>
-    <ChevronDownIcon className="text-muted-foreground size-4 transition-transform group-data-[state=open]:rotate-180" />
-  </CollapsibleTrigger>
-);
+}: ToolHeaderProps) => {
+  const statusConfig = getStatusConfig(state);
+  const toolIcon = getToolIcon(type);
+  const toolName = title ?? getUserFriendlyToolName(type);
+
+  return (
+    <CollapsibleTrigger
+      className={cn(
+        'bg-background sticky top-0 z-10 flex w-full items-center justify-between gap-4 border-b p-3',
+        className,
+      )}
+      {...props}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        {toolIcon}
+        <span className="truncate text-sm font-medium">{toolName}</span>
+        <Badge
+          variant={statusConfig.variant}
+          className={cn(
+            'flex shrink-0 items-center gap-1.5',
+            statusConfig.className,
+          )}
+        >
+          {statusConfig.icon}
+          <span>{statusConfig.label}</span>
+        </Badge>
+      </div>
+      <ChevronDownIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
+    </CollapsibleTrigger>
+  );
+};
 
 export type ToolContentProps = ComponentProps<typeof CollapsibleContent>;
 
@@ -126,16 +235,47 @@ export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
 export type ToolOutputProps = ComponentProps<'div'> & {
   output: ToolUIPart['output'];
   errorText: ToolUIPart['errorText'];
+  isTestConnection?: boolean;
 };
 
 export const ToolOutput = ({
   className,
   output,
   errorText,
+  isTestConnection = false,
   ...props
 }: ToolOutputProps) => {
   if (!(output || errorText)) {
     return null;
+  }
+
+  // Special handling for testConnection tool
+  if (isTestConnection && !errorText) {
+    const result =
+      output === true ||
+      output === 'true' ||
+      String(output).toLowerCase() === 'true';
+    return (
+      <div className={cn('min-w-0 p-5', className)} {...props}>
+        <div className="flex items-center gap-3">
+          {result ? (
+            <>
+              <CheckCircleIcon className="size-5 shrink-0 text-emerald-600" />
+              <span className="text-sm font-medium text-emerald-600">
+                Connection successful
+              </span>
+            </>
+          ) : (
+            <>
+              <XCircleIcon className="text-destructive size-5 shrink-0" />
+              <span className="text-destructive text-sm font-medium">
+                Connection failed
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+    );
   }
 
   let Output = <div>{output as ReactNode}</div>;

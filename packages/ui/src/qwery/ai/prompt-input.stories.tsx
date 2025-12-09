@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import * as React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import type { PromptInputMessage } from '../../ai-elements/prompt-input';
@@ -40,8 +41,8 @@ const mockPluginLogoMap = new Map<string, string>([
 ]);
 
 const DefaultComponent = () => {
-  const [input, setInput] = React.useState('');
-  const [model, setModel] = React.useState('gpt-4');
+  const [input, setInput] = useState('');
+  const [model, setModel] = useState('gpt-4');
 
   const models = [
     { name: 'GPT-4', value: 'gpt-4' },

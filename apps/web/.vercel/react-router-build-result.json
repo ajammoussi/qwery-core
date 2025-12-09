@@ -26,6 +26,7 @@
       "routes/api/notebook/notebook": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api/conversation/get-all-conversations": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api/conversation/conversation": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api/conversations/project/$projectId": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api/conversation/get-messages": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api/usage/usage": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -157,6 +158,13 @@
         "parentId": "root",
         "file": "app/routes/api/conversation/conversation.ts",
         "path": "api/conversations/:id",
+        "config": {}
+      },
+      "routes/api/conversations/project/$projectId": {
+        "id": "routes/api/conversations/project/$projectId",
+        "parentId": "root",
+        "file": "app/routes/api/conversations/project/$projectId.ts",
+        "path": "api/conversations/project/:projectId",
         "config": {}
       },
       "routes/api/conversation/get-messages": {
@@ -318,9 +326,9 @@
     }
   },
   "reactRouterConfig": {
-    "appDirectory": "/Users/hani.chalouati/Documents/work/guepard/qwery-core/apps/web/app",
+    "appDirectory": "/home/mohamed-aziz-ktata/Desktop/Guepard/qwery-open-source-core-aziz/qwery-core/apps/web/app",
     "basename": "/",
-    "buildDirectory": "/Users/hani.chalouati/Documents/work/guepard/qwery-core/apps/web/build",
+    "buildDirectory": "/home/mohamed-aziz-ktata/Desktop/Guepard/qwery-open-source-core-aziz/qwery-core/apps/web/build",
     "future": {
       "v8_middleware": false,
       "unstable_optimizeDeps": false,
@@ -423,6 +431,12 @@
         "parentId": "root",
         "file": "routes/api/conversation/conversation.ts",
         "path": "api/conversations/:id"
+      },
+      "routes/api/conversations/project/$projectId": {
+        "id": "routes/api/conversations/project/$projectId",
+        "parentId": "root",
+        "file": "routes/api/conversations/project/$projectId.ts",
+        "path": "api/conversations/project/:projectId"
       },
       "routes/api/conversation/get-messages": {
         "id": "routes/api/conversation/get-messages",
@@ -630,6 +644,10 @@
           {
             "file": "routes/api/conversation/conversation.ts",
             "path": "api/conversations/:id"
+          },
+          {
+            "file": "routes/api/conversations/project/$projectId.ts",
+            "path": "api/conversations/project/:projectId"
           },
           {
             "file": "routes/api/conversation/get-messages.ts",

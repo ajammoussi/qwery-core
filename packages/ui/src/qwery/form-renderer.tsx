@@ -29,6 +29,7 @@ import {
 } from '@qwery/ui/select';
 import { Switch } from '@qwery/ui/switch';
 import { Textarea } from '@qwery/ui/textarea';
+import { useEffect } from 'react';
 
 type ZodSchemaType = z.ZodTypeAny;
 
@@ -281,7 +282,7 @@ function renderField(
   // String
   if (isSchemaType(unwrapped, 'ZodString')) {
     const checks = getStringChecks(unwrapped);
-    const inputType = checks.email ? 'email' : checks.url ? 'url' : 'text';
+    const inputType = checks.email ? 'email' : 'text';
     const isLongText = checks.max && checks.max > 200;
 
     return (
@@ -609,10 +610,20 @@ export function FormRenderer<T extends ZodSchemaType>({
     }
   }, [watchedValues, form, schema]);
 
+  // Trigger initial validation and track validity changes
+  useEffect(() => {
+    if (!onValidityChangeRef.current) return;
+    form.trigger().then(() => {
+      onValidityChangeRef.current?.(form.formState.isValid);
+    });
+  }, [form]);
+
   React.useEffect(() => {
     if (!onValidityChangeRef.current) return;
-    onValidityChangeRef.current(form.formState.isValid);
-  }, [form.formState.isValid]);
+    const isValid =
+      form.formState.isValid && Object.keys(form.formState.errors).length === 0;
+    onValidityChangeRef.current(isValid);
+  }, [form.formState.isValid, form.formState.errors]);
 
   const handleSubmit = form.handleSubmit(async (values) => {
     await onSubmit(values);

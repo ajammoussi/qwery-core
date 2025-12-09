@@ -32,9 +32,14 @@ export const INTENTS_LIST = [
     destructive: false,
   },
   {
+    name: 'system',
+    description:
+      'When the user asks about the system, what it is, what it can do, or how it works',
+    destructive: false,
+  },
+  {
     name: 'other',
     description: 'When the user says something else',
-    supported: true,
     destructive: false,
   },
 
@@ -339,6 +344,7 @@ const intentNames = INTENTS_LIST.map((intent) => intent.name) as [
 export const IntentSchema = z.object({
   intent: z.enum(intentNames),
   complexity: z.enum(['simple', 'medium', 'complex']),
+  needsChart: z.boolean().default(false),
 });
 
 export type Intent = z.infer<typeof IntentSchema>;
@@ -354,9 +360,9 @@ export type AgentContext = {
     | ReturnType<(typeof Experimental_Agent)['prototype']['stream']> // holds the streaming result from AI SDK
     | null;
   intent: Intent;
-  error?: string | null;
-  retryCount?: number; // Track retry attempts
-  lastError?: Error | null; // Store last error for retry logic
+  error?: string;
+  retryCount?: number;
+  lastError?: Error;
   enhancementActors?: Array<{ id: string; ref: AnyActorRef }>; // Track spawned actors
 };
 

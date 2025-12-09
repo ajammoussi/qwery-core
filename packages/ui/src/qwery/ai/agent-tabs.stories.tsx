@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import * as React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { AgentTabs, type AgentTab } from './agent-tabs';
@@ -37,9 +38,9 @@ export const Default: Story = {
 };
 
 function WithAddRemoveStory() {
-  const [tabs, setTabs] = React.useState<AgentTab[]>(() => createTabs(2));
+  const [tabs, setTabs] = useState<AgentTab[]>(() => createTabs(2));
 
-  const handleAdd = React.useCallback(() => {
+  const handleAdd = useCallback(() => {
     setTabs((current) => {
       const nextIndex = current.length + 1;
       const newTab: AgentTab = {
@@ -62,7 +63,7 @@ function WithAddRemoveStory() {
     });
   }, []);
 
-  const handleRemove = React.useCallback((tabId: string) => {
+  const handleRemove = useCallback((tabId: string) => {
     setTabs((current) => current.filter((tab) => tab.id !== tabId));
   }, []);
 

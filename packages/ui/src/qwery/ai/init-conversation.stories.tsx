@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import * as React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import type { PromptInputMessage } from '../../ai-elements/prompt-input';
@@ -12,7 +13,7 @@ export default meta;
 type Story = StoryObj<typeof QweryConversationInit>;
 
 const DefaultComponent = () => {
-  const [input, setInput] = React.useState('');
+  const [input, setInput] = useState('');
 
   const handleSubmit = (message: PromptInputMessage) => {
     console.log('Submitted message:', message);

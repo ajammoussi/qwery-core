@@ -1,5 +1,6 @@
 import { cn } from '../lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../shadcn/avatar';
+import { ClientOnly } from './client-only';
 
 type SessionProps = {
   displayName: string | null;
@@ -15,7 +16,7 @@ type ProfileAvatarProps = (SessionProps | TextProps) & {
   fallbackClassName?: string;
 };
 
-export function ProfileAvatar(props: ProfileAvatarProps) {
+function ProfileAvatarInner(props: ProfileAvatarProps) {
   const avatarClassName = cn(
     'mx-auto h-9 w-9 group-focus:ring-2',
     props.className,
@@ -50,5 +51,22 @@ export function ProfileAvatar(props: ProfileAvatarProps) {
         </span>
       </AvatarFallback>
     </Avatar>
+  );
+}
+
+export function ProfileAvatar(props: ProfileAvatarProps) {
+  return (
+    <ClientOnly
+      fallback={
+        <div
+          className={cn(
+            'bg-muted mx-auto h-9 w-9 shrink-0 rounded-full',
+            props.className,
+          )}
+        />
+      }
+    >
+      <ProfileAvatarInner {...props} />
+    </ClientOnly>
   );
 }

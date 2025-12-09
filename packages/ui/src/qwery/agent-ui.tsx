@@ -19,13 +19,8 @@ import {
 } from '../ai-elements/prompt-input';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useChat } from '@ai-sdk/react';
-import {
-  CopyIcon,
-  RefreshCcwIcon,
-  PencilIcon,
-  CheckIcon,
-  XIcon,
-} from 'lucide-react';
+import { useAgentStatus } from './agent-status-context';
+import { CopyIcon, RefreshCcwIcon, CheckIcon, XIcon } from 'lucide-react';
 import { Button } from '../shadcn/button';
 import { Textarea } from '../shadcn/textarea';
 import {
@@ -48,6 +43,22 @@ import {
 } from '../ai-elements/tool';
 import { Loader } from '../ai-elements/loader';
 import { ChatTransport, UIMessage, ToolUIPart } from 'ai';
+import { ChartRenderer, type ChartConfig } from './ai/charts/chart-renderer';
+import {
+  ChartTypeSelector,
+  type ChartTypeSelection,
+} from './ai/charts/chart-type-selector';
+import {
+  SQLQueryVisualizer,
+  type SQLQueryResult,
+} from './ai/sql-query-visualizer';
+import { SchemaVisualizer, type SchemaData } from './ai/schema-visualizer';
+import { AvailableSheetsVisualizer } from './ai/sheets/available-sheets-visualizer';
+import {
+  ViewSheetVisualizer,
+  type ViewSheetData,
+} from './ai/sheets/view-sheet-visualizer';
+import { ViewSheetError } from './ai/sheets/view-sheet-error';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { BotAvatar } from './bot-avatar';
@@ -68,6 +79,8 @@ export interface QweryAgentUIProps {
   onDatasourceSelectionChange?: (datasourceIds: string[]) => void;
   pluginLogoMap?: Map<string, string>;
   datasourcesLoading?: boolean;
+  // Message persistence
+  onMessageUpdate?: (messageId: string, content: string) => Promise<void>;
 }
 
 export default function QweryAgentUI(props: QweryAgentUIProps) {
@@ -77,12 +90,13 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     models,
     onOpen,
     usage,
-    emitFinish,
+    emitFinish: _emitFinish,
     datasources,
     selectedDatasources,
     onDatasourceSelectionChange,
     pluginLogoMap,
     datasourcesLoading,
+    onMessageUpdate,
   } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const hasFocusedRef = useRef(false);
@@ -130,16 +144,27 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
   const { messages, sendMessage, status, regenerate, stop, setMessages } =
     useChat({
       messages: initialMessages,
+      experimental_throttle: 100,
       transport: transportInstance,
     });
 
+  const { setIsProcessing } = useAgentStatus();
+
+  useEffect(() => {
+    setIsProcessing(status === 'streaming' || status === 'submitted');
+  }, [status, setIsProcessing]);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const regenCountRef = useRef<Map<string, number>>(new Map());
+  const viewSheetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editText, setEditText] = useState<string>('');
+  const [copiedMessagePartId, setCopiedMessagePartId] = useState<string | null>(
+    null,
+  );
 
   // Handle edit message
-  const handleEditStart = useCallback((messageId: string, text: string) => {
+  const _handleEditStart = useCallback((messageId: string, text: string) => {
     setEditingMessageId(messageId);
     setEditText(text);
   }, []);
@@ -149,16 +174,19 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     setEditText('');
   }, []);
 
-  const handleEditSubmit = useCallback(() => {
+  const handleEditSubmit = useCallback(async () => {
     if (!editingMessageId || !editText.trim()) return;
 
+    const updatedText = editText.trim();
+
+    // Update UI state immediately
     setMessages((prev) =>
       prev.map((msg) => {
         if (msg.id === editingMessageId) {
           return {
             ...msg,
             parts: msg.parts.map((p) =>
-              p.type === 'text' ? { ...p, text: editText.trim() } : p,
+              p.type === 'text' ? { ...p, text: updatedText } : p,
             ),
           };
         }
@@ -168,7 +196,17 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
 
     setEditingMessageId(null);
     setEditText('');
-  }, [editingMessageId, editText, setMessages]);
+
+    // Persist to database if callback provided
+    if (onMessageUpdate) {
+      try {
+        await onMessageUpdate(editingMessageId, updatedText);
+      } catch (error) {
+        console.error('Failed to persist message edit:', error);
+        // Optionally show error toast here
+      }
+    }
+  }, [editingMessageId, editText, setMessages, onMessageUpdate]);
 
   const handleRegenerate = useCallback(async () => {
     const lastAssistantMessage = messages
@@ -219,11 +257,37 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     setTimeout(() => setRegenCountsMap(counts), 0);
   }, [messages]);
 
+  // Track previous view sheet count to detect new additions
+  const prevViewSheetCountRef = useRef(0);
+
+  // Auto-scroll to view sheet when it's rendered
   useEffect(() => {
-    if (status === 'ready') {
-      emitFinish?.();
+    // Find all view sheet outputs
+    const viewSheetEntries = Array.from(viewSheetRefs.current.entries());
+    const currentCount = viewSheetEntries.length;
+
+    // Only scroll if a new view sheet was added (count increased)
+    if (
+      currentCount > prevViewSheetCountRef.current &&
+      viewSheetEntries.length > 0
+    ) {
+      // Get the last (most recent) view sheet
+      const lastEntry = viewSheetEntries[viewSheetEntries.length - 1];
+      if (lastEntry && lastEntry[1]) {
+        const lastViewSheetElement = lastEntry[1];
+        // Small delay to ensure DOM is fully rendered
+        setTimeout(() => {
+          lastViewSheetElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+          });
+        }, 300);
+      }
     }
-  }, [status, emitFinish]);
+
+    // Update the previous count
+    prevViewSheetCountRef.current = currentCount;
+  }, [messages, status]); // Re-run when messages or status changes
 
   return (
     <PromptInputProvider initialInput={state.input}>
@@ -308,10 +372,12 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                 )}
                               >
                                 {message.role === 'assistant' && (
-                                  <BotAvatar
-                                    size={6}
-                                    className="mt-1 shrink-0"
-                                  />
+                                  <div className="mt-1 shrink-0">
+                                    <BotAvatar
+                                      size={6}
+                                      isLoading={isStreaming}
+                                    />
+                                  </div>
                                 )}
                                 <div className="flex-end flex w-full max-w-[80%] min-w-0 flex-col justify-start gap-2">
                                   {isEditing && message.role === 'user' ? (
@@ -383,7 +449,6 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                               <MessageResponse>
                                                 {part.text}
                                               </MessageResponse>
-                                              <span className="inline-block h-4 w-0.5 animate-pulse bg-current" />
                                             </div>
                                           </MessageContent>
                                         </Message>
@@ -416,34 +481,40 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                               <RefreshCcwIcon className="size-3" />
                                             </Button>
                                           )}
-                                          {message.role === 'user' && (
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              onClick={() =>
-                                                handleEditStart(
-                                                  message.id,
-                                                  part.text,
-                                                )
-                                              }
-                                              className="h-7 w-7"
-                                              title="Edit"
-                                            >
-                                              <PencilIcon className="size-3" />
-                                            </Button>
-                                          )}
                                           <Button
                                             variant="ghost"
                                             size="icon"
-                                            onClick={() =>
-                                              navigator.clipboard.writeText(
-                                                part.text,
-                                              )
-                                            }
+                                            onClick={async () => {
+                                              const partId = `${message.id}-${i}`;
+                                              try {
+                                                await navigator.clipboard.writeText(
+                                                  part.text,
+                                                );
+                                                setCopiedMessagePartId(partId);
+                                                setTimeout(() => {
+                                                  setCopiedMessagePartId(null);
+                                                }, 2000);
+                                              } catch (error) {
+                                                console.error(
+                                                  'Failed to copy:',
+                                                  error,
+                                                );
+                                              }
+                                            }}
                                             className="h-7 w-7"
-                                            title="Copy"
+                                            title={
+                                              copiedMessagePartId ===
+                                              `${message.id}-${i}`
+                                                ? 'Copied!'
+                                                : 'Copy'
+                                            }
                                           >
-                                            <CopyIcon className="size-3" />
+                                            {copiedMessagePartId ===
+                                            `${message.id}-${i}` ? (
+                                              <CheckIcon className="size-3 text-green-600" />
+                                            ) : (
+                                              <CopyIcon className="size-3" />
+                                            )}
                                           </Button>
                                         </div>
                                       )}
@@ -487,12 +558,201 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                               const isToolInProgress = inProgressStates.has(
                                 toolPart.state as string,
                               );
+                              const isGenerateChart =
+                                toolPart.type === 'tool-generateChart';
+                              const isSelectChartType =
+                                toolPart.type === 'tool-selectChartType';
+                              const isRunQuery =
+                                toolPart.type === 'tool-runQuery';
+                              const isGetSchema =
+                                toolPart.type === 'tool-getTableSchema';
+                              const isListViews =
+                                toolPart.type === 'tool-listViews';
+                              const isViewSheet =
+                                toolPart.type === 'tool-viewSheet';
+
+                              // Check if viewSheet is already in progress or completed in this message
+                              const hasViewSheetInMessage = message.parts.some(
+                                (p) =>
+                                  p.type === 'tool-viewSheet' &&
+                                  (p.state === 'output-available' ||
+                                    p.state === 'input-available' ||
+                                    p.state === 'input-streaming'),
+                              );
+
+                              // Parse chart type selection if it's selectChartType tool
+                              let chartSelection: ChartTypeSelection | null =
+                                null;
+                              if (isSelectChartType && toolPart.output) {
+                                let parsedOutput: unknown = toolPart.output;
+                                if (typeof toolPart.output === 'string') {
+                                  try {
+                                    parsedOutput = JSON.parse(toolPart.output);
+                                  } catch {
+                                    // Not JSON, will use regular ToolOutput
+                                  }
+                                }
+                                if (
+                                  parsedOutput &&
+                                  typeof parsedOutput === 'object' &&
+                                  !Array.isArray(parsedOutput) &&
+                                  'chartType' in parsedOutput &&
+                                  'reasoning' in parsedOutput
+                                ) {
+                                  chartSelection =
+                                    parsedOutput as ChartTypeSelection;
+                                }
+                              }
+
+                              // Parse chart output if it's generateChart tool
+                              let chartConfig: ChartConfig | null = null;
+                              if (isGenerateChart && toolPart.output) {
+                                let parsedOutput: unknown = toolPart.output;
+                                if (typeof toolPart.output === 'string') {
+                                  try {
+                                    parsedOutput = JSON.parse(toolPart.output);
+                                  } catch {
+                                    // Not JSON, will use regular ToolOutput
+                                  }
+                                }
+                                if (
+                                  parsedOutput &&
+                                  typeof parsedOutput === 'object' &&
+                                  !Array.isArray(parsedOutput) &&
+                                  'chartType' in parsedOutput &&
+                                  'data' in parsedOutput &&
+                                  'config' in parsedOutput
+                                ) {
+                                  chartConfig = parsedOutput as ChartConfig;
+                                }
+                              }
+
+                              // Parse SQL query result if it's runQuery tool
+                              let sqlResult: SQLQueryResult | null = null;
+                              let sqlQuery: string | undefined;
+                              if (isRunQuery) {
+                                // Extract query from input
+                                if (
+                                  toolPart.input &&
+                                  typeof toolPart.input === 'object' &&
+                                  'query' in toolPart.input
+                                ) {
+                                  sqlQuery =
+                                    typeof toolPart.input.query === 'string'
+                                      ? toolPart.input.query
+                                      : undefined;
+                                }
+
+                                // Parse output
+                                if (toolPart.output) {
+                                  let parsedOutput: unknown = toolPart.output;
+                                  if (typeof toolPart.output === 'string') {
+                                    try {
+                                      parsedOutput = JSON.parse(
+                                        toolPart.output,
+                                      );
+                                    } catch {
+                                      // Not JSON, will use regular ToolOutput
+                                    }
+                                  }
+                                  if (
+                                    parsedOutput &&
+                                    typeof parsedOutput === 'object' &&
+                                    !Array.isArray(parsedOutput) &&
+                                    'result' in parsedOutput &&
+                                    parsedOutput.result &&
+                                    typeof parsedOutput.result === 'object' &&
+                                    'columns' in parsedOutput.result &&
+                                    'rows' in parsedOutput.result
+                                  ) {
+                                    sqlResult = parsedOutput as SQLQueryResult;
+                                  }
+                                }
+                              }
+
+                              // Parse schema output if it's getSchema tool
+                              let schemaData: SchemaData | null = null;
+                              if (isGetSchema && toolPart.output) {
+                                let parsedOutput: unknown = toolPart.output;
+                                if (typeof toolPart.output === 'string') {
+                                  try {
+                                    parsedOutput = JSON.parse(toolPart.output);
+                                  } catch {
+                                    // Not JSON, will use regular ToolOutput
+                                  }
+                                }
+                                if (
+                                  parsedOutput &&
+                                  typeof parsedOutput === 'object' &&
+                                  !Array.isArray(parsedOutput) &&
+                                  'schema' in parsedOutput &&
+                                  parsedOutput.schema &&
+                                  typeof parsedOutput.schema === 'object' &&
+                                  'tables' in parsedOutput.schema
+                                ) {
+                                  schemaData =
+                                    parsedOutput.schema as SchemaData;
+                                }
+                              }
+
+                              // Parse views if it's listViews tool
+                              let viewsData: {
+                                views: Array<{ viewName: string }>;
+                                message: string;
+                              } | null = null;
+                              if (isListViews && toolPart.output) {
+                                let parsedOutput: unknown = toolPart.output;
+                                if (typeof toolPart.output === 'string') {
+                                  try {
+                                    parsedOutput = JSON.parse(toolPart.output);
+                                  } catch {
+                                    // Not JSON, will use regular ToolOutput
+                                  }
+                                }
+                                if (
+                                  parsedOutput &&
+                                  typeof parsedOutput === 'object' &&
+                                  !Array.isArray(parsedOutput) &&
+                                  'views' in parsedOutput &&
+                                  Array.isArray(parsedOutput.views)
+                                ) {
+                                  viewsData = parsedOutput as {
+                                    views: Array<{ viewName: string }>;
+                                    message: string;
+                                  };
+                                }
+                              }
+
+                              // Parse view sheet if it's viewSheet tool
+                              let viewSheetData: ViewSheetData | null = null;
+                              if (isViewSheet && toolPart.output) {
+                                let parsedOutput: unknown = toolPart.output;
+                                if (typeof toolPart.output === 'string') {
+                                  try {
+                                    parsedOutput = JSON.parse(toolPart.output);
+                                  } catch {
+                                    // Not JSON, will use regular ToolOutput
+                                  }
+                                }
+                                if (
+                                  parsedOutput &&
+                                  typeof parsedOutput === 'object' &&
+                                  !Array.isArray(parsedOutput) &&
+                                  'sheetName' in parsedOutput &&
+                                  'columns' in parsedOutput &&
+                                  'rows' in parsedOutput
+                                ) {
+                                  viewSheetData = parsedOutput as ViewSheetData;
+                                }
+                              }
 
                               return (
                                 <Tool
                                   key={`${message.id}-${i}`}
                                   defaultOpen={
-                                    toolPart.state === 'output-error'
+                                    toolPart.state === 'output-error' ||
+                                    (isGenerateChart &&
+                                      toolPart.state === 'output-available')
                                   }
                                 >
                                   <ToolHeader
@@ -501,7 +761,11 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                     state={toolPart.state}
                                   />
                                   <ToolContent>
-                                    {toolPart.input != null ? (
+                                    {toolPart.input != null &&
+                                    !isRunQuery &&
+                                    !isGetSchema &&
+                                    !isListViews &&
+                                    !isViewSheet ? (
                                       <ToolInput input={toolPart.input} />
                                     ) : null}
                                     {isToolInProgress && (
@@ -509,10 +773,135 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                         <Loader size={20} />
                                       </div>
                                     )}
-                                    <ToolOutput
-                                      output={toolPart.output}
-                                      errorText={toolPart.errorText}
-                                    />
+                                    {isSelectChartType && chartSelection ? (
+                                      <div className="min-w-0 space-y-2 p-4">
+                                        <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                                          Chart Type Selection
+                                        </h4>
+                                        <div className="bg-muted/50 max-w-full min-w-0 overflow-hidden rounded-md p-4">
+                                          <ChartTypeSelector
+                                            selection={chartSelection}
+                                          />
+                                        </div>
+                                      </div>
+                                    ) : isGenerateChart && chartConfig ? (
+                                      <div className="min-w-0 space-y-2 p-4">
+                                        <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                                          Chart
+                                        </h4>
+                                        <div className="bg-muted/50 w-full max-w-full min-w-0 overflow-hidden rounded-md p-4">
+                                          <ChartRenderer
+                                            chartConfig={chartConfig}
+                                          />
+                                        </div>
+                                      </div>
+                                    ) : isGetSchema && schemaData ? (
+                                      <div className="min-w-0 space-y-2 p-4">
+                                        <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                                          Schema
+                                        </h4>
+                                        <div className="bg-muted/50 max-w-full min-w-0 overflow-hidden rounded-md p-4">
+                                          <SchemaVisualizer
+                                            schema={schemaData}
+                                          />
+                                        </div>
+                                      </div>
+                                    ) : isRunQuery && sqlResult ? (
+                                      <div className="min-w-0 space-y-2 p-4">
+                                        <SQLQueryVisualizer
+                                          query={sqlQuery}
+                                          result={sqlResult}
+                                        />
+                                      </div>
+                                    ) : isListViews && viewsData ? (
+                                      <div className="min-w-0 space-y-2 p-4">
+                                        <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                                          Available Sheets
+                                        </h4>
+                                        <div className="bg-muted/50 max-w-full min-w-0 overflow-hidden rounded-md p-4">
+                                          <AvailableSheetsVisualizer
+                                            data={{
+                                              sheets: viewsData.views.map(
+                                                (v) => ({
+                                                  name: v.viewName,
+                                                  type: 'view' as const,
+                                                }),
+                                              ),
+                                              message: viewsData.message,
+                                            }}
+                                            isRequestInProgress={
+                                              status === 'streaming' ||
+                                              status === 'submitted' ||
+                                              hasViewSheetInMessage
+                                            }
+                                            onViewSheet={(sheetName) => {
+                                              sendMessage({
+                                                text: `View sheet "${sheetName}"`,
+                                              });
+                                            }}
+                                          />
+                                        </div>
+                                      </div>
+                                    ) : isViewSheet && viewSheetData ? (
+                                      <div
+                                        ref={(el) => {
+                                          if (el) {
+                                            viewSheetRefs.current.set(
+                                              `${message.id}-${i}`,
+                                              el,
+                                            );
+                                          } else {
+                                            viewSheetRefs.current.delete(
+                                              `${message.id}-${i}`,
+                                            );
+                                          }
+                                        }}
+                                        className="min-w-0 scroll-mt-4 space-y-2 p-4"
+                                      >
+                                        <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                                          Sheet View
+                                        </h4>
+                                        <div className="bg-muted/50 max-w-full min-w-0 overflow-hidden rounded-md p-4">
+                                          <ViewSheetVisualizer
+                                            data={viewSheetData}
+                                          />
+                                        </div>
+                                      </div>
+                                    ) : isViewSheet && toolPart.errorText ? (
+                                      <div className="min-w-0 space-y-2 p-4">
+                                        <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                                          Sheet View
+                                        </h4>
+                                        <div className="bg-muted/50 max-w-full min-w-0 overflow-hidden rounded-md p-4">
+                                          <ViewSheetError
+                                            errorText={toolPart.errorText}
+                                            sheetName={
+                                              toolPart.input &&
+                                              typeof toolPart.input ===
+                                                'object' &&
+                                              'sheetName' in toolPart.input &&
+                                              typeof toolPart.input
+                                                .sheetName === 'string'
+                                                ? toolPart.input.sheetName
+                                                : undefined
+                                            }
+                                            availableSheets={viewsData?.views.map(
+                                              (v) => v.viewName,
+                                            )}
+                                            onRetry={(sheetName: string) => {
+                                              sendMessage({
+                                                text: `View sheet "${sheetName}"`,
+                                              });
+                                            }}
+                                          />
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <ToolOutput
+                                        output={toolPart.output}
+                                        errorText={toolPart.errorText}
+                                      />
+                                    )}
                                   </ToolContent>
                                 </Tool>
                               );
@@ -526,13 +915,16 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
               )}
               {status === 'submitted' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 flex items-start gap-3 duration-300">
-                  <BotAvatar size={6} className="mt-1 shrink-0" />
+                  <BotAvatar
+                    size={6}
+                    isLoading={true}
+                    className="mt-1 shrink-0"
+                  />
                   <div className="flex-end flex w-full max-w-[80%] min-w-0 flex-col justify-start gap-2">
                     <Message from="assistant" className="w-full">
                       <MessageContent>
                         <div className="inline-flex items-baseline gap-0.5">
                           <MessageResponse></MessageResponse>
-                          <span className="inline-block h-4 w-0.5 animate-pulse bg-current" />
                         </div>
                       </MessageContent>
                     </Message>
@@ -575,8 +967,8 @@ function PromptInputInner({
   textareaRef,
   status,
   stop,
-  setMessages,
-  messages,
+  setMessages: _setMessages,
+  messages: _messages,
   models,
   usage,
   datasources,
@@ -605,13 +997,6 @@ function PromptInputInner({
 }) {
   const attachments = usePromptInputAttachments();
   const controller = usePromptInputController();
-  const [isAborting, setIsAborting] = useState(false);
-
-  useEffect(() => {
-    if (status !== 'streaming' && isAborting) {
-      setTimeout(() => setIsAborting(false), 0);
-    }
-  }, [status, isAborting]);
 
   const handleSubmit = async (message: PromptInputMessage) => {
     if (status === 'streaming' || status === 'submitted') {
@@ -625,6 +1010,7 @@ function PromptInputInner({
       return;
     }
 
+    // Clear input immediately on submit (button click or Enter press)
     controller.textInput.clear();
     setState((prev) => ({ ...prev, input: '' }));
 
@@ -642,23 +1028,19 @@ function PromptInputInner({
         },
       );
       attachments.clear();
+      // Don't clear input here - it's already cleared on submit
+      // The input should only be cleared on explicit user action (submit button or Enter)
     } catch {
       toast.error('Failed to send message. Please try again.');
+      // On error, restore the input so user can retry
+      if (message.text) {
+        setState((prev) => ({ ...prev, input: message.text }));
+      }
     }
   };
 
   const handleStop = async () => {
-    setIsAborting(true);
-
-    const lastAssistantMessage = messages
-      .filter((m: UIMessage) => m.role === 'assistant')
-      .at(-1);
-
-    if (lastAssistantMessage) {
-      setMessages((prev) =>
-        prev.filter((m) => m.id !== lastAssistantMessage.id),
-      );
-    }
+    // Don't remove the message - keep whatever was generated so far
     stop();
   };
 
@@ -670,10 +1052,10 @@ function PromptInputInner({
       model={state.model}
       setModel={(model) => setState((prev) => ({ ...prev, model }))}
       models={models}
-      status={isAborting ? undefined : status}
+      status={status}
       textareaRef={textareaRef}
       onStop={handleStop}
-      stopDisabled={isAborting}
+      stopDisabled={false}
       attachmentsCount={attachments.files.length}
       usage={usage}
       datasources={datasources}

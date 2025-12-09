@@ -17,18 +17,24 @@ export class BrowserChatTransport implements ChatTransport<UIMessage> {
   private modelName: string;
   private repositories: Repositories;
   private conversationSlug: string;
-  private agent: FactoryAgent;
+  private agent: FactoryAgent | null;
 
   constructor(options: BrowserTransportOptions) {
     this.modelName = options.model;
     this.repositories = options.repositories;
     this.conversationSlug = options.conversationSlug;
+    this.agent = null as unknown as FactoryAgent;
+  }
 
-    this.agent = new FactoryAgent({
-      conversationSlug: this.conversationSlug,
-      model: this.modelName,
-      repositories: this.repositories,
-    });
+  private async getAgent(): Promise<FactoryAgent> {
+    if (!this.agent) {
+      this.agent = await FactoryAgent.create({
+        conversationSlug: this.conversationSlug,
+        model: this.modelName,
+        repositories: this.repositories,
+      });
+    }
+    return this.agent;
   }
 
   async sendMessages(
@@ -37,7 +43,8 @@ export class BrowserChatTransport implements ChatTransport<UIMessage> {
     const { messages } = args;
 
     // Get response from agent (model resolution happens inside the state machine)
-    const response = await this.agent.respond({
+    const agent = await this.getAgent();
+    const response = await agent.respond({
       messages: await validateUIMessages({ messages }),
     });
 
