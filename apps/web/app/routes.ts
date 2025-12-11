@@ -36,6 +36,7 @@ const apiRoutes = [
   ),
   route('api/messages', 'routes/api/conversation/get-messages.ts'),
   route('api/usage', 'routes/api/usage/usage.ts'),
+  route('api/notebook/prompt', 'routes/api/notebook/prompt.ts'),
 ];
 
 const appRoutes = layout('routes/layout/layout.tsx', [

@@ -20,7 +20,14 @@ import {
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { useAgentStatus } from './agent-status-context';
-import { CopyIcon, RefreshCcwIcon, CheckIcon, XIcon } from 'lucide-react';
+import {
+  CopyIcon,
+  RefreshCcwIcon,
+  CheckIcon,
+  XIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from 'lucide-react';
 import { Button } from '../shadcn/button';
 import { Textarea } from '../shadcn/textarea';
 import {
@@ -132,6 +139,34 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     setIsProcessing(status === 'streaming' || status === 'submitted');
   }, [status, setIsProcessing]);
 
+  // Update messages when initialMessages changes (e.g., when conversation loads)
+  // This is important for notebook chat integration where messages load asynchronously
+  const previousInitialMessagesRef = useRef<UIMessage[] | undefined>(undefined);
+  useEffect(() => {
+    // Only update if initialMessages actually changed
+    if (initialMessages !== previousInitialMessagesRef.current) {
+      previousInitialMessagesRef.current = initialMessages;
+      
+      if (initialMessages && initialMessages.length > 0) {
+        // Check if messages are actually different
+        const currentMessageIds = new Set(messages.map((m) => m.id));
+        const initialMessageIds = new Set(initialMessages.map((m) => m.id));
+        const idsMatch =
+          currentMessageIds.size === initialMessageIds.size &&
+          Array.from(currentMessageIds).every((id) => initialMessageIds.has(id));
+
+        if (!idsMatch) {
+          setMessages(initialMessages);
+        }
+      } else if (initialMessages && initialMessages.length === 0 && messages.length > 0) {
+        // If initialMessages is empty array, clear messages (conversation was cleared)
+        setMessages([]);
+      } else if (!initialMessages && messages.length === 0) {
+        // If initialMessages is undefined and we have no messages, that's fine
+        // Don't update
+      }
+    }
+  }, [initialMessages, setMessages, messages]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const regenCountRef = useRef<Map<string, number>>(new Map());
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -139,6 +174,21 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
   const [copiedMessagePartId, setCopiedMessagePartId] = useState<string | null>(
     null,
   );
+
+  // Message version management: store multiple versions of assistant responses grouped by user message
+  // Map<userMessageId, UIMessage[]> - all assistant versions responding to each user message
+  const [messageVersions, setMessageVersions] = useState<
+    Map<string, UIMessage[]>
+  >(new Map());
+  // Map<userMessageId, number> - current version index for each user message
+  const [currentVersionIndices, setCurrentVersionIndices] = useState<
+    Map<string, number>
+  >(new Map());
+  // Map<userMessageId, assistantVersionId> - tracks which version of assistant message each user message responds to
+  // This creates conversation branches: different user messages can respond to different versions
+  const [userMessageToVersion, setUserMessageToVersion] = useState<
+    Map<string, string>
+  >(new Map());
 
   // Handle edit message
   const _handleEditStart = useCallback((messageId: string, text: string) => {
@@ -192,6 +242,34 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     if (lastAssistantMessage) {
       const current = regenCountRef.current.get(lastAssistantMessage.id) ?? 0;
       regenCountRef.current.set(lastAssistantMessage.id, current + 1);
+
+      // Find the user message this assistant response is tied to
+      const lastUserMessage = messages
+        .filter((m) => m.role === 'user')
+        .at(-1);
+
+      if (lastUserMessage) {
+        // Save current assistant version before regeneration
+        setMessageVersions((prev) => {
+          const newVersions = new Map(prev);
+          const existingVersions = newVersions.get(lastUserMessage.id) ?? [];
+          
+          // Check if this version is already stored
+          const isAlreadyStored = existingVersions.some(
+            (v) => v.id === lastAssistantMessage.id,
+          );
+          
+          if (!isAlreadyStored) {
+            // Add current version to the versions array
+            newVersions.set(lastUserMessage.id, [
+              ...existingVersions,
+              lastAssistantMessage,
+            ]);
+          }
+          
+          return newVersions;
+        });
+      }
     }
 
     regenerate();
@@ -218,6 +296,186 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
   const lastAssistantMessage = useMemo(
     () => messages.filter((m) => m.role === 'assistant').at(-1),
     [messages],
+  );
+
+  // Helper to get the displayed version of an assistant message
+  // Follows the version chain: if there's a next user message tied to a specific version, show that version
+  // Otherwise, show the currently selected version (for the last assistant message)
+  const getDisplayedMessage = useCallback(
+    (message: UIMessage): UIMessage => {
+      if (message.role !== 'assistant') {
+        return message;
+      }
+
+      // Find the user message this assistant response is tied to
+      const messageIndex = messages.findIndex((m) => m.id === message.id);
+      if (messageIndex === -1) return message;
+
+      // Find the last user message before this assistant message
+      let userMessageId: string | null = null;
+      for (let i = messageIndex - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg && msg.role === 'user') {
+          userMessageId = msg.id;
+          break;
+        }
+      }
+
+      if (!userMessageId) return message;
+
+      // Check if there are multiple versions for this user message
+      const versions = messageVersions.get(userMessageId);
+      if (!versions || versions.length <= 1) return message;
+
+      // Check if there's a next user message that responds to this assistant message
+      // If so, use the version that user message is tied to (follow the branch)
+      let useVersion: UIMessage | null = null;
+      let foundNextUser = false;
+      
+      for (let j = messageIndex + 1; j < messages.length; j++) {
+        const nextMsg = messages[j];
+        if (nextMsg && nextMsg.role === 'user') {
+          foundNextUser = true;
+          // Check if this user message is tied to a specific version of this assistant message
+          const tiedVersionId = userMessageToVersion.get(nextMsg.id);
+          if (tiedVersionId) {
+            // Find this version in the versions array
+            const tiedVersion = versions.find((v) => v.id === tiedVersionId);
+            if (tiedVersion) {
+              useVersion = tiedVersion;
+              break;
+            }
+          }
+          // If this user message doesn't have a tied version, it means it responds to the latest
+          // So we should use the latest version
+          useVersion = versions[versions.length - 1];
+          break;
+        }
+      }
+
+      // If no next user message found, this is the last assistant message
+      // Use the currently selected version (for navigation)
+      if (!foundNextUser) {
+        const currentIndex = currentVersionIndices.get(userMessageId) ?? versions.length - 1;
+        useVersion = versions[currentIndex] ?? null;
+      }
+
+      // Return the version if it exists, otherwise return original message
+      return useVersion ?? message;
+    },
+    [messages, messageVersions, currentVersionIndices, userMessageToVersion],
+  );
+
+  // Filter messages to only show those in the active branch based on selected versions
+  // When user changes version of an older message, subsequent messages from different branches are hidden
+  const getFilteredMessages = useCallback((): UIMessage[] => {
+    const filtered: UIMessage[] = [];
+    
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (!msg) continue;
+      
+      if (msg.role === 'assistant') {
+        // Find the user message this assistant response is tied to
+        let userMessageId: string | null = null;
+        for (let j = i - 1; j >= 0; j--) {
+          const prevMsg = messages[j];
+          if (prevMsg && prevMsg.role === 'user') {
+            userMessageId = prevMsg.id;
+            break;
+          }
+        }
+
+        if (userMessageId) {
+          const versions = messageVersions.get(userMessageId);
+          if (versions && versions.length > 1) {
+            // Get the currently displayed version (from currentVersionIndices)
+            const currentIndex = currentVersionIndices.get(userMessageId) ?? versions.length - 1;
+            const displayedVersion = versions[currentIndex];
+            
+            if (displayedVersion) {
+              // Check if there's a next user message that responds to this assistant message
+              let shouldIncludeNext = true;
+              for (let j = i + 1; j < messages.length; j++) {
+                const nextMsg = messages[j];
+                if (nextMsg && nextMsg.role === 'user') {
+                  // Check if this user message is tied to a version of this assistant message
+                  const tiedVersionId = userMessageToVersion.get(nextMsg.id);
+                  if (tiedVersionId) {
+                    // If the user message is tied to a different version than currently displayed,
+                    // don't include it and everything after (it's a different branch)
+                    if (tiedVersionId !== displayedVersion.id) {
+                      shouldIncludeNext = false;
+                    }
+                  } else {
+                    // If user message doesn't have a tied version, it means it responds to the latest version
+                    // Only include if we're showing the latest version
+                    const latestVersion = versions[versions.length - 1];
+                    if (latestVersion && displayedVersion.id !== latestVersion.id) {
+                      shouldIncludeNext = false;
+                    }
+                  }
+                  break;
+                }
+              }
+              
+              // Always include the assistant message with the selected version
+              filtered.push(displayedVersion);
+              
+              // If we shouldn't include next messages, stop here
+              if (!shouldIncludeNext) {
+                break;
+              }
+            } else {
+              filtered.push(msg);
+            }
+          } else {
+            filtered.push(msg);
+          }
+        } else {
+          filtered.push(msg);
+        }
+      } else {
+        // For user messages, include them if we haven't stopped filtering yet
+        filtered.push(msg);
+      }
+    }
+    
+    return filtered;
+  }, [messages, messageVersions, currentVersionIndices, userMessageToVersion]);
+
+  // Navigation handlers
+  const goToPreviousVersion = useCallback(
+    (userMessageId: string) => {
+      const versions = messageVersions.get(userMessageId);
+      if (!versions || versions.length <= 1) return;
+
+      setCurrentVersionIndices((prev) => {
+        const newIndices = new Map(prev);
+        const currentIndex = newIndices.get(userMessageId) ?? versions.length - 1;
+        const newIndex = currentIndex > 0 ? currentIndex - 1 : versions.length - 1;
+        newIndices.set(userMessageId, newIndex);
+        return newIndices;
+      });
+    },
+    [messageVersions],
+  );
+
+  const goToNextVersion = useCallback(
+    (userMessageId: string) => {
+      const versions = messageVersions.get(userMessageId);
+      if (!versions || versions.length <= 1) return;
+
+      setCurrentVersionIndices((prev) => {
+        const newIndices = new Map(prev);
+        const currentIndex = newIndices.get(userMessageId) ?? versions.length - 1;
+        const newIndex =
+          currentIndex < versions.length - 1 ? currentIndex + 1 : 0;
+        newIndices.set(userMessageId, newIndex);
+        return newIndices;
+      });
+    },
+    [messageVersions],
   );
 
   // Compute regen counts for all messages to avoid ref access during render
@@ -256,12 +514,16 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                   icon={<Sparkles className="text-muted-foreground size-12" />}
                 />
               ) : (
-                messages.map((message) => {
-                  const sourceParts = message.parts.filter(
+                getFilteredMessages().map((message) => {
+                  // Get the displayed version of the message (if it has multiple versions)
+                  // Filtered messages are original messages (for ID preservation), but we display the selected version
+                  const displayMessage = getDisplayedMessage(message);
+                  
+                  const sourceParts = displayMessage.parts.filter(
                     (part: { type: string }) => part.type === 'source-url',
                   );
 
-                  const textParts = message.parts.filter(
+                  const textParts = displayMessage.parts.filter(
                     (p) => p.type === 'text',
                   );
                   const isLastAssistantMessage =
@@ -270,12 +532,32 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
 
                   const lastTextPartIndex =
                     textParts.length > 0
-                      ? message.parts.findLastIndex((p) => p.type === 'text')
+                      ? displayMessage.parts.findLastIndex((p) => p.type === 'text')
                       : -1;
+
+                  // Find the user message this assistant response is tied to (for navigation)
+                  const messageIndex = messages.findIndex((m) => m.id === message.id);
+                  let userMessageId: string | null = null;
+                  if (message.role === 'assistant' && messageIndex !== -1) {
+                    for (let i = messageIndex - 1; i >= 0; i--) {
+                      const msg = messages[i];
+                      if (msg && msg.role === 'user') {
+                        userMessageId = msg.id;
+                        break;
+                      }
+                    }
+                  }
+                  const versions = userMessageId
+                    ? messageVersions.get(userMessageId) ?? []
+                    : [];
+                  const currentVersionIndex = userMessageId
+                    ? currentVersionIndices.get(userMessageId) ?? versions.length - 1
+                    : 0;
+                  const hasMultipleVersions = versions.length > 1;
 
                   return (
                     <div key={message.id}>
-                      {message.role === 'assistant' &&
+                      {displayMessage.role === 'assistant' &&
                         sourceParts.length > 0 && (
                           <Sources>
                             <SourcesTrigger count={sourceParts.length} />
@@ -285,9 +567,9 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                 url?: string;
                               };
                               return (
-                                <SourcesContent key={`${message.id}-${i}`}>
+                                <SourcesContent key={`${displayMessage.id}-${i}`}>
                                   <Source
-                                    key={`${message.id}-${i}`}
+                                    key={`${displayMessage.id}-${i}`}
                                     href={sourcePart.url}
                                     title={sourcePart.url}
                                   />
@@ -296,7 +578,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                             })}
                           </Sources>
                         )}
-                      {message.parts.map((part, i: number) => {
+                      {displayMessage.parts.map((part, i: number) => {
                         const isLastTextPart =
                           part.type === 'text' && i === lastTextPartIndex;
                         const isStreaming =
@@ -309,7 +591,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                           isLastTextPart;
                         switch (part.type) {
                           case 'text': {
-                            const isEditing = editingMessageId === message.id;
+                            const isEditing = editingMessageId === displayMessage.id;
                             return (
                               <div
                                 key={`${message.id}-${i}`}
@@ -322,7 +604,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                     'animate-in fade-in slide-in-from-bottom-4 duration-300',
                                 )}
                               >
-                                {message.role === 'assistant' && (
+                                {displayMessage.role === 'assistant' && (
                                   <div className="mt-1 shrink-0">
                                     <BotAvatar
                                       size={6}
@@ -331,7 +613,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                   </div>
                                 )}
                                 <div className="flex-end flex w-full max-w-[80%] min-w-0 flex-col justify-start gap-2">
-                                  {isEditing && message.role === 'user' ? (
+                                  {isEditing && displayMessage.role === 'user' ? (
                                     <>
                                       <Textarea
                                         value={editText}
@@ -405,38 +687,77 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                         </Message>
                                       )}
                                       {/* Actions below the bubble */}
-                                      {(isResponseComplete ||
-                                        (message.role === 'user' &&
+                                      {/* Show actions for completed responses, or for assistant messages with versions (on last text part), or for user messages */}
+                                      {((isResponseComplete ||
+                                        (displayMessage.role === 'user' &&
+                                          isLastTextPart)) ||
+                                        (displayMessage.role === 'assistant' &&
+                                          hasMultipleVersions &&
                                           isLastTextPart)) && (
                                         <div
                                           className={cn(
                                             'mt-1 flex items-center gap-2',
-                                            message.role === 'user' &&
+                                            displayMessage.role === 'user' &&
                                               'justify-end',
                                           )}
                                         >
-                                          {message.role === 'assistant' &&
-                                            regenCount > 0 && (
-                                              <span className="text-muted-foreground text-xs">
-                                                Regenerated {regenCount}x
-                                              </span>
-                                            )}
-                                          {message.role === 'assistant' && (
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              onClick={handleRegenerate}
-                                              className="h-7 w-7"
-                                              title="Retry"
-                                            >
-                                              <RefreshCcwIcon className="size-3" />
-                                            </Button>
+                                          {displayMessage.role === 'assistant' && (
+                                            <>
+                                              {/* Version navigation arrows - show even during streaming if versions exist */}
+                                              {hasMultipleVersions && (
+                                                <>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => {
+                                                      if (userMessageId && !isStreaming) {
+                                                        goToPreviousVersion(userMessageId);
+                                                      }
+                                                    }}
+                                                    disabled={isStreaming}
+                                                    className="h-7 w-7"
+                                                    title="Previous version"
+                                                  >
+                                                    <ChevronLeftIcon className="size-3" />
+                                                  </Button>
+                                                  <span className="text-muted-foreground text-xs">
+                                                    {currentVersionIndex + 1} / {versions.length}
+                                                  </span>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => {
+                                                      if (userMessageId && !isStreaming) {
+                                                        goToNextVersion(userMessageId);
+                                                      }
+                                                    }}
+                                                    disabled={isStreaming}
+                                                    className="h-7 w-7"
+                                                    title="Next version"
+                                                  >
+                                                    <ChevronRightIcon className="size-3" />
+                                                  </Button>
+                                                </>
+                                              )}
+                                              {/* Only show regenerate button for last assistant message when not streaming */}
+                                              {isResponseComplete && (
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  onClick={handleRegenerate}
+                                                  className="h-7 w-7"
+                                                  title="Retry"
+                                                >
+                                                  <RefreshCcwIcon className="size-3" />
+                                                </Button>
+                                              )}
+                                            </>
                                           )}
                                           <Button
                                             variant="ghost"
                                             size="icon"
                                             onClick={async () => {
-                                              const partId = `${message.id}-${i}`;
+                                              const partId = `${displayMessage.id}-${i}`;
                                               try {
                                                 await navigator.clipboard.writeText(
                                                   part.text,
@@ -455,13 +776,13 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                             className="h-7 w-7"
                                             title={
                                               copiedMessagePartId ===
-                                              `${message.id}-${i}`
+                                              `${displayMessage.id}-${i}`
                                                 ? 'Copied!'
                                                 : 'Copy'
                                             }
                                           >
                                             {copiedMessagePartId ===
-                                            `${message.id}-${i}` ? (
+                                            `${displayMessage.id}-${i}` ? (
                                               <CheckIcon className="size-3 text-green-600" />
                                             ) : (
                                               <CopyIcon className="size-3" />
@@ -472,7 +793,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                     </>
                                   )}
                                 </div>
-                                {message.role === 'user' && (
+                                {displayMessage.role === 'user' && (
                                   <div className="mt-1 size-6 shrink-0" />
                                 )}
                               </div>
@@ -481,12 +802,12 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                           case 'reasoning':
                             return (
                               <Reasoning
-                                key={`${message.id}-${i}`}
+                                key={`${displayMessage.id}-${i}`}
                                 className="w-full"
                                 isStreaming={
                                   status === 'streaming' &&
-                                  i === message.parts.length - 1 &&
-                                  message.id === messages.at(-1)?.id
+                                  i === displayMessage.parts.length - 1 &&
+                                  displayMessage.id === messages.at(-1)?.id
                                 }
                               >
                                 <ReasoningTrigger />
@@ -507,18 +828,18 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
 
                               // Show loader while tool is in progress
                               if (isToolInProgress) {
+                                const toolName =
+                                  'toolName' in toolPart &&
+                                  typeof toolPart.toolName === 'string'
+                                    ? toolPart.toolName
+                                    : toolPart.type.replace('tool-', '');
                                 return (
                                   <Tool
                                     key={`${message.id}-${i}`}
                                     defaultOpen={false}
                                   >
                                     <ToolHeader
-                                      title={
-                                        'toolName' in toolPart &&
-                                        typeof toolPart.toolName === 'string'
-                                          ? toolPart.toolName
-                                          : toolPart.type.replace('tool-', '')
-                                      }
+                                      title={toolName}
                                       type={toolPart.type}
                                       state={toolPart.state}
                                     />
@@ -576,7 +897,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
 
         <div className="shrink-0">
           <PromptInputInner
-            sendMessage={sendMessage}
+            sendMessage={sendMessageWithVersions}
             state={state}
             setState={setState}
             textareaRef={textareaRef}

@@ -19,6 +19,11 @@ import { AgentUIWrapper } from './_components/agent-ui-wrapper';
 import { useWorkspace } from '~/lib/context/workspace-context';
 import { WorkspaceModeEnum } from '@qwery/domain/enums';
 import { AgentTabs, AgentStatusProvider } from '@qwery/ui/ai';
+import { useGetMessagesByConversationSlug } from '~/lib/queries/use-get-messages';
+import {
+  AgentSidebarProvider,
+  useAgentSidebar,
+} from '~/lib/context/agent-sidebar-context';
 
 export async function loader(_args: Route.LoaderArgs) {
   return {
@@ -28,13 +33,32 @@ export async function loader(_args: Route.LoaderArgs) {
   };
 }
 
-function SidebarLayout(props: Route.ComponentProps & React.PropsWithChildren) {
+function SidebarLayoutInner(
+  props: Route.ComponentProps & React.PropsWithChildren,
+) {
   const { layoutState } = props.loaderData;
+  const { repositories } = useWorkspace();
+  const { isOpen, conversationSlug, toggleSidebar } = useAgentSidebar();
+
+  // Use conversation slug from context, fallback to 'default'
+  const activeConversationSlug = conversationSlug || 'default';
+
+  // Load messages for the conversation when slug changes
+  // Add refetch interval when sidebar is open to catch newly persisted messages
+  const messages = useGetMessagesByConversationSlug(
+    repositories.conversation,
+    repositories.message,
+    activeConversationSlug,
+    {
+      // Refetch every 2 seconds when sidebar is open to catch new messages
+      refetchInterval: isOpen ? 2000 : undefined,
+    },
+  );
 
   return (
     <AgentStatusProvider>
       <SidebarProvider defaultOpen={layoutState.open}>
-        <Page>
+        <Page agentSidebarOpen={isOpen}>
           <PageTopNavigation>
             <ProjectLayoutTopBar />
           </PageTopNavigation>
@@ -48,12 +72,26 @@ function SidebarLayout(props: Route.ComponentProps & React.PropsWithChildren) {
             <LayoutFooter />
           </PageFooter>
           <AgentSidebar>
-            <AgentUIWrapper conversationSlug="default" />
+            {isOpen && conversationSlug && (
+              <AgentUIWrapper
+                key={conversationSlug}
+                conversationSlug={conversationSlug}
+                initialMessages={messages.data}
+              />
+            )}
           </AgentSidebar>
           {props.children}
         </Page>
       </SidebarProvider>
     </AgentStatusProvider>
+  );
+}
+
+function SidebarLayout(props: Route.ComponentProps & React.PropsWithChildren) {
+  return (
+    <AgentSidebarProvider>
+      <SidebarLayoutInner {...props} />
+    </AgentSidebarProvider>
   );
 }
 

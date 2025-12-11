@@ -8,34 +8,53 @@ type RunQueryWithAgentPayload = {
   query: string;
   datasourceId: string;
   datasourceRepository: IDatasourceRepository;
+  projectId: string;
+  userId: string;
+  notebookId?: string;
+};
+
+type NotebookPromptResponse = {
+  sqlQuery: string | null;
+  hasSql: boolean;
+  conversationSlug: string;
 };
 
 export function useRunQueryWithAgent(
-  onSuccess: (sqlQuery: string, cellId: number, datasourceId: string) => void,
-  onError: (error: Error, cellId: number, sqlQuery: string) => void,
+  onSuccess: (
+    result: NotebookPromptResponse,
+    cellId: number,
+    datasourceId: string,
+  ) => void,
+  onError: (error: Error, cellId: number, query: string) => void,
 ) {
-  const { runQueryWithAgent } = useAgents();
+  const { runNotebookPromptWithAgent } = useAgents();
 
   return useMutation({
     mutationFn: async (
       payload: RunQueryWithAgentPayload,
-    ): Promise<{ sqlQuery: string; datasourceId: string }> => {
-      const { query, datasourceId, datasourceRepository } = payload;
+    ): Promise<NotebookPromptResponse> => {
+      const {
+        query,
+        datasourceId,
+        datasourceRepository,
+        projectId,
+        userId,
+        notebookId,
+      } = payload;
 
-      const sqlQuery = await runQueryWithAgent(
+      const result = await runNotebookPromptWithAgent(
         datasourceRepository,
         query,
         datasourceId,
+        projectId,
+        userId,
+        notebookId,
       );
 
-      if (!sqlQuery) {
-        throw new Error('Agent did not generate a SQL query');
-      }
-
-      return { sqlQuery, datasourceId };
+      return result;
     },
     onSuccess: (result, variables) => {
-      onSuccess(result.sqlQuery, variables.cellId, result.datasourceId);
+      onSuccess(result, variables.cellId, variables.datasourceId);
     },
     onError: (error, variables) => {
       onError(

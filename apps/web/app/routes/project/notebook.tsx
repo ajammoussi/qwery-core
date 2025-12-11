@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Navigate, useNavigate, useParams } from 'react-router';
+import { useAgentSidebar } from '~/lib/context/agent-sidebar-context';
 
 import { toast } from 'sonner';
 
@@ -19,6 +20,7 @@ import { useRunQuery } from '~/lib/mutations/use-run-query';
 import { useRunQueryWithAgent } from '~/lib/mutations/use-run-query-with-agent';
 import { useGetDatasourcesByProjectId } from '~/lib/queries/use-get-datasources';
 import { useGetNotebook } from '~/lib/queries/use-get-notebook';
+import { getMessagesByConversationSlugKey } from '~/lib/queries/use-get-messages';
 import { NOTEBOOK_EVENTS, telemetry } from '@qwery/telemetry';
 import { Skeleton } from '@qwery/ui/skeleton';
 import { getAllExtensionMetadata } from '@qwery/extensions-loader';
@@ -34,6 +36,7 @@ export default function NotebookPage() {
     repositories.project,
     workspace.projectId || '',
   );
+  const { openSidebar } = useAgentSidebar();
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -160,10 +163,36 @@ export default function NotebookPage() {
   };
 
   // Run query with agent mutation
+  const queryClient = useQueryClient();
+
   const runQueryWithAgentMutation = useRunQueryWithAgent(
-    (sqlQuery, cellId, datasourceId) => {
-      // Agent generated SQL successfully, now run it
-      handleRunQuery(cellId, sqlQuery, datasourceId);
+    (result, cellId, datasourceId) => {
+      // Check if SQL was generated
+      if (result.hasSql && result.sqlQuery) {
+        // SQL generation path: execute the SQL query
+        handleRunQuery(cellId, result.sqlQuery, datasourceId);
+      } else {
+        // Chat path: open sidebar with the conversation using context
+        // Open sidebar with smooth animation
+        openSidebar(result.conversationSlug);
+        
+        // Invalidate messages query to ensure fresh data is loaded
+        // Use a delay to ensure the API has finished persisting messages
+        // FactoryAgent persists messages in onFinish callback after stream completes
+        setTimeout(() => {
+          queryClient.invalidateQueries({
+            queryKey: getMessagesByConversationSlugKey(result.conversationSlug),
+          });
+        }, 1000);
+        
+        // Also refetch after a longer delay to catch any late persistence
+        setTimeout(() => {
+          queryClient.invalidateQueries({
+            queryKey: getMessagesByConversationSlugKey(result.conversationSlug),
+          });
+        }, 3000);
+      }
+      setLoadingCellId(null);
     },
     (error, cellId, query) => {
       setCellErrors((prev) => {
@@ -171,7 +200,7 @@ export default function NotebookPage() {
         next.set(
           cellId,
           `${error.message} 
-          sqlQuery: ${query}`,
+          query: ${query}`,
         );
         return next;
       });
@@ -200,6 +229,9 @@ export default function NotebookPage() {
       query,
       datasourceId,
       datasourceRepository,
+      projectId: workspace.projectId || '',
+      userId: workspace.userId || '',
+      notebookId: notebook.data?.id,
     });
   };
 

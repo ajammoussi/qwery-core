@@ -2,10 +2,16 @@ import { createContext, useContext, useMemo } from 'react';
 
 import type { IDatasourceRepository } from '@qwery/domain/repositories';
 import { GetDatasourceService } from '@qwery/domain/services';
-import { DatasourceKind } from '@qwery/domain/entities';
-import { getExtension } from '@qwery/extensions-loader';
+import { DatasourceKind, type DatasourceMetadata } from '@qwery/domain/entities';
 import { getDiscoveredDatasource } from '@qwery/extensions-sdk';
+import { getExtension } from '@qwery/extensions-loader';
 import { apiPost } from '~/lib/repositories/api-client';
+
+interface NotebookPromptResponse {
+  sqlQuery: string | null;
+  hasSql: boolean;
+  conversationSlug: string;
+}
 
 interface AgentsContextValue {
   runQueryWithAgent: (
@@ -13,6 +19,14 @@ interface AgentsContextValue {
     query: string,
     datasourceId: string,
   ) => Promise<string | null>;
+  runNotebookPromptWithAgent: (
+    datasourceRepository: IDatasourceRepository,
+    query: string,
+    datasourceId: string,
+    projectId: string,
+    userId: string,
+    notebookId?: string,
+  ) => Promise<NotebookPromptResponse>;
   isRunning: boolean;
 }
 
@@ -75,7 +89,7 @@ export function AgentsProvider({
 
       const runtime = driver.runtime ?? 'browser';
 
-      let metadata;
+      let metadata: DatasourceMetadata;
 
       // Handle browser drivers (embedded datasources) - client-side
       if (runtime === 'browser') {
@@ -106,7 +120,7 @@ export function AgentsProvider({
         // Handle node drivers (remote datasources) via API
         const response = await apiPost<{
           success: boolean;
-          data: typeof metadata;
+          data: DatasourceMetadata;
         }>('/driver/command', {
           action: 'metadata',
           datasourceProvider: datasource.datasource_provider,
@@ -149,8 +163,42 @@ export function AgentsProvider({
     }
   };
 
+  const runNotebookPromptWithAgent = async (
+    datasourceRepository: IDatasourceRepository,
+    query: string,
+    datasourceId: string,
+    projectId: string,
+    userId: string,
+    notebookId: string = 'default',
+  ): Promise<NotebookPromptResponse> => {
+    try {
+      if (!projectId || !userId) {
+        throw new Error('Project ID and User ID are required');
+      }
+
+      // Call the notebook prompt API endpoint
+      const response = await apiPost<NotebookPromptResponse>(
+        '/notebook/prompt',
+        {
+          query,
+          notebookId,
+          datasourceId,
+          projectId,
+          userId,
+          model: options.model || 'azure/gpt-5-mini',
+        },
+      );
+
+      return response;
+    } catch (error) {
+      console.error('Error running notebook prompt with agent:', error);
+      throw error;
+    }
+  };
+
   const value: AgentsContextValue = {
     runQueryWithAgent,
+    runNotebookPromptWithAgent,
     isRunning: false, // TODO: Track running state
   };
 

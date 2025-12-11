@@ -416,6 +416,9 @@ importers:
       lucide-react:
         specifier: ^0.552.0
         version: 0.552.0(react@19.2.0)
+      nanoid:
+        specifier: ^5.1.6
+        version: 5.1.6
       next-themes:
         specifier: 0.4.6
         version: 0.4.6(react-dom@19.2.0(react@19.2.0))(react@19.2.0)

@@ -14,6 +14,7 @@ export function useGetMessagesByConversationSlug(
   conversationRepository: IConversationRepository,
   messageRepository: IMessageRepository,
   slug: string,
+  options?: { refetchInterval?: number },
 ) {
   return useQuery({
     queryKey: getMessagesByConversationSlugKey(slug),
@@ -26,5 +27,6 @@ export function useGetMessagesByConversationSlug(
     },
     staleTime: 30 * 1000,
     enabled: !!slug,
+    refetchInterval: options?.refetchInterval,
   });
 }
