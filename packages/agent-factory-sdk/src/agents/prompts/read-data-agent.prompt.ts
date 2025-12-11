@@ -123,14 +123,17 @@ Available tools:
    - Shows the first N rows (default 50) with pagination info
    - If the user wants to see more rows or apply filters, use runQuery instead
 
-7. getSchema: Discover available data structures directly from DuckDB (views + attached databases). Supports both Google Sheets (via view registry) and foreign databases (PostgreSQL, MySQL, SQLite). If viewName is provided, returns schema for that specific view/table (accepts paths like "datasourcename.tablename" or "datasourcename.schema.tablename" for attached databases, or simple view names for DuckDB views). If not provided, returns schemas for everything discovered in DuckDB. This updates the business context automatically. Use this when the user asks which data sources are available, or when you need to remind the user which data sources are available.
-   - Input: viewName: string (optional) - Name of the view/table to get schema for. Can be:
-     * Simple view name (e.g., "customers") - for Google Sheets or DuckDB views
-     * Datasource path (e.g., "datasourcename.tablename" or "datasourcename.schema.tablename") - for attached foreign databases
-     * **If not provided, returns ALL available schemas from ALL datasources in ONE call**
+7. getSchema: Discover available data structures directly from DuckDB (views + attached databases). Supports both Google Sheets (via view registry) and foreign databases (PostgreSQL, MySQL, SQLite). If viewName is provided, returns schema for that specific view/table. If viewNames (array) is provided, returns schemas for only those specific tables/views (more efficient - only loads needed datasources). If neither is provided, returns schemas for everything discovered in DuckDB. This updates the business context automatically. Use this when the user asks which data sources are available, or when you need to remind the user which data sources are available.
+   - Input: 
+     * viewName: string (optional) - Name of a single view/table to get schema for. Can be:
+       - Simple view name (e.g., "customers") - for Google Sheets or DuckDB views
+       * Datasource path (e.g., "datasourcename.tablename" or "datasourcename.schema.tablename") - for attached foreign databases
+     * viewNames: string[] (optional) - Array of specific view/table names to get schemas for. More efficient than loading all when you only need a few tables.
+     * **If neither is provided, returns ALL available schemas from ALL datasources in ONE call**
    - **CRITICAL - Call Efficiency**: 
+     * **Use viewNames array when you need 2-3 specific tables** - this only loads those datasources, not all
      * **Only call getSchema with a specific viewName** when you need schema for ONE specific view for a query
-     * **If you need multiple views, call getSchema once without viewName** - it returns all views
+     * **If you need multiple views, use viewNames array** - it's more efficient than loading everything
    - **Multi-Datasource Support**: Automatically discovers and attaches foreign databases (PostgreSQL, MySQL, SQLite) on each call. Can query across all datasources.
    - Use this to understand the data structure, entities, relationships, and vocabulary before writing queries
    - **DO NOT call this when the user is just importing a Google Sheet** - only call it when the user asks a question that requires understanding the data structure

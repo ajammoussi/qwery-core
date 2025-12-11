@@ -150,13 +150,25 @@ export const readDataAgent = async (
       }),
       getSchema: tool({
         description:
-          'Discover available data structures directly from DuckDB (views + attached databases). If viewName is provided, returns schema for that specific view/table (accepts fully qualified paths). If not provided, returns schemas for everything discovered in DuckDB. This updates the business context automatically.',
+          'Discover available data structures directly from DuckDB (views + attached databases). If viewName is provided, returns schema for that specific view/table. If viewNames (array) is provided, returns schemas for only those specific tables/views (more efficient than loading all). If neither is provided, returns schemas for everything discovered in DuckDB. This updates the business context automatically.',
         inputSchema: z.object({
           viewName: z.string().optional(),
+          viewNames: z.array(z.string()).optional(),
         }),
-        execute: async ({ viewName }) => {
+        execute: async ({ viewName, viewNames }) => {
+          // If both viewName and viewNames provided, prefer viewNames (array)
+          const requestedViews = viewNames?.length
+            ? viewNames
+            : viewName
+              ? [viewName]
+              : undefined;
+
           console.log(
-            `[ReadDataAgent] getSchema called${viewName ? ` for view: ${viewName}` : ' (all views)'}`,
+            `[ReadDataAgent] getSchema called${
+              requestedViews
+                ? ` for ${requestedViews.length} view(s): ${requestedViews.join(', ')}`
+                : ' (all views)'
+            }`,
           );
 
           const workspace = getWorkspace();
@@ -178,6 +190,7 @@ export const readDataAgent = async (
           );
 
           // Sync datasources before querying schema
+          // If specific views requested, only sync datasources needed for those views
           if (repositories) {
             try {
               const getConversationService = new GetConversationBySlugService(
@@ -186,10 +199,69 @@ export const readDataAgent = async (
               const conversation =
                 await getConversationService.execute(conversationId);
               if (conversation?.datasources?.length) {
+                let datasourcesToSync = conversation.datasources;
+
+                // If specific views requested, determine which datasources are needed
+                if (requestedViews && requestedViews.length > 0) {
+                  const { getDatasourceDatabaseName } = await import(
+                    '../../tools/datasource-name-utils'
+                  );
+                  const { loadDatasources } = await import(
+                    '../../tools/datasource-loader'
+                  );
+
+                  // Load all datasources to map names to IDs
+                  const allDatasources = await loadDatasources(
+                    conversation.datasources,
+                    repositories.datasource,
+                  );
+
+                  // Extract datasource names from requested views
+                  const neededDatasourceNames = new Set<string>();
+                  const neededViewNames = new Set<string>();
+
+                  for (const view of requestedViews) {
+                    if (view.includes('.')) {
+                      // Format: "datasourcename.tablename" or "datasourcename.schema.tablename"
+                      const parts = view.split('.');
+                      const datasourceName = parts[0];
+                      if (datasourceName) {
+                        neededDatasourceNames.add(datasourceName);
+                      }
+                    } else {
+                      // Simple view name - check if it's from a DuckDB-native datasource
+                      neededViewNames.add(view);
+                    }
+                  }
+
+                  // Find datasource IDs that match the needed names
+                  const neededDatasourceIds = new Set<string>();
+                  for (const { datasource } of allDatasources) {
+                    const dbName = getDatasourceDatabaseName(datasource);
+                    if (neededDatasourceNames.has(dbName)) {
+                      neededDatasourceIds.add(datasource.id);
+                    }
+                  }
+
+                  // For simple view names, we need to check viewRegistry to find their datasources
+                  // But for now, if we have simple view names, we'll sync all DuckDB-native datasources
+                  // This is a limitation - we'd need viewRegistry lookup to optimize further
+                  if (neededViewNames.size > 0) {
+                    // Include all datasources for now (could be optimized with viewRegistry lookup)
+                    datasourcesToSync = conversation.datasources;
+                  } else if (neededDatasourceIds.size > 0) {
+                    // Only sync the needed datasources
+                    datasourcesToSync = Array.from(neededDatasourceIds);
+                    console.log(
+                      `[ReadDataAgent] Selective sync: Only syncing ${datasourcesToSync.length} datasource(s) for requested views`,
+                    );
+                  }
+                }
+
                 await DuckDBInstanceManager.syncDatasources(
                   conversationId,
                   workspace,
-                  conversation.datasources,
+                  datasourcesToSync,
                   repositories.datasource,
                 );
               }
@@ -364,42 +436,62 @@ export const readDataAgent = async (
               }
             }
 
-            if (viewName) {
-              // Describe only the requested object
-              const viewId = viewName as string;
+            if (requestedViews && requestedViews.length > 0) {
+              // Describe only the requested objects
+              for (const viewId of requestedViews) {
               let db = 'main';
               let schemaName = 'main';
               let tableName = viewId;
               if (viewId.includes('.')) {
                 const parts = viewId.split('.').filter(Boolean);
                 if (parts.length === 3) {
+                  // Format: datasourcename.schema.tablename
                   db = parts[0] ?? db;
                   schemaName = parts[1] ?? schemaName;
                   tableName = parts[2] ?? tableName;
                 } else if (parts.length === 2) {
-                  schemaName = parts[0] ?? schemaName;
+                  // Format: datasourcename.tablename (attached database, default to public schema)
+                  db = parts[0] ?? db;
+                  schemaName = 'public'; // Default schema for attached databases
                   tableName = parts[1] ?? tableName;
                 } else if (parts.length === 1) {
                   tableName = parts[0] ?? tableName;
                 }
               }
               // Check if this is a system table before describing
+              // Only check the table name itself, not the full path, since datasource names can be anything
               const { isSystemOrTempTable } = await import(
                 '../../tools/utils/business-context.utils'
               );
-              const fullName = `${db}.${schemaName}.${tableName}`;
-
-              if (isSystemOrTempTable(fullName)) {
-                throw new Error(
-                  `Cannot access system table: ${viewId}. Please query user tables only.`,
-                );
+              
+              // For attached databases, only check the table name, not the full path
+              // The datasource name is user-defined and shouldn't be checked as a system schema
+              if (db !== 'main') {
+                // This is an attached database - only check table name
+                if (isSystemOrTempTable(tableName)) {
+                  throw new Error(
+                    `Cannot access system table: ${viewId}. Please query user tables only.`,
+                  );
+                }
+              } else {
+                // Main database - check full name
+                const fullName = `${db}.${schemaName}.${tableName}`;
+                if (isSystemOrTempTable(fullName)) {
+                  throw new Error(
+                    `Cannot access system table: ${viewId}. Please query user tables only.`,
+                  );
+                }
               }
 
-              const schema = await describeObject(db, schemaName, tableName);
-              if (!schema) {
-                throw new Error(`Object "${viewId}" not found in DuckDB`);
+                const schema = await describeObject(db, schemaName, tableName);
+                if (!schema) {
+                  console.warn(
+                    `[ReadDataAgent] Object "${viewId}" not found in DuckDB, skipping`,
+                  );
+                  continue;
+                }
+                collectedSchemas.set(viewId, schema);
               }
-              collectedSchemas.set(viewId, schema);
             } else {
               // Describe everything discovered
               for (const target of targets) {
@@ -429,12 +521,26 @@ export const readDataAgent = async (
           // Build schemasMap with all collected schemas
           const schemasMap = collectedSchemas;
 
-          // If viewName specified, return that specific schema
+          // If specific views requested, return those schemas
           // Otherwise, return ALL schemas combined
           let schema: SimpleSchema;
-          if (viewName && collectedSchemas.has(viewName)) {
-            // Single view requested
-            schema = collectedSchemas.get(viewName)!;
+          if (
+            requestedViews &&
+            requestedViews.length > 0 &&
+            requestedViews.length === 1
+          ) {
+            const singleView = requestedViews[0];
+            if (singleView && collectedSchemas.has(singleView)) {
+              // Single view requested
+              schema = collectedSchemas.get(singleView)!;
+            } else {
+              // View not found, return empty schema
+              schema = {
+                databaseName: 'main',
+                schemaName: 'main',
+                tables: [],
+              };
+            }
           } else {
             // All views - combine all schemas into one
             const allTables: SimpleTable[] = [];
@@ -476,21 +582,34 @@ export const readDataAgent = async (
 
           // Build fast context (synchronous, < 100ms)
           let fastContext: BusinessContext;
-          if (viewName) {
+          if (
+            requestedViews &&
+            requestedViews.length > 0 &&
+            requestedViews.length === 1
+          ) {
             // Single view - build fast context
-            fastContext = await buildBusinessContext({
-              conversationDir: fileDir,
-              viewName,
-              schema,
-            });
+            const singleViewName = requestedViews[0];
+            if (singleViewName) {
+              fastContext = await buildBusinessContext({
+                conversationDir: fileDir,
+                viewName: singleViewName,
+                schema,
+              });
 
-            // Start enhancement in background (don't await)
-            enhanceBusinessContextInBackground({
-              conversationDir: fileDir,
-              viewName,
-              schema,
-              dbPath,
-            });
+              // Start enhancement in background (don't await)
+              enhanceBusinessContextInBackground({
+                conversationDir: fileDir,
+                viewName: singleViewName,
+                schema,
+                dbPath,
+              });
+            } else {
+              // Fallback to empty context
+              const { createEmptyContext } = await import(
+                '../../tools/utils/business-context.storage'
+              );
+              fastContext = createEmptyContext();
+            }
           } else {
             // Multiple views - build fast context for each
             // Filter out system tables before processing

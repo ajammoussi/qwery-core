@@ -61,7 +61,7 @@ SQL Query: ${sqlQuery}
 Query Results:
 - Columns: ${JSON.stringify(queryResults.columns)}
 - Total rows: ${queryResults.rows.length}
-- Data (first 20 rows): ${JSON.stringify(queryResults.rows.slice(0, 20), null, 2)}
+- Data types: Use column names and structure to determine chart type. Actual data is not included for privacy - use runQuery output to view data.
 
 **IMPORTANT**: Use the actual SQL query, user input, and query results data provided above to make your selection. Do not say "No SQL query or result data was provided" - the data is provided above.
 

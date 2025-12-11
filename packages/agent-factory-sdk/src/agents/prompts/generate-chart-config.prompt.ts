@@ -33,7 +33,8 @@ SQL Query: ${sqlQuery}
 Query Results:
 - Columns: ${JSON.stringify(queryResults.columns)}
 - Total rows: ${queryResults.rows.length}
-- Data (first 100 rows): ${JSON.stringify(queryResults.rows.slice(0, 100), null, 2)}
+- Sample data structure (first 3 rows for type inference only): ${JSON.stringify(queryResults.rows.slice(0, 3), null, 2)}
+- Note: Use this sample to understand data types and structure. The full data will be used at render time.
 
 Chart Configuration Guidelines:
 
@@ -112,7 +113,15 @@ Output Format (strict JSON):
   }
 }
 
-**IMPORTANT**: You MUST transform the actual query results data provided above into the chart data format. Do NOT return an empty data array. Use the actual rows from the query results to populate the data array. Each row in the data array should be an object with keys matching the xKey and yKey values you specify in the config.
+**IMPORTANT**: You MUST transform the actual query results data provided above into the chart data format. Use the sample data structure to understand the data types and create the proper transformation. The data array should contain the actual transformed data from ALL query results rows. Each row in the data array should be an object with keys matching the xKey and yKey values you specify in the config.
+
+**CRITICAL - Date Handling**: If date fields appear as empty objects, this means DuckDB returned a date type that was not serialized. You MUST:
+1. Use the SQL query to understand what the date field should be (e.g., date_trunc('week', opened_at) should return a date)
+2. Transform empty date objects to proper date strings or timestamps
+3. For date_trunc results, you may need to reconstruct the date from the query context or use a placeholder that will be fixed at render time
+4. If you cannot determine the date value, use a sequential index or row number as a temporary x-axis value
+
+Transform ALL rows from the query results into the chart data format now.
 
 Transform the query results into this format now.
 
