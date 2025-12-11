@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Navigate, useNavigate, useParams } from 'react-router';
-import { useAgentSidebar } from '~/lib/context/agent-sidebar-context';
 
 import { toast } from 'sonner';
 
@@ -20,10 +19,12 @@ import { useRunQuery } from '~/lib/mutations/use-run-query';
 import { useRunQueryWithAgent } from '~/lib/mutations/use-run-query-with-agent';
 import { useGetDatasourcesByProjectId } from '~/lib/queries/use-get-datasources';
 import { useGetNotebook } from '~/lib/queries/use-get-notebook';
-import { getMessagesByConversationSlugKey } from '~/lib/queries/use-get-messages';
 import { NOTEBOOK_EVENTS, telemetry } from '@qwery/telemetry';
 import { Skeleton } from '@qwery/ui/skeleton';
 import { getAllExtensionMetadata } from '@qwery/extensions-loader';
+import { useAgentSidebar } from '~/lib/context/agent-sidebar-context';
+import { useGetNotebookConversation } from '~/lib/queries/use-get-notebook-conversation';
+import { getMessagesByConversationSlugKey } from '~/lib/queries/use-get-messages';
 
 export default function NotebookPage() {
   const params = useParams();
@@ -36,7 +37,6 @@ export default function NotebookPage() {
     repositories.project,
     workspace.projectId || '',
   );
-  const { openSidebar } = useAgentSidebar();
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -53,6 +53,36 @@ export default function NotebookPage() {
 
   // Load notebook
   const notebook = useGetNotebook(notebookRepository, slug);
+
+  // Load conversation for this notebook
+  const notebookConversation = useGetNotebookConversation(
+    repositories.conversation,
+    notebook.data?.id,
+    workspace.projectId || undefined,
+  );
+
+  // Switch conversation when notebook changes
+  useEffect(() => {
+    if (notebookConversation.data?.slug) {
+      // Update URL with this notebook's conversation
+      const currentUrl = new URL(window.location.href);
+      const currentConversation = currentUrl.searchParams.get('conversation');
+      
+      // Only update if the conversation is different
+      if (currentConversation !== notebookConversation.data.slug) {
+        currentUrl.searchParams.set('conversation', notebookConversation.data.slug);
+        navigate(currentUrl.pathname + currentUrl.search, { replace: true });
+      }
+    } else if (notebook.data?.id) {
+      // If notebook exists but no conversation yet, remove conversation param
+      // (conversation will be created when first prompt is sent)
+      const currentUrl = new URL(window.location.href);
+      if (currentUrl.searchParams.has('conversation')) {
+        currentUrl.searchParams.delete('conversation');
+        navigate(currentUrl.pathname + currentUrl.search, { replace: true });
+      }
+    }
+  }, [notebookConversation.data?.slug, notebook.data?.id, navigate]);
 
   // Load datasources
   const savedDatasources = useGetDatasourcesByProjectId(
@@ -164,6 +194,7 @@ export default function NotebookPage() {
 
   // Run query with agent mutation
   const queryClient = useQueryClient();
+  const { openSidebar } = useAgentSidebar();
 
   const runQueryWithAgentMutation = useRunQueryWithAgent(
     (result, cellId, datasourceId) => {
@@ -172,8 +203,8 @@ export default function NotebookPage() {
         // SQL generation path: execute the SQL query
         handleRunQuery(cellId, result.sqlQuery, datasourceId);
       } else {
-        // Chat path: open sidebar with the conversation using context
-        // Open sidebar with smooth animation
+        // Chat path: open sidebar with the conversation
+        // Use context to directly open sidebar (reliable, works even if user closed it)
         openSidebar(result.conversationSlug);
         
         // Invalidate messages query to ensure fresh data is loaded
