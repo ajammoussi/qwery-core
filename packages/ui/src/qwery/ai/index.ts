@@ -28,8 +28,6 @@ export * from './tool-error-visualizer';
 
 // Sheet management components
 export * from './sheets/available-sheets-visualizer';
-export * from './sheets/view-sheet-visualizer';
-export * from './sheets/view-sheet-error';
 
 // Chart components
 export * from './charts/chart-renderer';

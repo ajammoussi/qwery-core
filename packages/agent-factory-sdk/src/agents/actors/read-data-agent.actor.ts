@@ -12,7 +12,6 @@ import { resolveModel } from '../../services';
 import { testConnection } from '../../tools/test-connection';
 import type { SimpleSchema, SimpleTable } from '@qwery/domain/entities';
 import { runQuery } from '../../tools/run-query';
-import { viewSheet } from '../../tools/view-sheet';
 import { renameSheet } from '../../tools/rename-sheet';
 import { deleteSheet } from '../../tools/delete-sheet';
 import { selectChartType, generateChart } from '../tools/generate-chart';
@@ -489,30 +488,80 @@ export const readDataAgent = async (
                   }>;
                   viewRows = [];
                 } catch (error) {
-                  // Fallback: Use SHOW TABLES for in-memory databases (like Google Sheets)
+                  // Fallback: Use duckdb_tables() for in-memory databases (like Google Sheets)
+                  // This gives us the actual schema name, not hardcoded 'main'
                   try {
-                    const showTablesReader = await conn.runAndReadAll(
-                      `SHOW TABLES FROM "${escapedDb}"`,
+                    const duckdbTablesReader = await conn.runAndReadAll(
+                      `SELECT database_name, schema_name, table_name, table_type
+                       FROM duckdb_tables()
+                       WHERE database_name = '${escapedDb.replace(/'/g, "''")}'
+                       ORDER BY schema_name, table_name`,
                     );
-                    await showTablesReader.readAll();
-                    const showTablesRows =
-                      showTablesReader.getRowObjectsJS() as Array<{
-                        name: string;
+                    await duckdbTablesReader.readAll();
+                    const duckdbTablesRows =
+                      duckdbTablesReader.getRowObjectsJS() as Array<{
+                        database_name: string;
+                        schema_name: string;
+                        table_name: string;
+                        table_type: string;
                       }>;
-                    // Convert to same format as information_schema
-                    tableRows = showTablesRows.map((row) => ({
-                      table_schema: 'main',
-                      table_name: row.name,
-                      table_type: 'BASE TABLE',
+                    // Use actual schema from duckdb_tables()
+                    tableRows = duckdbTablesRows.map((row) => ({
+                      table_schema: row.schema_name || 'main',
+                      table_name: row.table_name,
+                      table_type: row.table_type || 'BASE TABLE',
                     }));
                     viewRows = [];
                   } catch (fallbackError) {
-                    console.warn(
-                      `[ReadDataAgent] Failed to query tables from attached database ${db} (both information_schema and SHOW TABLES failed):`,
-                      error,
-                      fallbackError,
-                    );
-                    continue;
+                    // Last resort: Use SHOW TABLES (but try to get schema from duckdb_tables for each table)
+                    try {
+                      const showTablesReader = await conn.runAndReadAll(
+                        `SHOW TABLES FROM "${escapedDb}"`,
+                      );
+                      await showTablesReader.readAll();
+                      const showTablesRows =
+                        showTablesReader.getRowObjectsJS() as Array<{
+                          name: string;
+                        }>;
+                      // Try to get schema for each table from duckdb_tables
+                      const tableNames = showTablesRows.map((r) => r.name);
+                      const schemaMap = new Map<string, string>();
+                      try {
+                        for (const tableName of tableNames) {
+                          const schemaReader = await conn.runAndReadAll(
+                            `SELECT schema_name FROM duckdb_tables() 
+                             WHERE database_name = '${escapedDb.replace(/'/g, "''")}' 
+                             AND table_name = '${tableName.replace(/'/g, "''")}' 
+                             LIMIT 1`,
+                          );
+                          await schemaReader.readAll();
+                          const schemaRows =
+                            schemaReader.getRowObjectsJS() as Array<{
+                              schema_name: string;
+                            }>;
+                          if (schemaRows.length > 0 && schemaRows[0]) {
+                            schemaMap.set(tableName, schemaRows[0].schema_name);
+                          }
+                        }
+                      } catch {
+                        // If schema lookup fails, use 'main' as fallback
+                      }
+                      // Convert to same format as information_schema, using actual schema or 'main' as fallback
+                      tableRows = showTablesRows.map((row) => ({
+                        table_schema: schemaMap.get(row.name) || 'main',
+                        table_name: row.name,
+                        table_type: 'BASE TABLE',
+                      }));
+                      viewRows = [];
+                    } catch (showTablesError) {
+                      console.warn(
+                        `[ReadDataAgent] Failed to query tables from attached database ${db} (information_schema, duckdb_tables, and SHOW TABLES all failed):`,
+                        error,
+                        fallbackError,
+                        showTablesError,
+                      );
+                      continue;
+                    }
                   }
                 }
               } else {
@@ -548,7 +597,12 @@ export const readDataAgent = async (
               let skippedSystemTables = 0;
 
               for (const row of allRows) {
-                const schemaName = (row.table_schema || 'main').toLowerCase();
+                // Use actual schema from database query, don't hardcode 'main'
+                // For PostgreSQL: 'public', 'auth', etc.
+                // For MySQL: database name or 'public'
+                // For SQLite/in-memory: 'main' (from duckdb_tables or information_schema)
+                const actualSchema = row.table_schema || 'main';
+                const schemaName = actualSchema.toLowerCase();
 
                 // Skip system schemas (NO LOGGING - just count)
                 if (systemSchemas.has(schemaName)) {
@@ -562,9 +616,10 @@ export const readDataAgent = async (
                   continue;
                 }
 
+                // Use actual schema from database, not hardcoded 'main'
                 targets.push({
                   db,
-                  schema: row.table_schema || 'main',
+                  schema: actualSchema,
                   table: row.table_name,
                 });
                 totalTablesFound++;
@@ -600,10 +655,15 @@ export const readDataAgent = async (
                     schemaName = parts[1] ?? schemaName;
                     tableName = parts[2] ?? tableName;
                   } else if (parts.length === 2) {
-                    // Format: datasourcename.tablename (attached database, default to public schema)
+                    // Format: datasourcename.tablename
+                    // Try to find the actual schema from targets we discovered
                     db = parts[0] ?? db;
-                    schemaName = 'public'; // Default schema for attached databases
                     tableName = parts[1] ?? tableName;
+                    // Look up actual schema from discovered targets
+                    const foundTarget = targets.find(
+                      (t) => t.db === db && t.table === tableName,
+                    );
+                    schemaName = foundTarget?.schema || 'main'; // Use actual schema or fallback to 'main'
                   } else if (parts.length === 1) {
                     tableName = parts[0] ?? tableName;
                   }
@@ -812,17 +872,55 @@ export const readDataAgent = async (
             requestedViews.length > 0 &&
             requestedViews.length === 1
           ) {
-            const singleView = requestedViews[0];
-            if (singleView && collectedSchemas.has(singleView)) {
-              // Single view requested
-              schema = collectedSchemas.get(singleView)!;
-            } else {
-              // View not found, return empty schema
+            const singleView = requestedViews[0] ?? '';
+            if (!singleView) {
               schema = {
                 databaseName: 'main',
                 schemaName: 'main',
                 tables: [],
               };
+            } else {
+              // Try exact match first
+              let foundSchema = collectedSchemas.get(singleView);
+
+              // If not found and it's a 2-part name (datasourcename.tablename), try with main schema
+              if (
+                !foundSchema &&
+                singleView.includes('.') &&
+                singleView.split('.').length === 2
+              ) {
+                const parts = singleView.split('.');
+                const withMainSchema = `${parts[0]}.main.${parts[1]}`;
+                foundSchema = collectedSchemas.get(withMainSchema);
+              }
+
+              if (foundSchema) {
+                // Single view requested - format table name to include schema
+                const schemaKey = Array.from(collectedSchemas.entries()).find(
+                  ([_, s]) => s === foundSchema,
+                )?.[0];
+                if (schemaKey && schemaKey.includes('.')) {
+                  const parts = schemaKey.split('.');
+                  if (parts.length >= 3) {
+                    // Format table name as datasourcename.schema.tablename
+                    foundSchema = {
+                      ...foundSchema,
+                      tables: foundSchema.tables.map((t) => ({
+                        ...t,
+                        tableName: `${parts[0]}.${parts[1]}.${t.tableName}`,
+                      })),
+                    };
+                  }
+                }
+                schema = foundSchema;
+              } else {
+                // View not found, return empty schema
+                schema = {
+                  databaseName: 'main',
+                  schemaName: 'main',
+                  tables: [],
+                };
+              }
             }
           } else {
             // All views - combine all schemas into one
@@ -830,20 +928,20 @@ export const readDataAgent = async (
             for (const [schemaKey, schemaData] of collectedSchemas.entries()) {
               // Add tables from each schema
               for (const table of schemaData.tables) {
-                // Format table name: for attached databases, show as datasourcename.tablename
+                // Format table name: for attached databases, show as datasourcename.schema.tablename
                 // schemaKey format: "datasourcename.schema.tablename" or "tablename" for main
                 let formattedTableName = table.tableName;
                 if (schemaKey.includes('.')) {
                   // This is an attached database table
-                  // schemaKey is like "mydatasource.public.companies"
-                  // Extract datasource name (first part) and table name (last part)
+                  // schemaKey is like "mydatasource.main.companies" or "mydatasource.public.companies"
+                  // We need to preserve the full path: datasourcename.schema.tablename
                   const parts = schemaKey.split('.');
                   if (parts.length >= 3) {
-                    // Format: datasourcename.tablename (skip schema)
-                    formattedTableName = `${parts[0]}.${parts[parts.length - 1]}`;
+                    // Format: datasourcename.schema.tablename (preserve schema)
+                    formattedTableName = `${parts[0]}.${parts[1]}.${parts[parts.length - 1]}`;
                   } else if (parts.length === 2) {
-                    // Format: datasourcename.tablename
-                    formattedTableName = schemaKey;
+                    // Format: datasourcename.tablename (assume main schema)
+                    formattedTableName = `${parts[0]}.main.${parts[1]}`;
                   }
                 }
 
@@ -978,15 +1076,18 @@ export const readDataAgent = async (
           );
 
           // Include information about all discovered tables in the response
-          // Format table names: datasourcename.tablename for attached databases
+          // Format table names: datasourcename.schema.tablename for attached databases
           const allTableNames = Array.from(collectedSchemas.keys()).map(
             (key) => {
-              // Format: datasourcename.tablename (remove schema part)
+              // Format: datasourcename.schema.tablename (preserve schema)
               if (key.includes('.')) {
                 const parts = key.split('.');
                 if (parts.length >= 3) {
-                  // "mydatasource.public.companies" -> "mydatasource.companies"
-                  return `${parts[0]}.${parts[parts.length - 1]}`;
+                  // "mydatasource.main.companies" -> "mydatasource.main.companies" (preserve schema)
+                  return `${parts[0]}.${parts[1]}.${parts[parts.length - 1]}`;
+                } else if (parts.length === 2) {
+                  // "mydatasource.companies" -> "mydatasource.main.companies" (assume main schema)
+                  return `${parts[0]}.main.${parts[1]}`;
                 }
               }
               return key;
@@ -1131,27 +1232,6 @@ export const readDataAgent = async (
             conversationId,
             workspace,
             sheetNames,
-          });
-          return result;
-        },
-      }),
-      viewSheet: tool({
-        description:
-          'View the contents of a sheet (first N rows). Shows the sheet data in a table format. Optionally specify a limit (default 50 rows).',
-        inputSchema: z.object({
-          sheetName: z.string(),
-          limit: z.number().optional(),
-        }),
-        execute: async ({ sheetName, limit }) => {
-          const workspace = getWorkspace();
-          if (!workspace) {
-            throw new Error('WORKSPACE environment variable is not set');
-          }
-          const result = await viewSheet({
-            conversationId,
-            workspace,
-            sheetName,
-            limit,
           });
           return result;
         },

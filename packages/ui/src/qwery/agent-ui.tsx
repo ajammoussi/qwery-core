@@ -134,7 +134,6 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const regenCountRef = useRef<Map<string, number>>(new Map());
-  const viewSheetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editText, setEditText] = useState<string>('');
   const [copiedMessagePartId, setCopiedMessagePartId] = useState<string | null>(
@@ -234,38 +233,6 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     // Use setTimeout to avoid synchronous setState in effect
     setTimeout(() => setRegenCountsMap(counts), 0);
   }, [messages]);
-
-  // Track previous view sheet count to detect new additions
-  const prevViewSheetCountRef = useRef(0);
-
-  // Auto-scroll to view sheet when it's rendered
-  useEffect(() => {
-    // Find all view sheet outputs
-    const viewSheetEntries = Array.from(viewSheetRefs.current.entries());
-    const currentCount = viewSheetEntries.length;
-
-    // Only scroll if a new view sheet was added (count increased)
-    if (
-      currentCount > prevViewSheetCountRef.current &&
-      viewSheetEntries.length > 0
-    ) {
-      // Get the last (most recent) view sheet
-      const lastEntry = viewSheetEntries[viewSheetEntries.length - 1];
-      if (lastEntry && lastEntry[1]) {
-        const lastViewSheetElement = lastEntry[1];
-        // Small delay to ensure DOM is fully rendered
-        setTimeout(() => {
-          lastViewSheetElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start',
-          });
-        }, 300);
-      }
-    }
-
-    // Update the previous count
-    prevViewSheetCountRef.current = currentCount;
-  }, [messages, status]); // Re-run when messages or status changes
 
   return (
     <PromptInputProvider initialInput={state.input}>

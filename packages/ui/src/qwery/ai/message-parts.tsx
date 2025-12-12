@@ -29,9 +29,6 @@ import { SQLQueryVisualizer } from './sql-query-visualizer';
 
 import { SchemaVisualizer } from './schema-visualizer';
 
-import { ViewSheetVisualizer } from './sheets/view-sheet-visualizer';
-
-import { ViewSheetError } from './sheets/view-sheet-error';
 import {
   Source,
   Sources,
@@ -268,51 +265,6 @@ export function ToolPart({ part, messageId, index }: ToolPartProps) {
       if (output?.schema) {
         return <SchemaVisualizer schema={output.schema} />;
       }
-    }
-
-    // Handle viewSheet tool with ViewSheetVisualizer
-    if (part.type === 'tool-viewSheet' && part.output) {
-      const output = part.output as {
-        sheetName?: string;
-        columns?: string[];
-        rows?: Array<Record<string, unknown>>;
-        rowCount?: number;
-        limit?: number;
-        hasMore?: boolean;
-      } | null;
-      if (output?.sheetName && output?.columns && output?.rows !== undefined) {
-        const displayedRows = output.rows.length;
-        const totalRows = output.rowCount ?? displayedRows;
-        return (
-          <ViewSheetVisualizer
-            data={{
-              sheetName: output.sheetName,
-              totalRows,
-              displayedRows,
-              columns: output.columns,
-              rows: output.rows,
-              message: output.hasMore
-                ? `Showing first ${displayedRows} of ${totalRows} rows`
-                : `Displaying all ${totalRows} rows`,
-            }}
-          />
-        );
-      }
-    }
-
-    // Handle viewSheet errors with ViewSheetError
-    if (
-      part.type === 'tool-viewSheet' &&
-      part.state === 'output-error' &&
-      part.errorText
-    ) {
-      const input = part.input as { sheetName?: string } | null;
-      return (
-        <ViewSheetError
-          errorText={part.errorText}
-          sheetName={input?.sheetName}
-        />
-      );
     }
 
     // Handle generateChart tool with ChartRenderer

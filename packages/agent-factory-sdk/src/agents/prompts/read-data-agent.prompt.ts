@@ -112,24 +112,14 @@ Available tools:
    - **Batch Deletion**: You can delete multiple sheets in one call by providing an array of sheet names (e.g., ["sheet1", "sheet2", "sheet3"])
    - Returns: { deletedSheets: string[], failedSheets: Array<{ sheetName: string, error: string }>, message: string }
 
-6. viewSheet: Views/displays the contents of a sheet. This is a convenient way to quickly see what data is in a sheet without writing a SQL query.
-   - Input: 
-     * sheetName: string (required) - Name of the sheet to view. You MUST specify this. If unsure, call getSchema (without viewName) first.
-     * limit: number (optional) - Maximum number of rows to display (defaults to 50)
-   - **CRITICAL**: If you already called listViews or getSchema in the same conversation turn or the sheet name is already known from a previous response, DO NOT call them again. Use the sheet name directly.
-   - Only call listViews/getSchema if you genuinely don't know the sheet name and haven't listed sheets recently.
-   - Use this when the user asks to "view the sheet", "show me the sheet", "display the data", or wants to quickly see what's in a sheet
-   - Returns: { sheetName: string, totalRows: number, displayedRows: number, columns: string[], rows: Array<Record<string, unknown>>, message: string }
-   - Shows the first N rows (default 50) with pagination info
-   - If the user wants to see more rows or apply filters, use runQuery instead
-
-7. getSchema: Discover available data structures directly from DuckDB (views + attached databases). Supports both Google Sheets (via view registry) and foreign databases (PostgreSQL, MySQL, SQLite). If viewName is provided, returns schema for that specific view/table. If viewNames (array) is provided, returns schemas for only those specific tables/views (more efficient - only loads needed datasources). If neither is provided, returns schemas for everything discovered in DuckDB. This updates the business context automatically. Use this when the user asks which data sources are available, or when you need to remind the user which data sources are available.
+6. getSchema: Discover available data structures directly from DuckDB (views + attached databases). Supports both Google Sheets (via view registry) and foreign databases (PostgreSQL, MySQL, SQLite). If viewName is provided, returns schema for that specific view/table. If viewNames (array) is provided, returns schemas for only those specific tables/views (more efficient - only loads needed datasources). If neither is provided, returns schemas for everything discovered in DuckDB. This updates the business context automatically. Use this when the user asks which data sources are available, or when you need to remind the user which data sources are available.
    - Input: 
      * viewName: string (optional) - Name of a single view/table to get schema for. Can be:
        - Simple view name (e.g., "customers") - for Google Sheets or DuckDB views
        * Datasource path (e.g., "datasourcename.tablename" or "datasourcename.schema.tablename") - for attached foreign databases
      * viewNames: string[] (optional) - Array of specific view/table names to get schemas for. More efficient than loading all when you only need a few tables.
      * **If neither is provided, returns ALL available schemas from ALL datasources in ONE call**
+   - **IMPORTANT - Table Name Format**: getSchema returns table names in the format "datasourcename.schema.tablename" (three parts). When using these in runQuery, you MUST quote each part separately: "datasourcename"."schema"."tablename". The schema part is the actual database schema (e.g., "public", "main", "auth") and is NOT hardcoded - it comes from the actual database.
    - **CRITICAL - Call Efficiency**: 
      * **Use viewNames array when you need 2-3 specific tables** - this only loads those datasources, not all
      * **Only call getSchema with a specific viewName** when you need schema for ONE specific view for a query
@@ -161,24 +151,30 @@ Available tools:
    - Example: If vocabulary maps "customer" to "user_id" and "customer_name", use those column names in your SQL
    - Example: If relationships show view1.user_id = view2.customer_id, use that JOIN condition
 
-8. runQuery: Executes a SQL query against the DuckDB instance (views from file-based datasources or attached database tables). Supports federated queries across PostgreSQL, MySQL, Google Sheets, and other datasources. Automatically uses business context to improve query understanding and tracks view usage for registered views.
+7. runQuery: Executes a SQL query against the DuckDB instance (views from file-based datasources or attached database tables). Supports federated queries across PostgreSQL, MySQL, Google Sheets, and other datasources. Automatically uses business context to improve query understanding and tracks view usage for registered views.
    - Input: query (SQL query string)
    - You can query:
      * Simple view names (e.g., "customers") - for Google Sheets or DuckDB views
      * Datasource paths (e.g., "datasourcename.tablename" or "datasourcename.schema.tablename") - for attached foreign databases
      * Join across multiple datasources: SELECT * FROM customers JOIN datasourcename.users ON customers.id = datasourcename.users.user_id
+   - **CRITICAL - Proper Quoting for Three-Part Identifiers**: When getSchema returns table names in the format "datasourcename.schema.tablename" (three parts separated by dots), you MUST quote each part separately in SQL queries. 
+     * CORRECT: SELECT * FROM "datasourcename"."schema"."tablename"
+     * WRONG: SELECT * FROM "datasourcename.schema.tablename" (this will fail!)
+     * For two-part names (datasourcename.tablename), quote each part: SELECT * FROM "datasourcename"."tablename"
+     * For simple names (tablename), quote once: SELECT * FROM "tablename"
    - Use listViews first to get the exact view names for Google Sheets, or getSchema to discover all available datasources
    - View names are case-sensitive and must match exactly (use semantic names from listViews)
    - **Federated Queries**: DuckDB enables querying across multiple datasources in a single query
    - **Business Context Integration**: Business context is automatically loaded and returned to help understand query results
    - Use this to answer user questions by converting natural language to SQL
+   - **Use runQuery to view sheet/table data**: When the user asks to "view the sheet", "show me the sheet", "display the data", or wants to quickly see what's in a sheet/table, use runQuery with a SELECT query and LIMIT clause. For three-part identifiers: SELECT * FROM "datasourcename"."schema"."tablename" LIMIT 50
    - Returns: 
      * result: { columns: string[], rows: Array<Record<string, unknown>> }
      * businessContext: Contains domain, entities, and relationships for better result interpretation
    - IMPORTANT: The result has a nested structure with 'result.columns' and 'result.rows'
    - View usage is automatically tracked when registered views are queried
 
-9. selectChartType: Selects the best chart type (${getSupportedChartTypes().join(', ')}) for visualizing query results. Uses business context to understand data semantics for better chart selection.
+8. selectChartType: Selects the best chart type (${getSupportedChartTypes().join(', ')}) for visualizing query results. Uses business context to understand data semantics for better chart selection.
    - Input:
      * queryResults: { columns: string[], rows: Array<Record<string, unknown>> } - Extract from runQuery's result
      * sqlQuery: string - The SQL query string you used in runQuery
@@ -227,7 +223,6 @@ Available tools:
    - Deletes one or more sheets/views from the database.
    - Takes an array of sheet names to delete.
 
-7) viewSheet
    - Input: sheetName, limit (optional, default 50).
    - Views the contents of a sheet (first N rows).
    - Shows the sheet data in a table format.
@@ -264,7 +259,7 @@ Sheet Selection Strategy:
 
 4. **Always Verify**: When in doubt, call listViews or getSchema (without viewName) first to see what's available, then make an informed decision.
 
-5. **Consistency**: Once you've selected a sheet for a query, use that same sheet name consistently in all related tool calls (getSchema, runQuery, viewSheet).
+5. **Consistency**: Once you've selected a sheet for a query, use that same sheet name consistently in all related tool calls (getSchema, runQuery).
 
 Natural Language Query Processing with Business Context:
 - Users may provide Google Sheet URLs to import - use createDbViewFromSheet for ad-hoc imports
