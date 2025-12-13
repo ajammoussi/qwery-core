@@ -115,7 +115,25 @@ export type ReasoningTriggerProps = ComponentProps<typeof CollapsibleTrigger>;
 
 const getThinkingMessage = (isStreaming: boolean, duration?: number) => {
   if (isStreaming || duration === 0) {
-    return <Shimmer duration={1}>Thinking...</Shimmer>;
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground">Thinking</span>
+        <div className="flex items-center gap-1">
+          <span
+            className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-pulse"
+            style={{ animationDelay: '0ms', animationDuration: '1.4s' }}
+          />
+          <span
+            className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-pulse"
+            style={{ animationDelay: '200ms', animationDuration: '1.4s' }}
+          />
+          <span
+            className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-pulse"
+            style={{ animationDelay: '400ms', animationDuration: '1.4s' }}
+          />
+        </div>
+      </div>
+    );
   }
   if (duration === undefined) {
     return <p>Thought for a few seconds</p>;

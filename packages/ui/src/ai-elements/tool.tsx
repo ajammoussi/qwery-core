@@ -215,17 +215,25 @@ export type ToolInputProps = ComponentProps<'div'> & {
 };
 
 export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
-  <div
-    className={cn('min-w-0 space-y-2 overflow-hidden p-4', className)}
+  <Collapsible
+    className={cn('min-w-0 overflow-hidden', className)}
+    defaultOpen={false}
     {...props}
   >
-    <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-      Parameters
-    </h4>
-    <div className="bg-muted/50 max-w-full min-w-0 overflow-hidden rounded-md">
-      <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
-    </div>
-  </div>
+    <CollapsibleTrigger className="group flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-muted/50 transition-colors">
+      <ChevronDownIcon className="size-3 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+      <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+        Parameters
+      </span>
+    </CollapsibleTrigger>
+    <CollapsibleContent>
+      <div className="px-4 pb-4">
+        <div className="bg-muted/50 max-w-full min-w-0 overflow-hidden rounded-md">
+          <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
+        </div>
+      </div>
+    </CollapsibleContent>
+  </Collapsible>
 );
 
 export type ToolOutputProps = ComponentProps<'div'> & {

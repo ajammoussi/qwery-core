@@ -12,12 +12,14 @@ export interface ConversationContentProps {
   messages: UIMessage[];
   status: ChatStatus | undefined;
   onRegenerate?: () => void;
+  sendMessage?: ReturnType<typeof import('@ai-sdk/react').useChat>['sendMessage'];
 }
 
 export function QweryConversationContent({
   messages,
   status,
   onRegenerate,
+  sendMessage,
 }: ConversationContentProps) {
   return (
     <Conversation>
@@ -29,6 +31,7 @@ export function QweryConversationContent({
             messages={messages}
             status={status}
             onRegenerate={onRegenerate}
+            sendMessage={sendMessage}
           />
         ))}
         {status === 'submitted' && <Loader />}

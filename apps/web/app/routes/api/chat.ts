@@ -102,6 +102,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const body = await request.json();
   const messages: UIMessage[] = body.messages;
   const model: string = body.model || 'azure/gpt-5-mini';
+  const datasources: string[] | undefined = body.datasources;
 
   try {
     // Check if this is the first user message and title needs to be generated
@@ -118,8 +119,69 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const agent = await getOrCreateAgent(conversationSlug, model);
 
+    // Process messages to extract suggestion guidance and apply it internally
+    // Also add datasources to the last user message metadata
+    const processedMessages = messages.map((message, index) => {
+      // Add datasources to metadata for the last user message
+      const isLastUserMessage = message.role === 'user' && 
+        index === messages.length - 1 &&
+        datasources && 
+        datasources.length > 0;
+      
+      if (isLastUserMessage) {
+        message = {
+          ...message,
+          metadata: {
+            ...(message.metadata || {}),
+            datasources,
+          },
+        };
+      }
+      
+      if (message.role === 'user') {
+        const textPart = message.parts.find((p) => p.type === 'text');
+        if (textPart && 'text' in textPart) {
+          const text = textPart.text;
+          const guidanceMarker = '__QWERY_SUGGESTION_GUIDANCE__';
+          const guidanceEndMarker = '__QWERY_SUGGESTION_GUIDANCE_END__';
+          
+          if (text.includes(guidanceMarker)) {
+            // Extract guidance and clean message
+            const startIndex = text.indexOf(guidanceMarker);
+            const endIndex = text.indexOf(guidanceEndMarker);
+            
+            if (startIndex !== -1 && endIndex !== -1) {
+              // Extract the message text (everything after the guidance marker)
+              const cleanText = text.substring(endIndex + guidanceEndMarker.length).trim();
+              
+              // Apply suggestion guidance internally by prepending it to the user message
+              const suggestionGuidance = `[SUGGESTION WORKFLOW GUIDANCE]
+- This is a suggested next step from a previous response - execute it directly and efficiently
+- Use the provided context (previous question/answer) to understand the full conversation flow
+- Be action-oriented: proceed immediately with the requested operation without asking for confirmation
+- Keep your response concise and focused on delivering the requested result
+- If the suggestion involves a query or analysis, execute it and present the findings clearly
+
+User request: ${cleanText}`;
+              
+              return {
+                ...message,
+                parts: message.parts.map((part) => {
+                  if (part.type === 'text' && 'text' in part) {
+                    return { ...part, text: suggestionGuidance };
+                  }
+                  return part;
+                }),
+              };
+            }
+          }
+        }
+      }
+      return message;
+    });
+
     const streamResponse = await agent.respond({
-      messages: await validateUIMessages({ messages }),
+      messages: await validateUIMessages({ messages: processedMessages }),
     });
 
     if (!streamResponse.body) {

@@ -318,69 +318,85 @@ export function ChartWrapper({
   const contextValue = useMemo(() => ({ showAxisLabels }), [showAxisLabels]);
 
   return (
-    <div className={cn('relative space-y-3', className)}>
-      {/* Header with title centered and buttons on right */}
-      <div className="relative mb-3 flex items-center justify-center">
+    <div className={cn('relative flex flex-col gap-4', className)}>
+      {/* Header Section */}
+      <div className="flex items-start justify-between gap-4">
         {title && (
-          <h3 className="text-foreground text-base font-semibold">{title}</h3>
+          <div className="flex-1 space-y-0.5">
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">
+              {title}
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Generated Visualization
+            </p>
+          </div>
         )}
-        {/* Buttons and controls in top right */}
-        <div className="absolute top-0 right-0 flex items-center gap-2">
+
+        {/* Controls Group */}
+        <div className="flex items-center gap-1">
           {!hideAxisLabelsCheckbox && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2 mr-2">
               <Checkbox
                 id="show-axis-labels"
                 checked={showAxisLabels}
                 onCheckedChange={(checked) =>
                   handleShowAxisLabelsChange(checked === true)
                 }
-                className="h-4 w-4"
+                className="h-3.5 w-3.5 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
               />
               <Label
                 htmlFor="show-axis-labels"
-                className="text-muted-foreground cursor-pointer text-xs"
+                className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground cursor-pointer select-none"
               >
-                Show labels
+                Labels
               </Label>
             </div>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={downloadAsPNG}
-            className="h-7 w-7 p-0"
-            title="Download PNG"
-          >
-            <Download className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={copySVG}
-            className="h-7 w-7 p-0"
-            title={copied ? 'Copied!' : 'Copy SVG'}
-          >
-            {copied ? (
-              <Check className="h-3 w-3" />
-            ) : (
-              <Copy className="h-3 w-3" />
-            )}
-          </Button>
-          {chartData && chartData.length > 0 && (
+
+          <div className="flex items-center rounded-md border bg-background/50 shadow-sm">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={exportAsCSV}
-              className="h-7 w-7 p-0"
-              title="Export data as CSV"
+              onClick={downloadAsPNG}
+              className="h-7 w-7 rounded-none border-r px-0 hover:bg-muted/50 first:rounded-l-md"
+              title="Download PNG"
             >
-              <FileText className="h-3 w-3" />
+              <Download className="h-3.5 w-3.5 text-muted-foreground" />
             </Button>
-          )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={copySVG}
+              className="h-7 w-7 rounded-none border-r px-0 hover:bg-muted/50"
+              title={copied ? 'Copied!' : 'Copy SVG'}
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-emerald-500" />
+              ) : (
+                <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+              )}
+            </Button>
+            {chartData && chartData.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={exportAsCSV}
+                className="h-7 w-7 rounded-none px-0 hover:bg-muted/50 last:rounded-r-md"
+                title="Export data as CSV"
+              >
+                <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Chart Canvas Area */}
       <ChartContext.Provider value={contextValue}>
-        <div ref={ref} className="w-full">
+        <div
+          ref={ref}
+          className="w-full rounded-xl border bg-card/30 p-4 shadow-sm transition-all hover:shadow-md"
+        >
           {children}
         </div>
       </ChartContext.Provider>

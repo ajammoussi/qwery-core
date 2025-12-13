@@ -1,8 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { Database, Table2 } from 'lucide-react';
+import { Database, Table2, ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '../../shadcn/collapsible';
 
 export interface SchemaColumn {
   columnName: string;
@@ -34,60 +39,121 @@ export function SchemaVisualizer({
   tableName,
   className,
 }: SchemaVisualizerProps) {
-  // Use the passed tableName to filter, or show all tables if not provided
-  const tables = tableName
-    ? schema.tables.filter((t) => t.tableName === tableName)
-    : schema.tables;
+  // Group tables by datasource
+  const groupedTables = React.useMemo(() => {
+    const groups: Record<string, SchemaTable[]> = {};
 
-  if (tables.length === 0) return null;
+    // Filter tables if tableName is provided
+    const filteredTables = tableName
+      ? schema.tables.filter((t) => t.tableName === tableName)
+      : schema.tables;
+
+    filteredTables.forEach((table) => {
+      let datasourceName = schema.databaseName || 'Main';
+
+      // Parse datasource from table name (format: datasource.schema.table)
+      if (table.tableName.includes('.')) {
+        const parts = table.tableName.split('.');
+        if (parts.length >= 2) {
+          // Usually [datasource, schema, table] or [datasource, table]
+          // We'll treat the first part as datasource if it looks like a path
+          datasourceName = parts[0]!;
+        }
+      } else if (schema.databaseName === 'main' || !schema.databaseName) {
+        datasourceName = 'Main Database';
+      }
+
+      const existingGroup = groups[datasourceName];
+      if (existingGroup) {
+        existingGroup.push(table);
+      } else {
+        groups[datasourceName] = [table];
+      }
+    });
+
+    return groups;
+  }, [schema, tableName]);
+
+  const datasourceNames = Object.keys(groupedTables);
+
+  if (datasourceNames.length === 0) return null;
 
   return (
-    <div className={cn('flex flex-col gap-4', className)}>
-
-
-      {tables.map((table) => (
-        <div
-          key={table.tableName}
-          className="overflow-hidden rounded-md border bg-card"
+    <div className={cn('space-y-4', className)}>
+      {datasourceNames.map((dsName) => (
+        <Collapsible
+          key={dsName}
+          defaultOpen={true}
+          className="rounded-lg border bg-card shadow-sm"
         >
-          {/* Table Header */}
-          <div className="bg-muted/30 flex items-center justify-between border-b px-3 py-2">
-            <div className="flex items-center gap-2">
-              <Table2 className="text-primary/70 h-4 w-4" />
-              <h3 className="text-sm font-medium">{table.tableName}</h3>
+          <CollapsibleTrigger className="flex w-full items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                {/* TODO: Use actual datasource logo from extensions folder if available */}
+                <Database className="h-5 w-5 text-primary" />
+              </div>
+              <div className="text-left">
+                <h3 className="font-semibold text-foreground">{dsName}</h3>
+                <div className="text-xs text-muted-foreground">
+                  {groupedTables[dsName]?.length ?? 0} tables found
+                </div>
+              </div>
             </div>
-            <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 font-mono text-[10px]">
-              {table.columns.length} columns
-            </span>
-          </div>
+            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+          </CollapsibleTrigger>
 
-          {/* Columns Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="bg-muted/5 border-b text-xs text-muted-foreground/70 uppercase tracking-wider">
-                  <th className="px-3 py-2 font-medium w-1/3">Column</th>
-                  <th className="px-3 py-2 font-medium">Type</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {table.columns.map((col) => (
-                  <tr
-                    key={col.columnName}
-                    className="hover:bg-muted/20 transition-colors"
-                  >
-                    <td className="text-foreground/90 px-3 py-1.5 font-medium">
-                      {col.columnName}
-                    </td>
-                    <td className="text-muted-foreground px-3 py-1.5 font-mono text-xs">
-                      {col.columnType}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          <CollapsibleContent>
+            <div className="border-t p-4 space-y-4">
+              {groupedTables[dsName]?.map((table) => (
+                <div
+                  key={table.tableName}
+                  className="overflow-hidden rounded-md border bg-background"
+                >
+                  {/* Table Header */}
+                  <div className="bg-muted/30 flex items-center justify-between border-b px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Table2 className="text-primary/70 h-3.5 w-3.5" />
+                      <h4 className="text-sm font-medium font-mono text-foreground/90">
+                        {/* Display clean table name without datasource prefix for clarity inside group */}
+                        {table.tableName.includes('.') ? table.tableName.split('.').slice(1).join('.') : table.tableName}
+                      </h4>
+                    </div>
+                    <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 font-mono text-[10px]">
+                      {table.columns.length} columns
+                    </span>
+                  </div>
+
+                  {/* Columns Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="bg-muted/5 border-b text-[10px] text-muted-foreground uppercase tracking-wider">
+                          <th className="px-3 py-1.5 font-medium w-1/3">Column</th>
+                          <th className="px-3 py-1.5 font-medium">Type</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/50">
+                        {table.columns.map((col) => (
+                          <tr
+                            key={col.columnName}
+                            className="hover:bg-muted/20 transition-colors"
+                          >
+                            <td className="text-foreground/90 px-3 py-1.5 font-medium text-xs break-all">
+                              {col.columnName}
+                            </td>
+                            <td className="text-muted-foreground px-3 py-1.5 font-mono text-[10px]">
+                              {col.columnType}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       ))}
     </div>
   );

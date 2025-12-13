@@ -15,6 +15,7 @@ export interface MessageRendererProps {
   messages: UIMessage[];
   status: ChatStatus | undefined;
   onRegenerate?: () => void;
+  sendMessage?: ReturnType<typeof import('@ai-sdk/react').useChat>['sendMessage'];
 }
 
 export function MessageRenderer({
@@ -22,6 +23,7 @@ export function MessageRenderer({
   messages,
   status,
   onRegenerate,
+  sendMessage,
 }: MessageRendererProps) {
   const isLastMessage = message.id === messages.at(-1)?.id;
   const sourceParts = message.parts.filter(
@@ -59,6 +61,8 @@ export function MessageRenderer({
                 index={i}
                 isLastMessage={isLastMessage && i === message.parts.length - 1}
                 onRegenerate={onRegenerate}
+                sendMessage={sendMessage}
+                messages={messages}
               />
             );
           case 'reasoning':
@@ -73,6 +77,8 @@ export function MessageRenderer({
                   i === message.parts.length - 1 &&
                   message.id === messages.at(-1)?.id
                 }
+                sendMessage={sendMessage}
+                messages={messages}
               />
             );
           default:

@@ -6,11 +6,18 @@ import {
   ConversationScrollButton,
   ConversationEmptyState,
 } from '../ai-elements/conversation';
+import { useStickToBottomContext } from 'use-stick-to-bottom';
 import {
   Message,
   MessageContent,
   MessageResponse,
 } from '../ai-elements/message';
+import { ReasoningPart } from './ai/message-parts';
+import { StreamdownWithSuggestions } from './ai/streamdown-with-suggestions';
+import {
+  UserMessageBubble,
+  parseMessageWithContext,
+} from './ai/user-message-bubble';
 import {
   type PromptInputMessage,
   usePromptInputAttachments,
@@ -43,6 +50,7 @@ import { BotAvatar } from './bot-avatar';
 import { Sparkles } from 'lucide-react';
 import { QweryPromptInput, type DatasourceItem, ToolPart } from './ai';
 import { QweryContextProps } from './ai/context';
+import { DatasourceBadges } from './ai/datasource-badge';
 
 export interface QweryAgentUIProps {
   initialMessages?: UIMessage[];
@@ -162,6 +170,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
   }, [initialMessages, setMessages, messages]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollToBottomRef = useRef<(() => void) | null>(null);
   const viewSheetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editText, setEditText] = useState<string>('');
@@ -253,7 +262,15 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     () => messages.filter((m) => m.role === 'assistant').at(-1),
     [messages],
   );
-
+  // Check if last assistant message has any text parts
+  const lastAssistantHasText = useMemo(() => {
+    if (!lastAssistantMessage) return false;
+    return lastAssistantMessage.parts.some((p) => p.type === 'text');
+  }, [lastAssistantMessage]);
+  // Check if the last assistant message is actually the last message (to ensure it's rendered)
+  const lastMessageIsAssistant = useMemo(() => {
+    return messages.length > 0 && messages[messages.length - 1]?.role === 'assistant';
+  }, [messages]);
   // Track previous view sheet count to detect new additions
   const prevViewSheetCountRef = useRef(0);
 
@@ -430,36 +447,126 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                     </>
                                   ) : (
                                     <>
-                                      {!isStreaming && (
-                                        <Message
-                                          from={message.role}
-                                          className="w-full"
-                                        >
-                                          <MessageContent>
-                                            <div className="inline-flex items-baseline gap-0.5">
-                                              <MessageResponse>
-                                                {part.text}
-                                              </MessageResponse>
+                                      {message.role === 'user' ? (
+                                        // User messages - check if it's a suggestion with context
+                                        (() => {
+                                          const { text, context } = parseMessageWithContext(
+                                            part.text,
+                                          );
+                                          
+                                          // Extract datasources from message metadata or use selectedDatasources for the last user message
+                                          const messageDatasources = (() => {
+                                            // Find the last user message in the messages array
+                                            const lastUserMessage = [...messages]
+                                              .reverse()
+                                              .find((msg) => msg.role === 'user');
+                                            
+                                            // Check if this is the last user message and we have selectedDatasources
+                                            // This allows badges to appear immediately when message is sent
+                                            const isLastUserMessage = lastUserMessage?.id === message.id;
+                                            
+                                            if (isLastUserMessage && selectedDatasources && selectedDatasources.length > 0) {
+                                              // Use selectedDatasources for immediate display
+                                              return selectedDatasources
+                                                .map((dsId) => datasources?.find((ds) => ds.id === dsId))
+                                                .filter((ds): ds is DatasourceItem => ds !== undefined);
+                                            }
+                                            
+                                            // Otherwise, try to get from metadata (for persisted messages)
+                                            if (!message.metadata || typeof message.metadata !== 'object') {
+                                              return undefined;
+                                            }
+                                            const metadata = message.metadata as Record<string, unknown>;
+                                            if ('datasources' in metadata && Array.isArray(metadata.datasources)) {
+                                              return (metadata.datasources as string[])
+                                                .map((dsId) => datasources?.find((ds) => ds.id === dsId))
+                                                .filter((ds): ds is DatasourceItem => ds !== undefined);
+                                            }
+                                            return undefined;
+                                          })();
+                                          
+                                          if (context) {
+                                            // Use UserMessageBubble for suggestions with context
+                                            return (
+                                              <UserMessageBubble
+                                                key={`${message.id}-${i}`}
+                                                text={text}
+                                                context={context}
+                                                messageId={message.id}
+                                                datasources={messageDatasources}
+                                                pluginLogoMap={pluginLogoMap}
+                                              />
+                                            );
+                                          }
+                                          
+                                          // Regular user message with datasources
+                                          return (
+                                            <div className="flex flex-col items-end gap-1.5">
+                                              {messageDatasources && messageDatasources.length > 0 && (
+                                                <div className="flex w-full max-w-[80%] justify-end">
+                                                  <DatasourceBadges
+                                                    datasources={messageDatasources}
+                                                    pluginLogoMap={pluginLogoMap}
+                                                  />
+                                                </div>
+                                              )}
+                                              <Message
+                                                key={`${message.id}-${i}`}
+                                                from={message.role}
+                                                className="w-full"
+                                              >
+                                                <MessageContent>
+                                                  <div className="inline-flex items-baseline gap-0.5">
+                                                    {part.text}
+                                                  </div>
+                                                </MessageContent>
+                                              </Message>
                                             </div>
-                                          </MessageContent>
-                                        </Message>
-                                      )}
-                                      {isStreaming && (
-                                        <Message
-                                          from={message.role}
-                                          className="w-full"
-                                        >
-                                          <MessageContent>
-                                            <div className="inline-flex items-baseline gap-0.5">
-                                              <MessageResponse>
-                                                {part.text}
-                                              </MessageResponse>
-                                            </div>
-                                          </MessageContent>
-                                        </Message>
+                                          );
+                                        })()
+                                      ) : (
+                                        // Assistant messages
+                                        <>
+                                          {!isStreaming && (
+                                            <Message
+                                              from={message.role}
+                                              className="w-full"
+                                            >
+                                              <MessageContent>
+                                                <div className="inline-flex items-baseline gap-0.5">
+                                                  <StreamdownWithSuggestions
+                                                    sendMessage={sendMessage}
+                                                    messages={messages}
+                                                    currentMessageId={message.id}
+                                                  >
+                                                    {part.text}
+                                                  </StreamdownWithSuggestions>
+                                                </div>
+                                              </MessageContent>
+                                            </Message>
+                                          )}
+                                          {isStreaming && (
+                                            <Message
+                                              from={message.role}
+                                              className="w-full"
+                                            >
+                                              <MessageContent>
+                                                <div className="inline-flex items-baseline gap-0.5">
+                                                  <StreamdownWithSuggestions
+                                                    sendMessage={sendMessage}
+                                                    messages={messages}
+                                                    currentMessageId={message.id}
+                                                  >
+                                                    {part.text}
+                                                  </StreamdownWithSuggestions>
+                                                </div>
+                                              </MessageContent>
+                                            </Message>
+                                          )}
+                                        </>
                                       )}
                                       {/* Actions below the bubble */}
-                                          {(isResponseComplete ||
+                                      {(isResponseComplete ||
                                         (message.role === 'user' &&
                                           isLastTextPart)) && (
                                         <div
@@ -470,15 +577,15 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                           )}
                                         >
                                           {message.role === 'assistant' && (
-                                                <Button
-                                                  variant="ghost"
-                                                  size="icon"
-                                                  onClick={handleRegenerate}
-                                                  className="h-7 w-7"
-                                                  title="Retry"
-                                                >
-                                                  <RefreshCcwIcon className="size-3" />
-                                                </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={handleRegenerate}
+                                              className="h-7 w-7"
+                                              title="Retry"
+                                            >
+                                              <RefreshCcwIcon className="size-3" />
+                                            </Button>
                                           )}
                                           <Button
                                             variant="ghost"
@@ -528,18 +635,19 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                           }
                           case 'reasoning':
                             return (
-                              <Reasoning
+                              <ReasoningPart
                                 key={`${message.id}-${i}`}
-                                className="w-full"
+                                part={part as { type: 'reasoning'; text: string }}
+                                messageId={message.id}
+                                index={i}
                                 isStreaming={
                                   status === 'streaming' &&
                                   i === message.parts.length - 1 &&
                                   message.id === messages.at(-1)?.id
                                 }
-                              >
-                                <ReasoningTrigger />
-                                <ReasoningContent>{part.text}</ReasoningContent>
-                              </Reasoning>
+                                sendMessage={sendMessage}
+                                messages={messages}
+                              />
                             );
                           default:
                             if (part.type.startsWith('tool-')) {
@@ -599,7 +707,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                   );
                 })
               )}
-              {status === 'submitted' && (
+              {((status === 'submitted') || (status === 'streaming' && (!lastAssistantHasText || !lastMessageIsAssistant))) && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 flex items-start gap-3 duration-300">
                   <BotAvatar
                     size={6}
@@ -619,6 +727,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
               )}
             </ConversationContent>
             <ConversationScrollButton />
+            <ScrollToBottomRefSetter scrollRef={scrollToBottomRef} />
           </Conversation>
         </div>
 
@@ -639,11 +748,29 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
             onDatasourceSelectionChange={onDatasourceSelectionChange}
             pluginLogoMap={pluginLogoMap}
             datasourcesLoading={datasourcesLoading}
+            scrollToBottomRef={scrollToBottomRef}
           />
         </div>
       </div>
     </PromptInputProvider>
   );
+}
+
+function ScrollToBottomRefSetter({
+  scrollRef,
+}: {
+  scrollRef: React.RefObject<(() => void) | null>;
+}) {
+  const { scrollToBottom } = useStickToBottomContext();
+  
+  useEffect(() => {
+    scrollRef.current = scrollToBottom;
+    return () => {
+      scrollRef.current = null;
+    };
+  }, [scrollRef, scrollToBottom]);
+  
+  return null;
 }
 
 function PromptInputInner({
@@ -662,6 +789,7 @@ function PromptInputInner({
   onDatasourceSelectionChange,
   pluginLogoMap,
   datasourcesLoading,
+  scrollToBottomRef,
 }: {
   sendMessage: ReturnType<typeof useChat>['sendMessage'];
   state: { input: string; model: string; webSearch: boolean };
@@ -680,9 +808,38 @@ function PromptInputInner({
   onDatasourceSelectionChange?: (datasourceIds: string[]) => void;
   pluginLogoMap?: Map<string, string>;
   datasourcesLoading?: boolean;
+  scrollToBottomRef: React.RefObject<(() => void) | null>;
 }) {
   const attachments = usePromptInputAttachments();
   const controller = usePromptInputController();
+  const previousMessagesLengthRef = useRef(_messages.length);
+
+  // Scroll to bottom when a new user message is added
+  useEffect(() => {
+    const currentLength = _messages.length;
+    const previousLength = previousMessagesLengthRef.current;
+    
+    if (currentLength > previousLength) {
+      const lastMessage = _messages[_messages.length - 1];
+      // Only scroll if the new message is from the user
+      if (lastMessage && lastMessage.role === 'user') {
+        // Use multiple timeouts to ensure DOM is updated
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            scrollToBottomRef.current?.();
+          }, 0);
+          setTimeout(() => {
+            scrollToBottomRef.current?.();
+          }, 100);
+          setTimeout(() => {
+            scrollToBottomRef.current?.();
+          }, 300);
+        });
+      }
+    }
+    
+    previousMessagesLengthRef.current = currentLength;
+  }, [_messages, scrollToBottomRef]);
 
   const handleSubmit = async (message: PromptInputMessage) => {
     if (status === 'streaming' || status === 'submitted') {
@@ -700,6 +857,11 @@ function PromptInputInner({
     controller.textInput.clear();
     setState((prev) => ({ ...prev, input: '' }));
 
+    // Scroll immediately when submitting
+    requestAnimationFrame(() => {
+      scrollToBottomRef.current?.();
+    });
+
     try {
       await sendMessage(
         {
@@ -710,10 +872,25 @@ function PromptInputInner({
           body: {
             model: state.model,
             webSearch: state.webSearch,
+            datasources: selectedDatasources && selectedDatasources.length > 0 
+              ? selectedDatasources 
+              : undefined,
           },
         },
       );
       attachments.clear();
+      // Scroll again after message is sent to ensure we're at bottom
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          scrollToBottomRef.current?.();
+        }, 0);
+        setTimeout(() => {
+          scrollToBottomRef.current?.();
+        }, 100);
+        setTimeout(() => {
+          scrollToBottomRef.current?.();
+        }, 300);
+      });
       // Don't clear input here - it's already cleared on submit
       // The input should only be cleared on explicit user action (submit button or Enter)
     } catch {

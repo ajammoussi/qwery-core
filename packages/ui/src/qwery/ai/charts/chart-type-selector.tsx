@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import { cn } from '../../../lib/utils';
-import { BarChart3, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
+import { BarChart3, TrendingUp, PieChart as PieChartIcon, Sparkles, Check } from 'lucide-react';
+
 export type ChartType = 'bar' | 'line' | 'pie';
 
 export interface ChartTypeSelection {
@@ -16,29 +17,33 @@ export interface ChartTypeCard {
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   color: string;
+  bgColor: string;
 }
 
 const CHART_TYPE_CARDS: ChartTypeCard[] = [
   {
     type: 'bar',
     label: 'Bar Chart',
-    description: 'Best for categorical data and comparisons',
+    description: 'Best for comparing categories',
     icon: BarChart3,
-    color: '#8884d8', // Blue
+    color: 'text-blue-500',
+    bgColor: 'bg-blue-500/10',
   },
   {
     type: 'line',
     label: 'Line Chart',
-    description: 'Best for trends and time series data',
+    description: 'Best for trends over time',
     icon: TrendingUp,
-    color: '#82ca9d', // Green
+    color: 'text-emerald-500',
+    bgColor: 'bg-emerald-500/10',
   },
   {
     type: 'pie',
     label: 'Pie Chart',
-    description: 'Best for proportions and part-to-whole',
+    description: 'Best for part-to-whole',
     icon: PieChartIcon,
-    color: '#ffc658', // Yellow
+    color: 'text-amber-500',
+    bgColor: 'bg-amber-500/10',
   },
 ];
 
@@ -49,7 +54,7 @@ export interface ChartTypeSelectorProps {
 
 /**
  * Displays chart type selection with cards showing all supported types
- * Highlights the selected chart type
+ * Highlights the selected chart type with a premium UI
  */
 export function ChartTypeSelector({
   selection,
@@ -58,30 +63,18 @@ export function ChartTypeSelector({
   const selectedType = selection.chartType;
 
   return (
-    <div className={cn('space-y-6', className)}>
-      {/* Prominent Reasoning Section */}
-      <div className="border-primary/20 bg-primary/5 rounded-lg border p-4">
+    <div className={cn('space-y-4', className)}>
+      {/* AI Reasoning Section */}
+      <div className="relative overflow-hidden rounded-xl border bg-muted/30 p-4">
         <div className="flex items-start gap-3">
-          <div className="bg-primary/10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
-            <svg
-              className="text-primary h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-              />
-            </svg>
+          <div className="bg-background flex size-8 shrink-0 items-center justify-center rounded-lg border shadow-sm">
+            <Sparkles className="size-4 text-primary" />
           </div>
-          <div className="flex-1 space-y-1">
-            <h4 className="text-foreground text-sm font-semibold">
-              Why this chart type?
+          <div className="space-y-1">
+            <h4 className="text-sm font-medium text-foreground">
+              AI Recommendation
             </h4>
-            <p className="text-foreground/90 text-sm leading-relaxed">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               {selection.reasoning}
             </p>
           </div>
@@ -89,121 +82,55 @@ export function ChartTypeSelector({
       </div>
 
       {/* Chart Type Cards */}
-      <div className="space-y-3">
-        <h4 className="text-foreground text-sm font-semibold">
-          Available Chart Types
-        </h4>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {CHART_TYPE_CARDS.map((card) => {
-            const isSelected = card.type === selectedType;
-            const Icon = card.icon;
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {CHART_TYPE_CARDS.map((card) => {
+          const isSelected = card.type === selectedType;
+          const Icon = card.icon;
 
-            return (
-              <div
-                key={card.type}
-                className={cn(
-                  'group relative flex flex-col rounded-lg border-2 p-5 transition-all duration-200',
-                  isSelected
-                    ? 'border-primary bg-primary/10 shadow-primary/10 shadow-md'
-                    : 'border-border bg-card hover:border-primary/30 hover:bg-accent/30 hover:shadow-sm',
-                )}
-              >
-                {isSelected && (
-                  <div className="absolute top-3 right-3">
-                    <div className="bg-primary text-primary-foreground flex h-6 w-6 items-center justify-center rounded-full shadow-sm">
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2.5}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                )}
-
-                {/* Large Icon */}
+          return (
+            <div
+              key={card.type}
+              className={cn(
+                'group relative flex flex-col rounded-xl border p-4 transition-all duration-200',
+                isSelected
+                  ? 'border-primary bg-background ring-1 ring-primary'
+                  : 'border-border bg-card/50 hover:border-sidebar-accent hover:bg-sidebar-accent/50',
+              )}
+            >
+              {/* Card Header & Icon */}
+              <div className="flex items-start justify-between mb-3">
                 <div
                   className={cn(
-                    'mb-4 flex h-16 w-16 items-center justify-center rounded-xl transition-all duration-200',
-                    isSelected
-                      ? 'shadow-primary/20 shadow-lg'
-                      : 'shadow-md group-hover:shadow-lg',
+                    'flex size-10 items-center justify-center rounded-lg transition-colors duration-200',
+                    isSelected ? card.bgColor : 'bg-muted',
                   )}
-                  style={{
-                    backgroundColor: isSelected
-                      ? card.color
-                      : `${card.color}15`,
-                  }}
                 >
-                  <div
-                    className={cn(
-                      'transition-all duration-200',
-                      isSelected
-                        ? 'h-8 w-8'
-                        : 'h-7 w-7 group-hover:h-8 group-hover:w-8',
-                    )}
-                    style={{
-                      color: isSelected ? 'white' : card.color,
-                    }}
-                  >
-                    <Icon className="h-full w-full" />
-                  </div>
+                  <Icon className={cn('h-5 w-5', isSelected ? card.color : 'text-muted-foreground')} />
                 </div>
-
-                {/* Card Content */}
-                <div className="space-y-2">
-                  <h5
-                    className={cn(
-                      'text-base font-semibold',
-                      isSelected ? 'text-primary' : 'text-foreground',
-                    )}
-                  >
-                    {card.label}
-                  </h5>
-                  <p
-                    className={cn(
-                      'text-sm leading-relaxed',
-                      isSelected
-                        ? 'text-foreground/80'
-                        : 'text-muted-foreground',
-                    )}
-                  >
-                    {card.description}
-                  </p>
-                </div>
-
-                {/* Selection Indicator */}
                 {isSelected && (
-                  <div className="border-primary/20 mt-4 border-t pt-4">
-                    <div className="text-primary flex items-center gap-2 text-xs font-medium">
-                      <svg
-                        className="h-3.5 w-3.5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      <span>Selected</span>
-                    </div>
+                  <div className="flex items-center justify-center size-5 bg-primary rounded-full shadow-sm animate-in fade-in zoom-in duration-300">
+                    <Check className="size-3 text-primary-foreground stroke-[3]" />
                   </div>
                 )}
               </div>
-            );
-          })}
-        </div>
+
+              {/* Card Content */}
+              <div className="space-y-1">
+                <h5
+                  className={cn(
+                    'text-sm font-medium tracking-tight transition-colors',
+                    isSelected ? 'text-foreground' : 'text-foreground/80'
+                  )}
+                >
+                  {card.label}
+                </h5>
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {card.description}
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

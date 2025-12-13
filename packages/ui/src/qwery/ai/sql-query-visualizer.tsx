@@ -1,11 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
 import * as React from 'react';
-import { Database, Table2, Copy, Check } from 'lucide-react';
-import { Button } from '../../shadcn/button';
-import { CodeBlock } from '../../ai-elements/code-block';
-import { toast } from 'sonner';
+import { Database, Play, Table2 } from 'lucide-react';
+import { CodeBlock, CodeBlockCopyButton } from '../../ai-elements/code-block';
 import { cn } from '../../lib/utils';
 import { DataGrid } from './data-grid';
 
@@ -30,79 +27,49 @@ export function SQLQueryVisualizer({
   result,
   className,
 }: SQLQueryVisualizerProps) {
-  const [copied, setCopied] = useState(false);
-
-  const copyQuery = useCallback(async () => {
-    if (!query) return;
-
-    try {
-      await navigator.clipboard.writeText(query);
-      setCopied(true);
-      toast.success('SQL query copied to clipboard');
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error('Error copying query:', error);
-      toast.error('Failed to copy query');
-    }
-  }, [query]);
-
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn('flex flex-col rounded-md border text-sm overflow-hidden', className)}>
       {/* SQL Query Section */}
       {query && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Database className="text-muted-foreground h-4 w-4" />
-              <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                SQL Query
-              </h4>
+        <div className="bg-muted/10">
+          <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/20">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Database className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium uppercase tracking-wider">SQL</span>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={copyQuery}
-              className="h-7 gap-1.5"
-            >
-              {copied ? (
-                <>
-                  <Check className="h-3 w-3" />
-                  <span className="text-xs">Copied</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3 w-3" />
-                  <span className="text-xs">Copy</span>
-                </>
-              )}
-            </Button>
           </div>
-          <div className="max-w-full min-w-0 overflow-hidden rounded-md">
-            <CodeBlock code={query} language="sql" />
+          <div className="relative">
+            <CodeBlock
+              code={query}
+              language="sql"
+              className="border-0 rounded-none bg-transparent"
+            >
+              <CodeBlockCopyButton className="text-muted-foreground hover:text-foreground" />
+            </CodeBlock>
           </div>
         </div>
       )}
 
-      {/* Query Results Section */}
-      {result && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Table2 className="text-muted-foreground h-4 w-4" />
-            <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-              Query Results
-            </h4>
-            {result.result.columns && (
-              <span className="text-muted-foreground text-xs">
-                ({result.result.rows.length} row
-                {result.result.rows.length !== 1 ? 's' : ''})
-              </span>
-            )}
+      {/* Query Results Section - Only show if we have columns (implies execution success) */}
+      {result && result.result && (
+        <div className="flex flex-col border-t mt-[-1px]">
+          <div className="flex items-center justify-between px-3 py-2 bg-muted/20 border-b">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Table2 className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium uppercase tracking-wider">Result</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded-sm">
+              {result.result.rows.length} rows
+            </span>
           </div>
-          <DataGrid
-            columns={result.result.columns}
-            rows={result.result.rows}
-            pageSize={50}
-          />
+          <div className="p-0">
+            <DataGrid
+              columns={result.result.columns}
+              rows={result.result.rows}
+              pageSize={10}
+              className="border-0 rounded-none shadow-none"
+            />
+          </div>
         </div>
       )}
     </div>

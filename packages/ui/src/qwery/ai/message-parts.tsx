@@ -29,23 +29,43 @@ import { SQLQueryVisualizer } from './sql-query-visualizer';
 
 import { SchemaVisualizer } from './schema-visualizer';
 
+import { AvailableSheetsVisualizer } from './sheets/available-sheets-visualizer';
+
+import { ViewSheetVisualizer } from './sheets/view-sheet-visualizer';
+
+import { ViewSheetError } from './sheets/view-sheet-error';
 import {
   Source,
   Sources,
   SourcesContent,
   SourcesTrigger,
 } from '../../ai-elements/sources';
-import { useState } from 'react';
+import { useState, createContext, useContext, useMemo } from 'react';
 import { CopyIcon, RefreshCcwIcon, CheckIcon } from 'lucide-react';
-import { ToolUIPart } from 'ai';
+import { ToolUIPart, UIMessage } from 'ai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { agentMarkdownComponents } from './markdown-components';
+import { agentMarkdownComponents, HeadingContext } from './markdown-components';
 import { ToolErrorVisualizer } from './tool-error-visualizer';
+import type { useChat } from '@ai-sdk/react';
 
 import { ChartRenderer, type ChartConfig } from './charts/chart-renderer';
+import {
+  ChartTypeSelector,
+  type ChartTypeSelection,
+} from './charts/chart-type-selector';
 
 export type TaskStatus = 'pending' | 'in-progress' | 'completed' | 'error';
+
+export interface MarkdownContextValue {
+  sendMessage?: ReturnType<typeof useChat>['sendMessage'];
+  messages?: UIMessage[];
+  currentMessageId?: string;
+}
+
+export const MarkdownContext = createContext<MarkdownContextValue>({});
+
+export const MarkdownProvider = MarkdownContext.Provider;
 
 export type TaskUIPart = {
   type: 'data-tasks';
@@ -134,6 +154,8 @@ export interface TextPartProps {
   index: number;
   isLastMessage: boolean;
   onRegenerate?: () => void;
+  sendMessage?: ReturnType<typeof useChat>['sendMessage'];
+  messages?: UIMessage[];
 }
 
 export function TextPart({
@@ -143,8 +165,11 @@ export function TextPart({
   index,
   isLastMessage,
   onRegenerate,
+  sendMessage,
+  messages,
 }: TextPartProps) {
   const [isCopied, setIsCopied] = useState(false);
+  const [currentHeading, setCurrentHeading] = useState('');
 
   const handleCopy = async () => {
     try {
@@ -158,46 +183,61 @@ export function TextPart({
     }
   };
 
+  const headingContextValue = useMemo(
+    () => ({
+      currentHeading,
+      setCurrentHeading,
+    }),
+    [currentHeading],
+  );
+
   return (
-    <Message key={`${messageId}-${index}`} from={messageRole}>
-      <MessageContent>
-        <div className="prose prose-sm dark:prose-invert max-w-none">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={agentMarkdownComponents}
-          >
-            {part.text}
-          </ReactMarkdown>
-        </div>
-      </MessageContent>
-      {messageRole === 'assistant' && isLastMessage && (
-        <MessageActions>
-          {onRegenerate && (
-            <MessageAction onClick={onRegenerate} label="Retry">
-              <RefreshCcwIcon className="size-3" />
-            </MessageAction>
+    <MarkdownProvider value={{ sendMessage, messages, currentMessageId: messageId }}>
+      <HeadingContext.Provider value={headingContextValue}>
+        <Message key={`${messageId}-${index}`} from={messageRole}>
+          <MessageContent>
+            <div className="prose prose-sm dark:prose-invert max-w-none">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={agentMarkdownComponents}
+              >
+                {part.text}
+              </ReactMarkdown>
+            </div>
+          </MessageContent>
+          {messageRole === 'assistant' && isLastMessage && (
+            <MessageActions>
+              {onRegenerate && (
+                <MessageAction onClick={onRegenerate} label="Retry">
+                  <RefreshCcwIcon className="size-3" />
+                </MessageAction>
+              )}
+              <MessageAction
+                onClick={handleCopy}
+                label={isCopied ? 'Copied!' : 'Copy'}
+              >
+                {isCopied ? (
+                  <CheckIcon className="size-3 text-green-600" />
+                ) : (
+                  <CopyIcon className="size-3" />
+                )}
+              </MessageAction>
+            </MessageActions>
           )}
-          <MessageAction
-            onClick={handleCopy}
-            label={isCopied ? 'Copied!' : 'Copy'}
-          >
-            {isCopied ? (
-              <CheckIcon className="size-3 text-green-600" />
-            ) : (
-              <CopyIcon className="size-3" />
-            )}
-          </MessageAction>
-        </MessageActions>
-      )}
-    </Message>
+        </Message>
+      </HeadingContext.Provider>
+    </MarkdownProvider>
   );
 }
+
 
 export interface ReasoningPartProps {
   part: { type: 'reasoning'; text: string };
   messageId: string;
   index: number;
   isStreaming: boolean;
+  sendMessage?: ReturnType<typeof useChat>['sendMessage'];
+  messages?: UIMessage[];
 }
 
 export function ReasoningPart({
@@ -205,25 +245,41 @@ export function ReasoningPart({
   messageId,
   index,
   isStreaming,
+  sendMessage,
+  messages,
 }: ReasoningPartProps) {
+  const [currentHeading, setCurrentHeading] = useState('');
+
+  const headingContextValue = useMemo(
+    () => ({
+      currentHeading,
+      setCurrentHeading,
+    }),
+    [currentHeading],
+  );
+
   return (
-    <Reasoning
-      key={`${messageId}-${index}`}
-      className="w-full"
-      isStreaming={isStreaming}
-    >
-      <ReasoningTrigger />
-      <ReasoningContent>
-        <div className="prose prose-sm dark:prose-invert max-w-none">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={agentMarkdownComponents}
-          >
-            {part.text}
-          </ReactMarkdown>
-        </div>
-      </ReasoningContent>
-    </Reasoning>
+    <MarkdownProvider value={{ sendMessage, messages, currentMessageId: messageId }}>
+      <HeadingContext.Provider value={headingContextValue}>
+        <Reasoning
+          key={`${messageId}-${index}`}
+          className="w-full"
+          isStreaming={isStreaming}
+        >
+          <ReasoningTrigger />
+          <ReasoningContent>
+            <div className="prose prose-sm dark:prose-invert max-w-none">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={agentMarkdownComponents}
+              >
+                {part.text}
+              </ReactMarkdown>
+            </div>
+          </ReasoningContent>
+        </Reasoning>
+      </HeadingContext.Provider>
+    </MarkdownProvider>
   );
 }
 
@@ -231,28 +287,236 @@ export interface ToolPartProps {
   part: ToolUIPart;
   messageId: string;
   index: number;
+  onViewSheet?: (sheetName: string) => void;
+  onDeleteSheets?: (sheetNames: string[]) => void;
+  onRenameSheet?: (oldSheetName: string, newSheetName: string) => void;
+  isRequestInProgress?: boolean;
 }
 
-export function ToolPart({ part, messageId, index }: ToolPartProps) {
-  const toolName = part.type.replace('tool-', '');
+export function ToolPart({
+  part,
+  messageId,
+  index,
+  onViewSheet,
+  onDeleteSheets,
+  onRenameSheet,
+  isRequestInProgress,
+}: ToolPartProps) {
+  // Determine dynamic tool name for listTables based on returned data
+  let toolName = part.type.replace('tool-', '');
+  if (part.type === 'tool-listTables' && part.output) {
+    let parsedOutput: {
+      sheets?: Array<{
+        name: string;
+        type: 'view' | 'table' | 'attached_table';
+      }>;
+    } | null = null;
+
+    if (typeof part.output === 'string') {
+      try {
+        parsedOutput = JSON.parse(part.output);
+      } catch {
+        // Not JSON
+      }
+    } else if (typeof part.output === 'object') {
+      parsedOutput = part.output as {
+        sheets?: Array<{
+          name: string;
+          type: 'view' | 'table' | 'attached_table';
+        }>;
+      };
+    }
+
+    if (parsedOutput?.sheets && parsedOutput.sheets.length > 0) {
+      const typeCounts = parsedOutput.sheets.reduce(
+        (acc, sheet) => {
+          const type = sheet.type === 'attached_table' ? 'table' : sheet.type;
+          acc[type] = (acc[type] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
+
+      // Determine the dominant type for naming
+      if (typeCounts.view && !typeCounts.table) {
+        toolName = 'listViews';
+      } else if (typeCounts.table && !typeCounts.view) {
+        toolName = 'listTables';
+      } else if (typeCounts.view && typeCounts.table) {
+        // Mixed - use the more common one
+        if (typeCounts.view >= typeCounts.table) {
+          toolName = 'listViews';
+        } else {
+          toolName = 'listTables';
+        }
+      }
+    }
+  }
   // Render specialized visualizers based on tool type
   const renderToolOutput = () => {
-    // Handle errors with ToolErrorVisualizer
+    // Handle runQuery errors - show query above error
+    if (
+      part.type === 'tool-runQuery' &&
+      part.state === 'output-error' &&
+      part.errorText
+    ) {
+      const input = part.input as { query?: string } | null;
+      return (
+        <div className="space-y-3">
+          {input?.query && (
+            <SQLQueryVisualizer query={input.query} result={undefined} />
+          )}
+          <ToolErrorVisualizer errorText={part.errorText} />
+        </div>
+      );
+    }
+
+    // Handle generateChart errors - show query above error
+    if (
+      part.type === 'tool-generateChart' &&
+      part.state === 'output-error' &&
+      part.errorText
+    ) {
+      const input = part.input as { queryResults?: { sqlQuery?: string } } | null;
+      return (
+        <div className="space-y-3">
+          {input?.queryResults?.sqlQuery && (
+            <SQLQueryVisualizer
+              query={input.queryResults.sqlQuery}
+              result={undefined}
+            />
+          )}
+          <ToolErrorVisualizer errorText={part.errorText} />
+        </div>
+      );
+    }
+
+    // Handle selectChartType errors - show query above error
+    if (
+      part.type === 'tool-selectChartType' &&
+      part.state === 'output-error' &&
+      part.errorText
+    ) {
+      const input = part.input as { queryResults?: { sqlQuery?: string } } | null;
+      return (
+        <div className="space-y-3">
+          {input?.queryResults?.sqlQuery && (
+            <SQLQueryVisualizer
+              query={input.queryResults.sqlQuery}
+              result={undefined}
+            />
+          )}
+          <ToolErrorVisualizer errorText={part.errorText} />
+        </div>
+      );
+    }
+
+    // Handle generateSql errors - show instruction above error
+    if (
+      part.type === 'tool-generateSql' &&
+      part.state === 'output-error' &&
+      part.errorText
+    ) {
+      const input = part.input as { instruction?: string } | null;
+      return (
+        <div className="space-y-3">
+          {input?.instruction && (
+            <div className="bg-muted/50 rounded-md p-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Instruction
+              </p>
+              <p className="text-sm">{input.instruction}</p>
+            </div>
+          )}
+          <ToolErrorVisualizer errorText={part.errorText} />
+        </div>
+      );
+    }
+
+    // Handle getSchema errors - show view names above error
+    if (
+      part.type === 'tool-getSchema' &&
+      part.state === 'output-error' &&
+      part.errorText
+    ) {
+      const input = part.input as { viewNames?: string[] } | null;
+      return (
+        <div className="space-y-3">
+          {input?.viewNames && input.viewNames.length > 0 && (
+            <div className="bg-muted/50 rounded-md p-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Requested Views
+              </p>
+              <p className="text-sm">{input.viewNames.join(', ')}</p>
+            </div>
+          )}
+          <ToolErrorVisualizer errorText={part.errorText} />
+        </div>
+      );
+    }
+
+    // Handle startWorkflow errors - show objective above error
+    if (
+      part.type === 'tool-startWorkflow' &&
+      part.state === 'output-error' &&
+      part.errorText
+    ) {
+      const input = part.input as { objective?: string } | null;
+      return (
+        <div className="space-y-3">
+          {input?.objective && (
+            <div className="bg-muted/50 rounded-md p-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Workflow Objective
+              </p>
+              <p className="text-sm">{input.objective}</p>
+            </div>
+          )}
+          <ToolErrorVisualizer errorText={part.errorText} />
+        </div>
+      );
+    }
+
+    // Generic error handler for other tools
     if (part.state === 'output-error' && part.errorText) {
       return <ToolErrorVisualizer errorText={part.errorText} />;
     }
 
-    // Handle runQuery tool with SQLQueryVisualizer
+    // Handle generateSql tool - show SQL only, no results
+    if (part.type === 'tool-generateSql' && part.output) {
+      const output = part.output as { query?: string } | null;
+      return (
+        <SQLQueryVisualizer
+          query={output?.query}
+          result={undefined} // No results for generateSql
+        />
+      );
+    }
+
+    // Handle runQuery tool - show results only if executed (chat mode), otherwise just SQL (inline mode)
     if (part.type === 'tool-runQuery' && part.output) {
       const input = part.input as { query?: string } | null;
       const output = part.output as {
-        result?: { columns: string[]; rows: Array<Record<string, unknown>> };
+        result?: {
+          query: string;
+          executed: boolean;
+          columns: string[];
+          rows: Array<Record<string, unknown>>;
+        };
       } | null;
+
+      // Show results if rows and columns are present (implies execution)
+      const hasResults =
+        output?.result?.rows &&
+        Array.isArray(output.result.rows) &&
+        output?.result?.columns &&
+        Array.isArray(output.result.columns);
+
       return (
         <SQLQueryVisualizer
-          query={input?.query}
+          query={input?.query || output?.result?.query}
           result={
-            output?.result
+            hasResults && output?.result
               ? {
                 result: {
                   columns: output.result.columns,
@@ -276,14 +540,128 @@ export function ToolPart({ part, messageId, index }: ToolPartProps) {
             columns: Array<{ columnName: string; columnType: string }>;
           }>;
         };
-        allTables?: string[];
-        tableCount?: number;
       } | null;
-
-      // Always show schema if available - this is the primary purpose of getSchema
       if (output?.schema) {
         return <SchemaVisualizer schema={output.schema} />;
       }
+    }
+
+    // Handle listTables tool with AvailableSheetsVisualizer
+    if (part.type === 'tool-listTables' && part.output) {
+      // Parse output if it's a string
+      let parsedOutput: {
+        sheets?: Array<{
+          name: string;
+          type: 'view' | 'table' | 'attached_table';
+        }>;
+        count?: number;
+      } | null = null;
+
+      if (typeof part.output === 'string') {
+        try {
+          parsedOutput = JSON.parse(part.output);
+        } catch {
+          // Not JSON, will use null
+        }
+      } else if (typeof part.output === 'object') {
+        parsedOutput = part.output as {
+          sheets?: Array<{
+            name: string;
+            type: 'view' | 'table' | 'attached_table';
+          }>;
+          count?: number;
+        };
+      }
+
+      if (parsedOutput?.sheets) {
+        // Determine the primary object type for dynamic naming
+        const typeCounts = parsedOutput.sheets.reduce(
+          (acc, sheet) => {
+            const type = sheet.type === 'attached_table' ? 'table' : sheet.type;
+            acc[type] = (acc[type] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>,
+        );
+
+        // Determine the dominant type
+        let objectTypeLabel = 'objects';
+        if (typeCounts.view && !typeCounts.table) {
+          objectTypeLabel = 'views';
+        } else if (typeCounts.table && !typeCounts.view) {
+          objectTypeLabel = 'tables';
+        } else if (typeCounts.view && typeCounts.table) {
+          // Mixed - use the more common one, or default to "tables and views"
+          if (typeCounts.view >= typeCounts.table) {
+            objectTypeLabel = 'views';
+          } else {
+            objectTypeLabel = 'tables';
+          }
+        }
+
+        // Map tool output to visualizer format
+        const mappedSheets = parsedOutput.sheets.map((sheet) => ({
+          name: sheet.name,
+          type: sheet.type === 'attached_table' ? 'table' : sheet.type,
+        }));
+        return (
+          <AvailableSheetsVisualizer
+            data={{
+              sheets: mappedSheets,
+              message: `Found ${mappedSheets.length} ${objectTypeLabel}`,
+            }}
+            onViewSheet={onViewSheet}
+            onDeleteSheets={onDeleteSheets}
+            onRenameSheet={onRenameSheet}
+            isRequestInProgress={isRequestInProgress}
+          />
+        );
+      }
+    }
+
+    // Handle viewSheet tool with ViewSheetVisualizer
+    if (part.type === 'tool-viewSheet' && part.output) {
+      const output = part.output as {
+        sheetName?: string;
+        columns?: string[];
+        rows?: Array<Record<string, unknown>>;
+        rowCount?: number;
+        limit?: number;
+        hasMore?: boolean;
+      } | null;
+      if (output?.sheetName && output?.columns && output?.rows !== undefined) {
+        const displayedRows = output.rows.length;
+        const totalRows = output.rowCount ?? displayedRows;
+        return (
+          <ViewSheetVisualizer
+            data={{
+              sheetName: output.sheetName,
+              totalRows,
+              displayedRows,
+              columns: output.columns,
+              rows: output.rows,
+              message: output.hasMore
+                ? `Showing first ${displayedRows} of ${totalRows} rows`
+                : `Displaying all ${totalRows} rows`,
+            }}
+          />
+        );
+      }
+    }
+
+    // Handle viewSheet errors with ViewSheetError
+    if (
+      part.type === 'tool-viewSheet' &&
+      part.state === 'output-error' &&
+      part.errorText
+    ) {
+      const input = part.input as { sheetName?: string } | null;
+      return (
+        <ViewSheetError
+          errorText={part.errorText}
+          sheetName={input?.sheetName}
+        />
+      );
     }
 
     // Handle generateChart tool with ChartRenderer
@@ -294,21 +672,35 @@ export function ToolPart({ part, messageId, index }: ToolPartProps) {
       }
     }
 
+    // Handle selectChartType tool with ChartTypeSelector
+    if (part.type === 'tool-selectChartType' && part.output) {
+      const output = part.output as ChartTypeSelection | null;
+      if (output?.chartType && output?.reasoning) {
+        return <ChartTypeSelector selection={output} />;
+      }
+    }
+
     // Default fallback to generic ToolOutput
     return <ToolOutput output={part.output} errorText={part.errorText} />;
   };
 
+  // Hide input section for listTables (no meaningful parameters)
+  const showInput = part.input != null && part.type !== 'tool-listTables';
+
   return (
     <Tool
       key={`${messageId}-${index}`}
-      defaultOpen={part.state === 'output-error'}
+      defaultOpen={true}
+      className="animate-in fade-in slide-in-from-bottom-2 duration-300 ease-in-out"
     >
       <ToolHeader title={toolName} type={part.type} state={part.state} />
-      <ToolContent>
-        {part.input != null && part.type !== 'tool-getSchema' ? (
-          <ToolInput input={part.input} />
+      <ToolContent className="p-0">
+        {showInput ? (
+          <ToolInput input={part.input} className="border-b" />
         ) : null}
-        {renderToolOutput()}
+        <div className={part.type === 'tool-listTables' ? undefined : 'p-4'}>
+          {renderToolOutput()}
+        </div>
       </ToolContent>
     </Tool>
   );

@@ -10,6 +10,16 @@ import {
   Suspense,
 } from 'react';
 import * as React from 'react';
+import { Loader2 } from 'lucide-react';
+
+const LoadingState = () => (
+  <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
+    <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+    <span className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+      Loading chart...
+    </span>
+  </div>
+);
 
 // Dynamic imports to prevent infinite renders
 const BarChart = lazy(() =>
@@ -61,8 +71,8 @@ function getChartColorKey(chartConfig: ChartConfig): string {
   const dataHash =
     chartConfig.data.length > 0
       ? JSON.stringify(
-          chartConfig.data.slice(0, 3).map((d) => Object.keys(d).sort()),
-        )
+        chartConfig.data.slice(0, 3).map((d) => Object.keys(d).sort()),
+      )
       : 'empty';
   return `chart-colors:${chartConfig.chartType}:${chartConfig.title || 'untitled'}:${dataHash}`;
 }
@@ -182,7 +192,7 @@ export function ChartRenderer({ chartConfig }: ChartRendererProps) {
     switch (chartType) {
       case 'bar':
         return (
-          <Suspense fallback={<div className="p-4">Loading chart...</div>}>
+          <Suspense fallback={<LoadingState />}>
             <BarChart
               chartConfig={
                 modifiedChartConfig as {
@@ -201,7 +211,7 @@ export function ChartRenderer({ chartConfig }: ChartRendererProps) {
         );
       case 'line':
         return (
-          <Suspense fallback={<div className="p-4">Loading chart...</div>}>
+          <Suspense fallback={<LoadingState />}>
             <LineChart
               chartConfig={
                 modifiedChartConfig as {
@@ -220,7 +230,7 @@ export function ChartRenderer({ chartConfig }: ChartRendererProps) {
         );
       case 'pie':
         return (
-          <Suspense fallback={<div className="p-4">Loading chart...</div>}>
+          <Suspense fallback={<LoadingState />}>
             <PieChart
               chartConfig={
                 modifiedChartConfig as {
@@ -248,7 +258,7 @@ export function ChartRenderer({ chartConfig }: ChartRendererProps) {
 
   return (
     <div className="space-y-4">
-      <Suspense fallback={<div className="p-4">Loading chart wrapper...</div>}>
+      <Suspense fallback={<LoadingState />}>
         <ChartWrapper
           title={title}
           chartRef={chartRef as React.RefObject<HTMLDivElement>}
@@ -259,7 +269,14 @@ export function ChartRenderer({ chartConfig }: ChartRendererProps) {
         </ChartWrapper>
       </Suspense>
       <div className="flex justify-end">
-        <Suspense fallback={<div className="p-2">Loading color editor...</div>}>
+        <Suspense
+          fallback={
+            <div className="flex items-center gap-2 p-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-primary/50" />
+              <span className="text-xs">Loading...</span>
+            </div>
+          }
+        >
           <ChartColorEditor
             colors={trimmedCustomColors}
             onChange={setCustomColors}
