@@ -18,7 +18,12 @@ export { type PromptInputMessage } from '../../ai-elements/prompt-input';
 export { type ChatStatus } from 'ai';
 export { AgentTabs } from './agent-tabs';
 export { DatasourceSelector, type DatasourceItem } from './datasource-selector';
-export { DatasourceBadges, DatasourceBadge, type DatasourceBadgeProps, type DatasourceBadgesProps } from './datasource-badge';
+export {
+  DatasourceBadges,
+  DatasourceBadge,
+  type DatasourceBadgeProps,
+  type DatasourceBadgesProps,
+} from './datasource-badge';
 export { AgentStatusProvider, useAgentStatus } from './agent-status-context';
 
 // Data visualization components

@@ -13,9 +13,9 @@ import * as React from 'react';
 import { Loader2 } from 'lucide-react';
 
 const LoadingState = () => (
-  <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
-    <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
-    <span className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+  <div className="text-muted-foreground flex flex-col items-center justify-center p-8">
+    <Loader2 className="text-primary/50 h-8 w-8 animate-spin" />
+    <span className="text-muted-foreground/70 mt-2 text-xs font-medium tracking-wider uppercase">
       Loading chart...
     </span>
   </div>
@@ -71,8 +71,8 @@ function getChartColorKey(chartConfig: ChartConfig): string {
   const dataHash =
     chartConfig.data.length > 0
       ? JSON.stringify(
-        chartConfig.data.slice(0, 3).map((d) => Object.keys(d).sort()),
-      )
+          chartConfig.data.slice(0, 3).map((d) => Object.keys(d).sort()),
+        )
       : 'empty';
   return `chart-colors:${chartConfig.chartType}:${chartConfig.title || 'untitled'}:${dataHash}`;
 }
@@ -271,8 +271,8 @@ export function ChartRenderer({ chartConfig }: ChartRendererProps) {
       <div className="flex justify-end">
         <Suspense
           fallback={
-            <div className="flex items-center gap-2 p-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin text-primary/50" />
+            <div className="text-muted-foreground flex items-center gap-2 p-2">
+              <Loader2 className="text-primary/50 h-4 w-4 animate-spin" />
               <span className="text-xs">Loading...</span>
             </div>
           }

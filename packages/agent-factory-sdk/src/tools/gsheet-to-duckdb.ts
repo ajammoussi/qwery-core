@@ -181,10 +181,10 @@ async function discoverTabs(
 /**
  * Attach Google Sheets as a persistent database with tables for each tab
  * Similar to attachForeignDatasource but for Google Sheets
- * 
+ *
  * Creates a persistent SQLite database file at:
  * {workspace}/{conversationId}/{datasource_name}.db
- * 
+ *
  * This ensures tables persist across connections, unlike in-memory databases.
  * Each tab in the Google Sheet becomes a separate table in the attached database.
  */
@@ -242,14 +242,14 @@ export async function attachGSheetDatasource(
       const conversationDir = join(workspace, conversationId);
       await mkdir(conversationDir, { recursive: true });
       const dbFilePath = join(conversationDir, `${attachedDatabaseName}.db`);
-      
+
       // Escape single quotes in file path for SQL injection protection
       const escapedPath = dbFilePath.replace(/'/g, "''");
-      
+
       // Attach persistent SQLite database file
       // DuckDB will create the file if it doesn't exist, or use existing file if it does
       await conn.run(`ATTACH '${escapedPath}' AS "${escapedDbName}"`);
-      
+
       console.log(
         `[GSheetAttach] Attached persistent database: ${attachedDatabaseName} at ${dbFilePath}`,
       );

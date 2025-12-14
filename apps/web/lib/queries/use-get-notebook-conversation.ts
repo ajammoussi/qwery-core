@@ -19,8 +19,9 @@ export function useGetNotebookConversation(
       }
 
       // Find all conversations for this project
-      const conversations = await conversationRepository.findByProjectId(projectId);
-      
+      const conversations =
+        await conversationRepository.findByProjectId(projectId);
+
       // Look for conversation with title matching this notebook
       const notebookTitle = `Notebook - ${notebookId}`;
       const matchingConversation = conversations.find(
@@ -33,4 +34,3 @@ export function useGetNotebookConversation(
     staleTime: 30 * 1000, // Cache for 30 seconds
   });
 }
-

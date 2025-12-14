@@ -1,11 +1,11 @@
 /**
  * Shared tool type definitions using InferUITools
- * 
+ *
  * This file exports type-safe tool definitions that can be used
  * across the codebase for type checking and validation.
  */
 
-import { InferUITools, InferUITool } from 'ai';
+import { InferUITool, Tool } from 'ai';
 import { z } from 'zod';
 import {
   ChartConfigSchema,
@@ -131,8 +131,14 @@ export type DeleteTableResult = z.infer<typeof DeleteTableResultSchema>;
  * Helper type to extract tool input/output types
  * Usage: type ToolTypes = InferToolTypes<typeof tools>
  */
-export type InferToolTypes<T extends Record<string, any>> = {
-  [K in keyof T]: InferUITool<T[K]>;
+// Helper type to work around complex Tool constraint issues with InferUITool
+// InferUITool expects a Tool type, but our tools have a slightly different structure
+// We use intersection type to satisfy the constraint
+type InferUIToolUnsafe<T> = InferUITool<T & Tool>;
+
+// Using type assertions to work around complex Tool constraint issues
+export type InferToolTypes<T extends Record<string, unknown>> = {
+  [K in keyof T]: InferUIToolUnsafe<T[K]>;
 };
 
 /**
@@ -156,4 +162,3 @@ export function parseToolOutput<T>(
   const result = schema.safeParse(parsed);
   return result.success ? result.data : null;
 }
-

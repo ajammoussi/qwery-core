@@ -30,12 +30,11 @@ export function getUserFriendlyToolName(type: string): string {
     .replace(/-/g, ' ')
     .split(' ')
     .filter((word) => word.length > 0);
-  
+
   const formatted = words
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ')
     .trim();
-  
+
   return formatted || 'Tool';
 }
-

@@ -165,10 +165,10 @@ const SortableCell = React.memo(function SortableCellComponent({
   );
 
   const handleRunQueryWithAgent = useCallback(
-    (query: string, datasourceId: string, cellType?: 'query' | 'prompt') => {
-      onRunQueryWithAgent?.(cell.cellId, query, datasourceId, cellType || cell.cellType);
+    (query: string, datasourceId: string, _cellType?: 'query' | 'prompt') => {
+      onRunQueryWithAgent?.(cell.cellId, query, datasourceId);
     },
-    [cell.cellId, cell.cellType, onRunQueryWithAgent],
+    [cell.cellId, onRunQueryWithAgent],
   );
 
   const handleMoveUp = useCallback(() => {
@@ -679,12 +679,15 @@ export function NotebookUI({
   );
 
   const handleRunQueryWithAgent = useCallback(
-    (cellId: number, query: string, datasourceId: string, cellType?: 'query' | 'prompt') => {
-      // Get cellType from cell if not provided
-      const actualCellType = cellType || cells.find((c) => c.cellId === cellId)?.cellType;
-      onRunQueryWithAgent?.(cellId, query, datasourceId, actualCellType);
+    (
+      cellId: number,
+      query: string,
+      datasourceId: string,
+      _cellType?: 'query' | 'prompt',
+    ) => {
+      onRunQueryWithAgent?.(cellId, query, datasourceId);
     },
-    [cells, onRunQueryWithAgent],
+    [onRunQueryWithAgent],
   );
 
   const handleMoveCellUp = useCallback(

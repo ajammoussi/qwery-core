@@ -10,24 +10,33 @@ import {
   useEffect,
 } from 'react';
 import QweryAgentUI from '@qwery/ui/agent-ui';
-import { SUPPORTED_MODELS, transportFactory } from '@qwery/agent-factory-sdk';
+import {
+  SUPPORTED_MODELS,
+  transportFactory,
+  type UIMessage,
+} from '@qwery/agent-factory-sdk';
 import { MessageOutput, UsageOutput } from '@qwery/domain/usecases';
 import { convertMessages } from '~/lib/utils/messages-converter';
 import { useWorkspace } from '~/lib/context/workspace-context';
 import { getUsageKey, useGetUsage } from '~/lib/queries/use-get-usage';
 import { QweryContextProps } from 'node_modules/@qwery/ui/src/qwery/ai/context';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAllExtensionMetadata } from '@qwery/extensions-loader';
 import { useGetDatasourcesByProjectId } from '~/lib/queries/use-get-datasources';
 import type { DatasourceItem } from '@qwery/ui/ai';
 import { useGetConversationBySlug } from '~/lib/queries/use-get-conversations';
 import { useUpdateConversation } from '~/lib/mutations/use-conversation';
 import { useNotebookSidebar } from '~/lib/context/notebook-sidebar-context';
-import { PROMPT_SOURCE, type PromptSource, type NotebookCellType } from '@qwery/agent-factory-sdk';
+import { PROMPT_SOURCE } from '@qwery/agent-factory-sdk';
 import { useAgentStatus } from '@qwery/ui/ai';
 
-type SendMessageFn = (message: { text: string }, options?: { body?: Record<string, unknown> }) => Promise<void> & {
-  setMessages?: (messages: any[] | ((prev: any[]) => any[])) => void;
+type SendMessageFn = (
+  message: { text: string },
+  options?: { body?: Record<string, unknown> },
+) => Promise<void> & {
+  setMessages?: (
+    messages: UIMessage[] | ((prev: UIMessage[]) => UIMessage[]),
+  ) => void;
 };
 
 export interface AgentUIWrapperRef {
@@ -91,11 +100,20 @@ const convertUsage = (usage: UsageOutput[] | undefined): QweryContextProps => {
 export const AgentUIWrapper = forwardRef<
   AgentUIWrapperRef,
   AgentUIWrapperProps
->(function AgentUIWrapper({ conversationSlug, initialMessages, isMessagesLoading = false }, ref) {
+>(function AgentUIWrapper(
+  { conversationSlug, initialMessages, isMessagesLoading = false },
+  ref,
+) {
   const sendMessageRef = useRef<((text: string) => void) | null>(null);
   const internalSendMessageRef = useRef<SendMessageFn | null>(null);
-  const setMessagesRef = useRef<((messages: any[] | ((prev: any[]) => any[])) => void) | null>(null);
-  const currentModelRef = useRef<string>(SUPPORTED_MODELS[0]?.value ?? 'azure/gpt-5-mini');
+  const setMessagesRef = useRef<
+    | ((messages: UIMessage[] | ((prev: UIMessage[]) => UIMessage[])) => void)
+    | null
+  >(null);
+  const currentModelRef = useRef<string>(
+    SUPPORTED_MODELS[0]?.value ?? 'azure/gpt-5-mini',
+  );
+  const queryClient = useQueryClient();
   const { repositories, workspace } = useWorkspace();
   const { data: usage } = useGetUsage(
     repositories.usage,
@@ -103,30 +121,24 @@ export const AgentUIWrapper = forwardRef<
     conversationSlug,
     workspace.userId,
   );
-  const queryClient = useQueryClient();
-  const { 
-    getCellDatasource, 
-    clearCellDatasource, 
-    getNotebookCellType, 
-    clearNotebookCellType,
+  const {
+    getCellDatasource,
+    clearCellDatasource,
+    getNotebookCellType,
     getCellId,
     getSqlPasteHandler,
     notifyLoadingStateChange,
   } = useNotebookSidebar();
-  
+
   // Track agent processing state for notebook loading sync
   const { isProcessing } = useAgentStatus();
 
   // Load current conversation to get existing datasources
-  const { data: conversation, isLoading: isConversationLoading } = useGetConversationBySlug(
-    repositories.conversation,
-    conversationSlug,
-  );
+  const { data: conversation, isLoading: isConversationLoading } =
+    useGetConversationBySlug(repositories.conversation, conversationSlug);
 
   // Get cell datasource from notebook context (if opened from a cell)
   const cellDatasource = getCellDatasource();
-  // Get notebook cell type from context (if opened from a notebook cell)
-  const notebookCellType = getNotebookCellType();
 
   // Derive selected datasources from conversation
   const conversationDatasources = useMemo(
@@ -139,13 +151,27 @@ export const AgentUIWrapper = forwardRef<
     null,
   );
 
+  // Track notebook context state for paste functionality
+  const [notebookContextState, setNotebookContextState] = useState<
+    | {
+        cellId: number;
+        notebookCellType: 'query' | 'prompt';
+        datasourceId: string;
+      }
+    | undefined
+  >(undefined);
+
   // Mutation to update conversation datasources
   const updateConversation = useUpdateConversation(repositories.conversation);
 
   // Update conversation when cell datasource is provided (initial setup)
   // This runs once when cellDatasource is first set, before any messages are sent
   useEffect(() => {
-    if (cellDatasource && conversation?.id && !conversationDatasources.includes(cellDatasource)) {
+    if (
+      cellDatasource &&
+      conversation?.id &&
+      !conversationDatasources.includes(cellDatasource)
+    ) {
       // Update conversation to include cell datasource immediately
       // This ensures the datasource is set before the message is sent
       updateConversation.mutate(
@@ -163,9 +189,19 @@ export const AgentUIWrapper = forwardRef<
       );
     } else if (cellDatasource && !conversation?.id) {
       // If conversation not loaded yet, set pending datasources for immediate UI update
-      setPendingDatasources([cellDatasource]);
+      // Use requestAnimationFrame to defer state update outside of effect
+      requestAnimationFrame(() => {
+        setPendingDatasources([cellDatasource]);
+      });
     }
-  }, [cellDatasource, conversation?.id, conversationDatasources, updateConversation, workspace.username, workspace.userId]);
+  }, [
+    cellDatasource,
+    conversation?.id,
+    conversationDatasources,
+    updateConversation,
+    workspace.username,
+    workspace.userId,
+  ]);
 
   // Priority for display: cellDatasource > pending datasources > conversation datasources
   // This ensures the notebook cell's datasource is shown in the UI immediately
@@ -176,7 +212,9 @@ export const AgentUIWrapper = forwardRef<
       return [cellDatasource];
     }
     // Otherwise use pending datasources or conversation datasources
-    return pendingDatasources !== null ? pendingDatasources : conversationDatasources;
+    return pendingDatasources !== null
+      ? pendingDatasources
+      : conversationDatasources;
   }, [cellDatasource, pendingDatasources, conversationDatasources]);
 
   // Fetch datasources for the current project
@@ -222,16 +260,22 @@ export const AgentUIWrapper = forwardRef<
   );
 
   // Handle sendMessage and model from QweryAgentUI
+  // eslint-disable react-hooks/preserve-manual-memoization -- React Compiler warning about dependency inference
   const handleSendMessageReady = useCallback(
     (sendMessageFn: SendMessageFn, model: string) => {
       internalSendMessageRef.current = sendMessageFn;
       currentModelRef.current = model;
-      
+
       // Store setMessages if available
-      if ((sendMessageFn as any).setMessages) {
-        setMessagesRef.current = (sendMessageFn as any).setMessages;
+      const sendMessageWithSetMessages = sendMessageFn as SendMessageFn & {
+        setMessages?: (
+          messages: UIMessage[] | ((prev: UIMessage[]) => UIMessage[]),
+        ) => void;
+      };
+      if (sendMessageWithSetMessages.setMessages) {
+        setMessagesRef.current = sendMessageWithSetMessages.setMessages;
       }
-      
+
       // Create wrapper that uses cellDatasource for initial message, then selectedDatasources
       // This function is stable and doesn't need to be recreated on every datasource change
       sendMessageRef.current = async (text: string) => {
@@ -241,23 +285,29 @@ export const AgentUIWrapper = forwardRef<
           const currentCellDs = getCellDatasource();
           // Get notebookCellType BEFORE clearing it
           const currentNotebookCellType = getNotebookCellType();
-          
+
           // Determine datasources to use - prioritize cellDatasource
-          const datasourcesToUse = currentCellDs 
-            ? [currentCellDs] 
-            : (selectedDatasources && selectedDatasources.length > 0 ? selectedDatasources : undefined);
-          
+          const datasourcesToUse = currentCellDs
+            ? [currentCellDs]
+            : selectedDatasources && selectedDatasources.length > 0
+              ? selectedDatasources
+              : undefined;
+
           // CRITICAL: Update conversation datasources BEFORE sending message
           // The agent uses conversation datasources, not message metadata
           // We must wait for this to complete to ensure the API uses the correct datasource
-          if (datasourcesToUse && datasourcesToUse.length > 0 && conversation?.id) {
+          if (
+            datasourcesToUse &&
+            datasourcesToUse.length > 0 &&
+            conversation?.id
+          ) {
             // Check if datasources need to be updated by comparing IDs
             const currentSorted = [...conversationDatasources].sort();
             const newSorted = [...datasourcesToUse].sort();
-            const datasourcesChanged = 
+            const datasourcesChanged =
               currentSorted.length !== newSorted.length ||
               !currentSorted.every((dsId, index) => dsId === newSorted[index]);
-            
+
             if (datasourcesChanged) {
               // Update conversation with new datasources - wait for it to complete
               await new Promise<void>((resolve) => {
@@ -265,7 +315,8 @@ export const AgentUIWrapper = forwardRef<
                   {
                     id: conversation.id,
                     datasources: datasourcesToUse,
-                    updatedBy: workspace.username || workspace.userId || 'system',
+                    updatedBy:
+                      workspace.username || workspace.userId || 'system',
                   },
                   {
                     onSuccess: () => {
@@ -276,7 +327,10 @@ export const AgentUIWrapper = forwardRef<
                     onError: (error) => {
                       // Even if update fails, set pending datasources for UI
                       setPendingDatasources(datasourcesToUse);
-                      console.error('Failed to update conversation datasources:', error);
+                      console.error(
+                        'Failed to update conversation datasources:',
+                        error,
+                      );
                       // Continue anyway - the datasource in the body will still be used
                       resolve();
                     },
@@ -291,7 +345,7 @@ export const AgentUIWrapper = forwardRef<
             // If conversation not loaded yet, just set pending datasources
             setPendingDatasources([currentCellDs]);
           }
-          
+
           // Build message metadata BEFORE sending - include notebook context if present
           const messageMetadata: Record<string, unknown> = {};
           if (datasourcesToUse && datasourcesToUse.length > 0) {
@@ -300,16 +354,23 @@ export const AgentUIWrapper = forwardRef<
           if (currentNotebookCellType) {
             messageMetadata.promptSource = PROMPT_SOURCE.INLINE;
             messageMetadata.notebookCellType = currentNotebookCellType;
-            console.log('[AgentUIWrapper] Preparing message with notebook context:', {
-              promptSource: PROMPT_SOURCE.INLINE,
-              notebookCellType: currentNotebookCellType,
-              textPreview: text.substring(0, 50),
-            });
-            
+            console.log(
+              '[AgentUIWrapper] Preparing message with notebook context:',
+              {
+                promptSource: PROMPT_SOURCE.INLINE,
+                notebookCellType: currentNotebookCellType,
+                textPreview: text.substring(0, 50),
+              },
+            );
+
             // Capture notebook context in state when sending message
             // This ensures context is available when tool output arrives
             const cellId = getCellId();
-            if (cellId !== undefined && currentNotebookCellType && currentCellDs) {
+            if (
+              cellId !== undefined &&
+              currentNotebookCellType &&
+              currentCellDs
+            ) {
               setNotebookContextState({
                 cellId,
                 notebookCellType: currentNotebookCellType as 'query' | 'prompt',
@@ -317,19 +378,21 @@ export const AgentUIWrapper = forwardRef<
               });
             }
           }
-          
+
           // Don't clear context immediately - keep it for paste functionality
           // The context will be used when tool output arrives to show paste button
           // Only clear after tool output is received or after a delay
           // Note: We keep cellId, notebookCellType, and datasourceId for paste functionality
           // They will be cleared when the conversation ends or user navigates away
-          
+
           // Send message with metadata - useChat should preserve metadata if passed in message object
           // We'll also update the message after it's created as a fallback
-          const sendPromise = internalSendMessageRef.current(
-            { 
+          internalSendMessageRef.current(
+            {
               text,
-              ...(Object.keys(messageMetadata).length > 0 ? { metadata: messageMetadata } : {}),
+              ...(Object.keys(messageMetadata).length > 0
+                ? { metadata: messageMetadata }
+                : {}),
             },
             {
               body: {
@@ -338,16 +401,24 @@ export const AgentUIWrapper = forwardRef<
               },
             },
           );
-          
+
           // Fallback: Update message metadata immediately after sending (in case useChat doesn't preserve it)
-          if (setMessagesRef.current && Object.keys(messageMetadata).length > 0) {
+          if (
+            setMessagesRef.current &&
+            Object.keys(messageMetadata).length > 0
+          ) {
             // Use requestAnimationFrame to ensure message is added to array first
             requestAnimationFrame(() => {
-              setMessagesRef.current?.((prev: any[]) => {
+              setMessagesRef.current?.((prev: UIMessage[]) => {
                 // Find the last user message and ensure it has our metadata
-                const lastUserMessageIndex = prev.findLastIndex((msg: any) => msg.role === 'user');
+                const lastUserMessageIndex = prev.findLastIndex(
+                  (msg: UIMessage) => msg.role === 'user',
+                );
                 if (lastUserMessageIndex >= 0) {
                   const lastUserMessage = prev[lastUserMessageIndex];
+                  if (!lastUserMessage) {
+                    return prev;
+                  }
                   // Merge metadata to ensure our notebook context is preserved
                   const updated = [...prev];
                   updated[lastUserMessageIndex] = {
@@ -357,9 +428,10 @@ export const AgentUIWrapper = forwardRef<
                       ...messageMetadata, // Our metadata takes precedence
                     },
                   };
+                  const updatedMessage = updated[lastUserMessageIndex];
                   console.log('[AgentUIWrapper] Updated message metadata:', {
-                    messageId: updated[lastUserMessageIndex].id,
-                    metadata: updated[lastUserMessageIndex].metadata,
+                    messageId: updatedMessage?.id,
+                    metadata: updatedMessage?.metadata,
                   });
                   return updated;
                 }
@@ -370,7 +442,17 @@ export const AgentUIWrapper = forwardRef<
         }
       };
     },
-    [getCellDatasource, clearCellDatasource, getNotebookCellType, selectedDatasources, conversation?.id, conversationDatasources, updateConversation, workspace.username, workspace.userId],
+    [
+      getCellDatasource,
+      getNotebookCellType,
+      getCellId,
+      selectedDatasources,
+      conversation,
+      conversationDatasources,
+      updateConversation,
+      workspace.username,
+      workspace.userId,
+    ],
   );
 
   useImperativeHandle(
@@ -395,7 +477,7 @@ export const AgentUIWrapper = forwardRef<
       // Clear cell datasource when user manually changes selection
       // This allows user to override the notebook cell's datasource
       clearCellDatasource();
-      
+
       // Set pending datasources for immediate UI update
       setPendingDatasources(datasourceIds);
 
@@ -405,10 +487,10 @@ export const AgentUIWrapper = forwardRef<
         // Check if datasources actually changed
         const currentSorted = [...(conversationDatasources || [])].sort();
         const newSorted = [...datasourceIds].sort();
-        const datasourcesChanged = 
+        const datasourcesChanged =
           currentSorted.length !== newSorted.length ||
           !currentSorted.every((dsId, index) => dsId === newSorted[index]);
-        
+
         if (datasourcesChanged) {
           updateConversation.mutate(
             {
@@ -429,36 +511,38 @@ export const AgentUIWrapper = forwardRef<
         }
       }
     },
-    [conversation, conversationDatasources, updateConversation, workspace.username, workspace.userId, clearCellDatasource],
+    [
+      conversation,
+      conversationDatasources,
+      updateConversation,
+      workspace.username,
+      workspace.userId,
+      clearCellDatasource,
+    ],
   );
 
   // Determine if we're loading - check if messages or conversation are loading
   // initialMessages being undefined means messages haven't loaded yet
-  const isLoading = isMessagesLoading || isConversationLoading || (initialMessages === undefined && !conversation);
-
-  // Get notebook context for paste functionality
-  // Use state to track context so it persists even if cleared from context
-  // This is important because context might be cleared after message is sent,
-  // but tool output arrives later in the stream
-  const [notebookContextState, setNotebookContextState] = useState<{
-    cellId: number;
-    notebookCellType: 'query' | 'prompt';
-    datasourceId: string;
-  } | undefined>(undefined);
+  const isLoading =
+    isMessagesLoading ||
+    isConversationLoading ||
+    (initialMessages === undefined && !conversation);
 
   // Update notebook context state when context values are available
   useEffect(() => {
     const cellId = getCellId();
     const notebookCellType = getNotebookCellType();
     const datasourceId = getCellDatasource();
-    
+
     if (cellId !== undefined && notebookCellType && datasourceId) {
       const newContext = {
         cellId,
         notebookCellType: notebookCellType as 'query' | 'prompt',
         datasourceId,
       };
-      setNotebookContextState(newContext);
+      requestAnimationFrame(() => {
+        setNotebookContextState(newContext);
+      });
     } else {
       // Don't clear immediately - keep it for a bit in case tool output arrives
       // Only clear if all values are gone (user navigated away)

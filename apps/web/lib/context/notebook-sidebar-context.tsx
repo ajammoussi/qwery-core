@@ -4,39 +4,85 @@ import { createContext, useContext, useRef, type ReactNode } from 'react';
 import type { NotebookCellType } from '@qwery/agent-factory-sdk';
 
 type NotebookSidebarContextValue = {
-  openSidebar: (conversationSlug: string, options?: { messageToSend?: string; datasourceId?: string; notebookCellType?: NotebookCellType; cellId?: number }) => void;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
-  registerSidebarControl: (control: { open: () => void; sendMessage?: (text: string) => void }) => void;
+  openSidebar: (
+    conversationSlug: string,
+    options?: {
+      messageToSend?: string;
+      datasourceId?: string;
+      notebookCellType?: NotebookCellType;
+      cellId?: number;
+    },
+  ) => void;
+  registerSidebarControl: (control: {
+    open: () => void;
+    sendMessage?: (text: string) => void;
+  }) => void;
   getCellDatasource: () => string | undefined;
   clearCellDatasource: () => void;
   getNotebookCellType: () => NotebookCellType | undefined;
   clearNotebookCellType: () => void;
   getCellId: () => number | undefined;
   clearCellId: () => void;
-  registerSqlPasteHandler: (handler: (sqlQuery: string, notebookCellType: NotebookCellType, datasourceId: string, cellId: number) => void) => void;
+  registerSqlPasteHandler: (
+    handler: (
+      sqlQuery: string,
+      notebookCellType: NotebookCellType,
+      datasourceId: string,
+      cellId: number,
+    ) => void,
+  ) => void;
   unregisterSqlPasteHandler: () => void;
-  getSqlPasteHandler: () => ((sqlQuery: string, notebookCellType: NotebookCellType, datasourceId: string, cellId: number) => void) | null;
-  registerLoadingStateCallback: (callback: (cellId: number | undefined, isProcessing: boolean) => void) => void;
+  getSqlPasteHandler: () =>
+    | ((
+        sqlQuery: string,
+        notebookCellType: NotebookCellType,
+        datasourceId: string,
+        cellId: number,
+      ) => void)
+    | null;
+  registerLoadingStateCallback: (
+    callback: (cellId: number | undefined, isProcessing: boolean) => void,
+  ) => void;
   unregisterLoadingStateCallback: () => void;
-  notifyLoadingStateChange: (cellId: number | undefined, isProcessing: boolean) => void;
+  notifyLoadingStateChange: (
+    cellId: number | undefined,
+    isProcessing: boolean,
+  ) => void;
 };
 
-const NotebookSidebarContext = createContext<NotebookSidebarContextValue | null>(
-  null,
-);
+const NotebookSidebarContext =
+  createContext<NotebookSidebarContextValue | null>(null);
 
-export function NotebookSidebarProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const sidebarControlRef = useRef<{ open: () => void; sendMessage?: (text: string) => void } | null>(null);
+export function NotebookSidebarProvider({ children }: { children: ReactNode }) {
+  const sidebarControlRef = useRef<{
+    open: () => void;
+    sendMessage?: (text: string) => void;
+  } | null>(null);
   const cellDatasourceRef = useRef<string | undefined>(undefined);
   const notebookCellTypeRef = useRef<NotebookCellType | undefined>(undefined);
   const cellIdRef = useRef<number | undefined>(undefined);
-  const sqlPasteHandlerRef = useRef<((sqlQuery: string, notebookCellType: NotebookCellType, datasourceId: string, cellId: number) => void) | null>(null);
-  const loadingStateCallbackRef = useRef<((cellId: number | undefined, isProcessing: boolean) => void) | null>(null);
+  const sqlPasteHandlerRef = useRef<
+    | ((
+        sqlQuery: string,
+        notebookCellType: NotebookCellType,
+        datasourceId: string,
+        cellId: number,
+      ) => void)
+    | null
+  >(null);
+  const loadingStateCallbackRef = useRef<
+    ((cellId: number | undefined, isProcessing: boolean) => void) | null
+  >(null);
 
-  const openSidebar = (conversationSlug: string, options?: { messageToSend?: string; datasourceId?: string; notebookCellType?: NotebookCellType; cellId?: number }) => {
+  const openSidebar = (
+    conversationSlug: string,
+    options?: {
+      messageToSend?: string;
+      datasourceId?: string;
+      notebookCellType?: NotebookCellType;
+      cellId?: number;
+    },
+  ) => {
     // Store datasource if provided - MUST be set before opening sidebar
     if (options?.datasourceId) {
       cellDatasourceRef.current = options.datasourceId;
@@ -49,21 +95,25 @@ export function NotebookSidebarProvider({
     if (options?.cellId !== undefined) {
       cellIdRef.current = options.cellId;
     }
-    
+
     // Update URL with conversation slug
     const currentUrl = new URL(window.location.href);
     currentUrl.searchParams.set('conversation', conversationSlug);
-    window.history.replaceState({}, '', currentUrl.pathname + currentUrl.search);
-    
+    window.history.replaceState(
+      {},
+      '',
+      currentUrl.pathname + currentUrl.search,
+    );
+
     // Directly open sidebar via control
     sidebarControlRef.current?.open();
-    
+
     // If a message is provided, send it after ensuring sidebar is ready
     // The datasource is already set above, so AgentUIWrapper will pick it up
     if (options?.messageToSend && sidebarControlRef.current?.sendMessage) {
       const messageToSend = options.messageToSend;
       const datasourceId = options.datasourceId;
-      
+
       // Use requestAnimationFrame + setTimeout to ensure:
       // 1. Sidebar is fully open and rendered
       // 2. AgentUIWrapper has mounted and can access cellDatasource
@@ -106,7 +156,14 @@ export function NotebookSidebarProvider({
     cellIdRef.current = undefined;
   };
 
-  const registerSqlPasteHandler = (handler: (sqlQuery: string, notebookCellType: NotebookCellType, datasourceId: string, cellId: number) => void) => {
+  const registerSqlPasteHandler = (
+    handler: (
+      sqlQuery: string,
+      notebookCellType: NotebookCellType,
+      datasourceId: string,
+      cellId: number,
+    ) => void,
+  ) => {
     sqlPasteHandlerRef.current = handler;
   };
 
@@ -118,7 +175,9 @@ export function NotebookSidebarProvider({
     return sqlPasteHandlerRef.current;
   };
 
-  const registerLoadingStateCallback = (callback: (cellId: number | undefined, isProcessing: boolean) => void) => {
+  const registerLoadingStateCallback = (
+    callback: (cellId: number | undefined, isProcessing: boolean) => void,
+  ) => {
     loadingStateCallbackRef.current = callback;
   };
 
@@ -126,11 +185,17 @@ export function NotebookSidebarProvider({
     loadingStateCallbackRef.current = null;
   };
 
-  const notifyLoadingStateChange = (cellId: number | undefined, isProcessing: boolean) => {
+  const notifyLoadingStateChange = (
+    cellId: number | undefined,
+    isProcessing: boolean,
+  ) => {
     loadingStateCallbackRef.current?.(cellId, isProcessing);
   };
 
-  const registerSidebarControl = (control: { open: () => void; sendMessage?: (text: string) => void }) => {
+  const registerSidebarControl = (control: {
+    open: () => void;
+    sendMessage?: (text: string) => void;
+  }) => {
     sidebarControlRef.current = control;
   };
 
@@ -181,5 +246,3 @@ export function useNotebookSidebar() {
   }
   return context;
 }
-
-

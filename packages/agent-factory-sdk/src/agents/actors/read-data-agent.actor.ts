@@ -69,7 +69,12 @@ export const readDataAgent = async (
   queryEngine: AbstractQueryEngine,
   repositories?: Repositories,
   promptSource?: PromptSource,
-  intent?: { intent: string; complexity: string; needsChart: boolean; needsSQL: boolean },
+  intent?: {
+    intent: string;
+    complexity: string;
+    needsChart: boolean;
+    needsSQL: boolean;
+  },
 ) => {
   const needSQL = intent?.needsSQL ?? false;
   const needChart = intent?.needsChart ?? false;
@@ -662,20 +667,20 @@ export const readDataAgent = async (
         execute: async ({ query }) => {
           // Use promptSource, needSQL, and needChart from context (passed to readDataAgent function)
           // needSQL comes from intent.needsSQL, needChart from intent.needsChart
-          
+
           // TEMPORARY OVERRIDE: When needChart is true AND inline mode, execute query for chart generation
           // but still return SQL for pasting to notebook
-          const isChartRequestInInlineMode = 
-            needChart === true && 
-            promptSource === PROMPT_SOURCE.INLINE && 
+          const isChartRequestInInlineMode =
+            needChart === true &&
+            promptSource === PROMPT_SOURCE.INLINE &&
             needSQL === true;
-          
+
           // Normal inline mode: skip execution, return SQL for pasting
-          const shouldSkipExecution = 
-            promptSource === PROMPT_SOURCE.INLINE && 
-            needSQL === true && 
+          const shouldSkipExecution =
+            promptSource === PROMPT_SOURCE.INLINE &&
+            needSQL === true &&
             !isChartRequestInInlineMode;
-          
+
           console.log('[runQuery] Tool execution:', {
             promptSource,
             needSQL,
@@ -688,7 +693,9 @@ export const readDataAgent = async (
 
           // If inline mode and needSQL is true (but NOT chart request), don't execute - return SQL for pasting
           if (shouldSkipExecution) {
-            console.log('[runQuery] Skipping execution - SQL will be pasted to notebook cell');
+            console.log(
+              '[runQuery] Skipping execution - SQL will be pasted to notebook cell',
+            );
             return {
               result: null,
               shouldPaste: true,
@@ -698,7 +705,9 @@ export const readDataAgent = async (
 
           // For chart requests in inline mode, we'll execute but still return SQL for pasting
           if (isChartRequestInInlineMode) {
-            console.log('[runQuery] Executing query for chart generation (inline mode override)');
+            console.log(
+              '[runQuery] Executing query for chart generation (inline mode override)',
+            );
           } else {
             console.log('[runQuery] Executing query normally');
           }
@@ -925,7 +934,12 @@ export const readDataAgentActor = fromPromise(
       repositories?: Repositories;
       queryEngine: AbstractQueryEngine;
       promptSource?: PromptSource;
-      intent?: { intent: string; complexity: string; needsChart: boolean; needsSQL: boolean };
+      intent?: {
+        intent: string;
+        complexity: string;
+        needsChart: boolean;
+        needsSQL: boolean;
+      };
     };
   }) => {
     console.log('[readDataAgentActor] Received input:', {

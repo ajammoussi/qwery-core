@@ -85,7 +85,11 @@ interface NotebookCellProps {
   onQueryChange: (query: string) => void;
   onDatasourceChange: (datasourceId: string | null) => void;
   onRunQuery?: (query: string, datasourceId: string) => void;
-  onRunQueryWithAgent?: (query: string, datasourceId: string, cellType?: 'query' | 'prompt') => void;
+  onRunQueryWithAgent?: (
+    query: string,
+    datasourceId: string,
+    cellType?: 'query' | 'prompt',
+  ) => void;
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
   dragHandleRef?: (node: HTMLButtonElement | null) => void;
   isDragging?: boolean;
@@ -301,7 +305,13 @@ function NotebookCellComponent({
       return;
     }
     setPromptDatasourceError(false);
-    onRunQueryWithAgent(query, selectedDatasource, cell.cellType);
+    onRunQueryWithAgent(
+      query,
+      selectedDatasource,
+      cell.cellType === 'query' || cell.cellType === 'prompt'
+        ? cell.cellType
+        : undefined,
+    );
   };
 
   const renderPromptError = useCallback(() => {
@@ -368,7 +378,13 @@ function NotebookCellComponent({
     if (!aiQuestion.trim() || !onRunQueryWithAgent || !selectedDatasource)
       return;
 
-    onRunQueryWithAgent(aiQuestion, selectedDatasource, cell.cellType);
+    onRunQueryWithAgent(
+      aiQuestion,
+      selectedDatasource,
+      cell.cellType === 'query' || cell.cellType === 'prompt'
+        ? cell.cellType
+        : undefined,
+    );
 
     // Close popup and reset
     onCloseAiPopup();
@@ -672,7 +688,11 @@ function NotebookCellComponent({
                   query={query}
                   selectedDatasource={selectedDatasource}
                   onRunQueryWithAgent={onRunQueryWithAgent}
-                  cellType={cell.cellType}
+                  cellType={
+                    cell.cellType === 'query' || cell.cellType === 'prompt'
+                      ? cell.cellType
+                      : undefined
+                  }
                   isLoading={isLoading}
                   enableShortcut={isAdvancedMode}
                 />

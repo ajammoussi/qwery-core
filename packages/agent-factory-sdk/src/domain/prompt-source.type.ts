@@ -7,5 +7,4 @@ export const PROMPT_SOURCE = {
   CHAT: 'chat',
 } as const;
 
-export type PromptSource = typeof PROMPT_SOURCE[keyof typeof PROMPT_SOURCE];
-
+export type PromptSource = (typeof PROMPT_SOURCE)[keyof typeof PROMPT_SOURCE];

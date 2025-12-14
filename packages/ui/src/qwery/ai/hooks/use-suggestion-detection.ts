@@ -1,5 +1,9 @@
 import { useMemo, RefObject, useState, useEffect } from 'react';
-import { isSuggestionPattern, extractSuggestionText, validateSuggestionElement } from '../utils/suggestion-pattern';
+import {
+  isSuggestionPattern,
+  extractSuggestionText,
+  validateSuggestionElement,
+} from '../utils/suggestion-pattern';
 
 export interface DetectedSuggestion {
   element: Element;
@@ -10,7 +14,9 @@ export function useSuggestionDetection(
   containerRef: RefObject<HTMLElement | null>,
   isReady: boolean,
 ): DetectedSuggestion[] {
-  const [containerElement, setContainerElement] = useState<HTMLElement | null>(null);
+  const [containerElement, setContainerElement] = useState<HTMLElement | null>(
+    null,
+  );
 
   useEffect(() => {
     setContainerElement(containerRef.current);
@@ -22,7 +28,9 @@ export function useSuggestionDetection(
     }
 
     try {
-      const allElements = Array.from(containerElement.querySelectorAll('li, p'));
+      const allElements = Array.from(
+        containerElement.querySelectorAll('li, p'),
+      );
       const detected: DetectedSuggestion[] = [];
 
       allElements.forEach((element) => {
@@ -31,10 +39,14 @@ export function useSuggestionDetection(
         }
 
         const elementText = element.textContent || '';
-        
+
         if (isSuggestionPattern(elementText)) {
           const suggestionText = extractSuggestionText(elementText);
-          if (suggestionText && suggestionText.length > 0 && validateSuggestionElement(element, elementText)) {
+          if (
+            suggestionText &&
+            suggestionText.length > 0 &&
+            validateSuggestionElement(element, elementText)
+          ) {
             detected.push({ element, suggestionText });
           }
         }
@@ -42,9 +54,11 @@ export function useSuggestionDetection(
 
       return detected;
     } catch (error) {
-      console.error('[useSuggestionDetection] Error detecting suggestions:', error);
+      console.error(
+        '[useSuggestionDetection] Error detecting suggestions:',
+        error,
+      );
       return [];
     }
   }, [containerElement, isReady]);
 }
-

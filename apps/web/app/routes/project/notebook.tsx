@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 import { Navigate, useNavigate, useParams } from 'react-router';
 
@@ -24,7 +24,10 @@ import { Skeleton } from '@qwery/ui/skeleton';
 import { getAllExtensionMetadata } from '@qwery/extensions-loader';
 import { useNotebookSidebar } from '~/lib/context/notebook-sidebar-context';
 import { useGetNotebookConversation } from '~/lib/queries/use-get-notebook-conversation';
-import { NOTEBOOK_CELL_TYPE, type NotebookCellType } from '@qwery/agent-factory-sdk';
+import {
+  NOTEBOOK_CELL_TYPE,
+  type NotebookCellType,
+} from '@qwery/agent-factory-sdk';
 import { scrollToElementBySelector } from '@qwery/ui/ai';
 
 export default function NotebookPage() {
@@ -71,11 +74,14 @@ export default function NotebookPage() {
       // Update URL with this notebook's conversation
       const currentUrl = new URL(window.location.href);
       const currentConversation = currentUrl.searchParams.get('conversation');
-      
+
       // Only update if the conversation is different
       // This ensures we don't cause unnecessary re-renders
       if (currentConversation !== notebookConversation.data.slug) {
-        currentUrl.searchParams.set('conversation', notebookConversation.data.slug);
+        currentUrl.searchParams.set(
+          'conversation',
+          notebookConversation.data.slug,
+        );
         navigate(currentUrl.pathname + currentUrl.search, { replace: true });
       }
     }
@@ -165,39 +171,37 @@ export default function NotebookPage() {
     },
   );
 
-  const handleRunQuery = (
-    cellId: number,
-    query: string,
-    datasourceId: string,
-  ) => {
-    console.log('handleRunQuery', cellId, query, datasourceId);
-    const datasource = savedDatasources.data?.find(
-      (ds) => ds.id === datasourceId,
-    );
-    if (!datasource) {
-      toast.error('Datasource not found');
-      return;
-    }
+  const handleRunQuery = useCallback(
+    (cellId: number, query: string, datasourceId: string) => {
+      console.log('handleRunQuery', cellId, query, datasourceId);
+      const datasource = savedDatasources.data?.find(
+        (ds) => ds.id === datasourceId,
+      );
+      if (!datasource) {
+        toast.error('Datasource not found');
+        return;
+      }
 
-    setLoadingCellId(cellId);
-    telemetry.trackEvent(NOTEBOOK_EVENTS.NOTEBOOK_RUN_QUERY, {
-      query,
-      datasourceName: datasource.name,
-    });
-    runQueryMutation.mutate({
-      cellId,
-      query,
-      datasourceId,
-      datasource,
-      conversationId: notebookConversation.data?.id, // Pass conversationId for DuckDB execution (Google Sheets)
-    });
-  };
+      setLoadingCellId(cellId);
+      telemetry.trackEvent(NOTEBOOK_EVENTS.NOTEBOOK_RUN_QUERY, {
+        query,
+        datasourceName: datasource.name,
+      });
+      runQueryMutation.mutate({
+        cellId,
+        query,
+        datasourceId,
+        datasource,
+        conversationId: notebookConversation.data?.id, // Pass conversationId for DuckDB execution (Google Sheets)
+      });
+    },
+    [savedDatasources.data, runQueryMutation, notebookConversation.data?.id],
+  );
 
   // Run query with agent mutation
-  const queryClient = useQueryClient();
-  const { 
-    openSidebar, 
-    registerSqlPasteHandler, 
+  const {
+    openSidebar,
+    registerSqlPasteHandler,
     unregisterSqlPasteHandler,
     registerLoadingStateCallback,
     unregisterLoadingStateCallback,
@@ -207,7 +211,7 @@ export default function NotebookPage() {
     (result, cellId, datasourceId) => {
       const cell = normalizedNotebook?.cells.find((c) => c.cellId === cellId);
       const cellType = cell?.cellType;
-      
+
       console.log('[Notebook] runQueryWithAgent success callback:', {
         cellId,
         cellType,
@@ -216,11 +220,11 @@ export default function NotebookPage() {
         shouldPaste: result.shouldPaste,
         hasSqlQuery: !!result.sqlQuery,
       });
-      
+
       // Check if this is inline mode and needs SQL pasting
       // shouldPaste comes from the tool result (set when promptSource === 'inline' && needSQL === true)
       const shouldPaste = result.shouldPaste === true && result.sqlQuery;
-      
+
       if (shouldPaste && result.sqlQuery) {
         console.log('[Notebook] Pasting SQL to notebook cell:', {
           cellId,
@@ -233,9 +237,7 @@ export default function NotebookPage() {
           console.log('[Notebook] Pasting SQL to existing code cell:', cellId);
           handleCellsChange(
             normalizedNotebook!.cells.map((c) =>
-              c.cellId === cellId
-                ? { ...c, query: result.sqlQuery! }
-                : c,
+              c.cellId === cellId ? { ...c, query: result.sqlQuery! } : c,
             ),
           );
           // Simulate click to run query
@@ -243,7 +245,10 @@ export default function NotebookPage() {
           handleRunQuery(cellId, result.sqlQuery, datasourceId);
         } else if (cellType === NOTEBOOK_CELL_TYPE.PROMPT) {
           // Prompt cell: create new code cell with SQL
-          const maxCellId = Math.max(...normalizedNotebook!.cells.map((c) => c.cellId), 0);
+          const maxCellId = Math.max(
+            ...normalizedNotebook!.cells.map((c) => c.cellId),
+            0,
+          );
           const newCellId = maxCellId + 1;
           console.log('[Notebook] Creating new code cell with SQL:', newCellId);
           const newCodeCell: NotebookCellData = {
@@ -266,9 +271,9 @@ export default function NotebookPage() {
       } else {
         // Chat path: open sidebar with the conversation and send message for streaming
         const query = cell?.query || '';
-        
+
         // Open sidebar and send message through chat interface for proper streaming
-        openSidebar(result.conversationSlug, { 
+        openSidebar(result.conversationSlug, {
           datasourceId,
           messageToSend: query, // Send the message through chat interface for streaming
         });
@@ -313,14 +318,17 @@ export default function NotebookPage() {
       // Get or create conversation for this notebook
       let conversationSlug: string;
       const existingConversation = notebookConversation.data;
-      
+
       if (existingConversation) {
         conversationSlug = existingConversation.slug;
         // Update datasources if needed
         if (!existingConversation.datasources?.includes(datasourceId)) {
           await repositories.conversation.update({
             ...existingConversation,
-            datasources: [...(existingConversation.datasources || []), datasourceId],
+            datasources: [
+              ...(existingConversation.datasources || []),
+              datasourceId,
+            ],
             updatedBy: workspace.username || workspace.userId || 'system',
             updatedAt: new Date(),
           });
@@ -331,7 +339,7 @@ export default function NotebookPage() {
         const conversationId = uuidv4();
         const now = new Date();
         const notebookTitle = `Notebook - ${notebook.data.id}`;
-        
+
         const newConversation = await repositories.conversation.create({
           id: conversationId,
           slug: '', // Repository will generate slug
@@ -357,7 +365,7 @@ export default function NotebookPage() {
         notebookCellType: cellType, // Pass cellType to distinguish code cell vs prompt cell
         cellId, // Pass cellId to track which cell is loading
       });
-      
+
       // Loading state will be synced with chat interface streaming state
       // Don't clear it here - it will be cleared when streaming completes
     } else {
@@ -564,7 +572,10 @@ export default function NotebookPage() {
 
       if (isNewCell) {
         // Prompt cell: create new code cell below
-        const maxCellId = Math.max(...normalizedNotebook.cells.map((c) => c.cellId), 0);
+        const maxCellId = Math.max(
+          ...normalizedNotebook.cells.map((c) => c.cellId),
+          0,
+        );
         targetCellId = maxCellId + 1;
       }
 
@@ -575,7 +586,10 @@ export default function NotebookPage() {
 
       if (isNewCell) {
         // For new cells: create first, then scroll and paste
-        console.log('[Notebook] Creating new code cell with SQL:', targetCellId);
+        console.log(
+          '[Notebook] Creating new code cell with SQL:',
+          targetCellId,
+        );
         const newCodeCell: NotebookCellData = {
           cellId: targetCellId,
           cellType: NOTEBOOK_CELL_TYPE.QUERY,
@@ -619,12 +633,13 @@ export default function NotebookPage() {
 
           // Wait for scroll animation, then paste SQL
           setTimeout(() => {
-            console.log('[Notebook] Pasting SQL to existing code cell:', cellId);
+            console.log(
+              '[Notebook] Pasting SQL to existing code cell:',
+              cellId,
+            );
             handleCellsChange(
               normalizedNotebook.cells.map((c) =>
-                c.cellId === cellId
-                  ? { ...c, query: sqlQuery }
-                  : c,
+                c.cellId === cellId ? { ...c, query: sqlQuery } : c,
               ),
             );
 
@@ -642,11 +657,20 @@ export default function NotebookPage() {
     return () => {
       unregisterSqlPasteHandler();
     };
-  }, [normalizedNotebook, handleCellsChange, handleRunQuery, registerSqlPasteHandler, unregisterSqlPasteHandler]);
+  }, [
+    normalizedNotebook,
+    handleCellsChange,
+    handleRunQuery,
+    registerSqlPasteHandler,
+    unregisterSqlPasteHandler,
+  ]);
 
   // Register loading state callback to sync with chat interface
   useEffect(() => {
-    const handleLoadingStateChange = (cellId: number | undefined, isProcessing: boolean) => {
+    const handleLoadingStateChange = (
+      cellId: number | undefined,
+      isProcessing: boolean,
+    ) => {
       if (cellId !== undefined) {
         if (isProcessing) {
           // Chat is processing - keep cell loading
@@ -664,7 +688,11 @@ export default function NotebookPage() {
     return () => {
       unregisterLoadingStateCallback();
     };
-  }, [loadingCellId, registerLoadingStateCallback, unregisterLoadingStateCallback]);
+  }, [
+    loadingCellId,
+    registerLoadingStateCallback,
+    unregisterLoadingStateCallback,
+  ]);
 
   // Map datasources to the format expected by NotebookUI
   const datasources = useMemo(() => {

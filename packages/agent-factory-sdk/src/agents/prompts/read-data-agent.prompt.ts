@@ -1,7 +1,7 @@
 import {
-   getChartsInfoForPrompt,
-   getChartTypesUnionString,
-   getSupportedChartTypes,
+  getChartsInfoForPrompt,
+  getChartTypesUnionString,
+  getSupportedChartTypes,
 } from '../config/supported-charts';
 import { BASE_AGENT_PROMPT } from './base-agent.prompt';
 

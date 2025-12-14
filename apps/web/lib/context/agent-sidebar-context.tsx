@@ -14,15 +14,9 @@ const AgentSidebarContext = createContext<AgentSidebarContextValue | null>(
   null,
 );
 
-export function AgentSidebarProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function AgentSidebarProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [conversationSlug, setConversationSlug] = useState<string | null>(
-    null,
-  );
+  const [conversationSlug, setConversationSlug] = useState<string | null>(null);
 
   const toggleSidebar = () => {
     setIsOpen((prev) => !prev);
@@ -55,11 +49,7 @@ export function AgentSidebarProvider({
 export function useAgentSidebar() {
   const context = useContext(AgentSidebarContext);
   if (!context) {
-    throw new Error(
-      'useAgentSidebar must be used within AgentSidebarProvider',
-    );
+    throw new Error('useAgentSidebar must be used within AgentSidebarProvider');
   }
   return context;
 }
-
-

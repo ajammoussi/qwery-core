@@ -85,14 +85,24 @@ function removeAllHighlights(): void {
   }
 
   if (activeHighlightElement) {
-    activeHighlightElement.classList.remove('suggestion-highlight', 'suggestion-highlight-fade-out');
+    activeHighlightElement.classList.remove(
+      'suggestion-highlight',
+      'suggestion-highlight-fade-out',
+    );
     activeHighlightElement = null;
   }
 
   // Also remove from any other elements that might have the class
-  document.querySelectorAll('[data-suggestion-id].suggestion-highlight, [data-suggestion-id].suggestion-highlight-fade-out').forEach((el) => {
-    el.classList.remove('suggestion-highlight', 'suggestion-highlight-fade-out');
-  });
+  document
+    .querySelectorAll(
+      '[data-suggestion-id].suggestion-highlight, [data-suggestion-id].suggestion-highlight-fade-out',
+    )
+    .forEach((el) => {
+      el.classList.remove(
+        'suggestion-highlight',
+        'suggestion-highlight-fade-out',
+      );
+    });
 }
 
 /**
@@ -107,17 +117,20 @@ function addHighlight(element: HTMLElement, duration: number = 2500): void {
 
   // Verify element has data-suggestion-id attribute
   if (!element.hasAttribute('data-suggestion-id')) {
-    console.warn('[ScrollHighlight] Element missing data-suggestion-id attribute:', element);
+    console.warn(
+      '[ScrollHighlight] Element missing data-suggestion-id attribute:',
+      element,
+    );
     return;
   }
 
   // Add highlight class
   element.classList.add('suggestion-highlight');
   activeHighlightElement = element;
-  
+
   // Force a reflow to ensure styles are applied
   void element.offsetHeight;
-  
+
   // Debug log
   console.log('[ScrollHighlight] Added highlight to element:', {
     selector: `[data-suggestion-id="${element.getAttribute('data-suggestion-id')}"]`,
@@ -156,18 +169,21 @@ function findScrollableParent(element: HTMLElement | null): HTMLElement | null {
     const style = window.getComputedStyle(parent);
     const overflowY = style.overflowY;
     const overflow = style.overflow;
-    
+
     // Check if this element is scrollable
     if (
-      (overflowY === 'auto' || overflowY === 'scroll' || overflow === 'auto' || overflow === 'scroll') &&
+      (overflowY === 'auto' ||
+        overflowY === 'scroll' ||
+        overflow === 'auto' ||
+        overflow === 'scroll') &&
       parent.scrollHeight > parent.clientHeight
     ) {
       return parent;
     }
-    
+
     parent = parent.parentElement;
   }
-  
+
   // Fallback to window if no scrollable parent found
   return null;
 }
@@ -194,7 +210,7 @@ export function scrollToElement(
 
   // Find the scrollable parent container
   const scrollContainer = findScrollableParent(element);
-  
+
   if (!scrollContainer) {
     // Fallback to native scrollIntoView
     element.scrollIntoView({ behavior, block, inline });
@@ -204,18 +220,19 @@ export function scrollToElement(
   // Calculate the position of the element relative to the scroll container
   const containerRect = scrollContainer.getBoundingClientRect();
   const elementRect = element.getBoundingClientRect();
-  
+
   // Calculate the scroll position needed
   const scrollTop = scrollContainer.scrollTop;
   const elementTop = elementRect.top - containerRect.top + scrollTop;
   const containerHeight = scrollContainer.clientHeight;
   const elementHeight = elementRect.height;
-  
+
   // Calculate target scroll position based on block option
   let targetScrollTop: number;
-  
+
   if (block === 'center') {
-    targetScrollTop = elementTop - containerHeight / 2 + elementHeight / 2 + offset;
+    targetScrollTop =
+      elementTop - containerHeight / 2 + elementHeight / 2 + offset;
   } else if (block === 'start') {
     targetScrollTop = elementTop + offset;
   } else if (block === 'end') {
@@ -223,10 +240,13 @@ export function scrollToElement(
   } else {
     targetScrollTop = elementTop + offset;
   }
-  
+
   // Ensure we don't scroll beyond bounds
-  targetScrollTop = Math.max(0, Math.min(targetScrollTop, scrollContainer.scrollHeight - containerHeight));
-  
+  targetScrollTop = Math.max(
+    0,
+    Math.min(targetScrollTop, scrollContainer.scrollHeight - containerHeight),
+  );
+
   // Perform smooth scroll
   scrollContainer.scrollTo({
     top: targetScrollTop,
@@ -258,7 +278,7 @@ export function scrollToElementBySelector(
 
   const attemptScroll = (): boolean => {
     const element = document.querySelector(selector) as HTMLElement | null;
-    
+
     if (!element) {
       if (retryCount < maxRetries) {
         retryCount++;
@@ -282,23 +302,30 @@ export function scrollToElementBySelector(
     if (enableHighlight) {
       const scrollContainer = findScrollableParent(element);
       const isSmoothScroll = options.behavior === 'smooth';
-      
+
       const triggerHighlight = () => {
         // Small delay after scroll ends to ensure element is fully visible and animation can start smoothly
         setTimeout(() => {
-          const currentElement = document.querySelector(selector) as HTMLElement | null;
+          const currentElement = document.querySelector(
+            selector,
+          ) as HTMLElement | null;
           if (currentElement) {
             addHighlight(currentElement, highlightDuration);
           } else {
-            console.warn('[ScrollHighlight] Element not found for highlighting:', selector);
+            console.warn(
+              '[ScrollHighlight] Element not found for highlighting:',
+              selector,
+            );
           }
         }, 150);
       };
-      
+
       if (isSmoothScroll && scrollContainer) {
         // Try to use scrollend event if available (modern browsers)
         if ('onscrollend' in scrollContainer) {
-          scrollContainer.addEventListener('scrollend', triggerHighlight, { once: true });
+          scrollContainer.addEventListener('scrollend', triggerHighlight, {
+            once: true,
+          });
           // Fallback timeout in case scrollend doesn't fire (max 1.2s wait)
           setTimeout(triggerHighlight, 1200);
         } else {
@@ -306,12 +333,12 @@ export function scrollToElementBySelector(
           let lastScrollTop = (scrollContainer as HTMLElement).scrollTop;
           let scrollCheckInterval: ReturnType<typeof setInterval> | null = null;
           let hasTriggered = false;
-          
+
           const checkScrollStop = () => {
             if (hasTriggered) return;
-            
+
             const currentScrollTop = (scrollContainer as HTMLElement).scrollTop;
-            
+
             if (Math.abs(currentScrollTop - lastScrollTop) < 1) {
               // Scrolling has stopped (within 1px tolerance)
               if (scrollCheckInterval) {
@@ -324,7 +351,7 @@ export function scrollToElementBySelector(
               lastScrollTop = currentScrollTop;
             }
           };
-          
+
           // Start checking after scroll begins (100ms delay)
           setTimeout(() => {
             if (!hasTriggered) {
@@ -354,4 +381,3 @@ export function scrollToElementBySelector(
 
   return attemptScroll();
 }
-

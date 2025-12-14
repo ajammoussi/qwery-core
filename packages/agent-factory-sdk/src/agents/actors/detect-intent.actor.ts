@@ -63,8 +63,8 @@ export const detectIntent = async (text: string) => {
   return {
     intent: 'other' as const,
     complexity: 'simple' as const,
-    needsChart: undefined,
-    needsSQL: undefined,
+    needsChart: false,
+    needsSQL: false,
   };
 };
 

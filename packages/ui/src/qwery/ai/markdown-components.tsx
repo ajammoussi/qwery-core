@@ -2,7 +2,7 @@ import * as React from 'react';
 import type { HTMLAttributes, ReactNode } from 'react';
 import type { Components } from 'react-markdown';
 import { cn } from '../../lib/utils';
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect } from 'react';
 import { MarkdownContext } from './message-parts';
 import { SuggestionButton } from './suggestion-button';
 import { UIMessage } from 'ai';
@@ -19,7 +19,7 @@ export const HeadingContext = createContext<{
   setCurrentHeading: (heading: string) => void;
 }>({
   currentHeading: '',
-  setCurrentHeading: () => { },
+  setCurrentHeading: () => {},
 });
 
 // Create a factory function that returns components with context access
@@ -100,48 +100,73 @@ export const createAgentMarkdownComponents = (): Components => {
     h1: ({ className, ...props }) => (
       <h1
         {...props}
-        className={cn('text-2xl leading-tight font-semibold mt-4 mb-2', className)}
+        className={cn(
+          'mt-4 mb-2 text-2xl leading-tight font-semibold',
+          className,
+        )}
       />
     ),
     h2: ({ className, children, ...props }) => {
-      const { setCurrentHeading } = useContext(HeadingContext);
-      const headingText = extractTextFromChildren(children);
-      if (isSuggestionHeading(headingText)) {
-        setCurrentHeading(headingText);
-      }
-      return (
-        <h2
-          {...props}
-          className={cn('text-xl leading-tight font-semibold mt-3 mb-2 break-words overflow-wrap-anywhere', className)}
-        >
-          {children}
-        </h2>
-      );
+      const H2Component = () => {
+        const { setCurrentHeading } = useContext(HeadingContext);
+        const headingText = extractTextFromChildren(children);
+        useEffect(() => {
+          if (isSuggestionHeading(headingText)) {
+            setCurrentHeading(headingText);
+          }
+        }, [headingText, setCurrentHeading]);
+        return (
+          <h2
+            {...props}
+            className={cn(
+              'overflow-wrap-anywhere mt-3 mb-2 text-xl leading-tight font-semibold break-words',
+              className,
+            )}
+          >
+            {children}
+          </h2>
+        );
+      };
+      return <H2Component />;
     },
     h3: ({ className, children, ...props }) => {
-      const { setCurrentHeading } = useContext(HeadingContext);
-      const headingText = extractTextFromChildren(children);
-      if (isSuggestionHeading(headingText)) {
-        setCurrentHeading(headingText);
-      }
-      return (
-        <h3
-          {...props}
-          className={cn('text-lg leading-tight font-semibold mt-3 mb-2 break-words overflow-wrap-anywhere', className)}
-        >
-          {children}
-        </h3>
-      );
+      const H3Component = () => {
+        const { setCurrentHeading } = useContext(HeadingContext);
+        const headingText = extractTextFromChildren(children);
+        useEffect(() => {
+          if (isSuggestionHeading(headingText)) {
+            setCurrentHeading(headingText);
+          }
+        }, [headingText, setCurrentHeading]);
+        return (
+          <h3
+            {...props}
+            className={cn(
+              'overflow-wrap-anywhere mt-3 mb-2 text-lg leading-tight font-semibold break-words',
+              className,
+            )}
+          >
+            {children}
+          </h3>
+        );
+      };
+      return <H3Component />;
     },
-  p: ({ className, ...props }) => (
-    <p {...props} className={cn('my-2 text-sm leading-6 break-words overflow-wrap-anywhere', className)} />
-  ),
-    a: ({ className, href, children, ...props }) => (
+    p: ({ className, ...props }) => (
+      <p
+        {...props}
+        className={cn(
+          'overflow-wrap-anywhere my-2 text-sm leading-6 break-words',
+          className,
+        )}
+      />
+    ),
+    a: ({ className, href, ...props }) => (
       <a
         {...props}
         href={href}
         className={cn(
-          'text-primary decoration-primary/50 hover:decoration-primary underline underline-offset-2 transition break-words overflow-wrap-anywhere',
+          'text-primary decoration-primary/50 hover:decoration-primary overflow-wrap-anywhere break-words underline underline-offset-2 transition',
           className,
         )}
         target="_blank"
@@ -151,87 +176,99 @@ export const createAgentMarkdownComponents = (): Components => {
     ul: ({ className, ...props }) => (
       <ul
         {...props}
-        className={cn('my-2 list-disc pl-6 text-sm leading-6 break-words overflow-wrap-anywhere min-w-0', className)}
+        className={cn(
+          'overflow-wrap-anywhere my-2 min-w-0 list-disc pl-6 text-sm leading-6 break-words',
+          className,
+        )}
       />
     ),
     ol: ({ className, ...props }) => (
       <ol
         {...props}
-        className={cn('my-2 list-decimal pl-6 text-sm leading-6 break-words overflow-wrap-anywhere min-w-0', className)}
+        className={cn(
+          'overflow-wrap-anywhere my-2 min-w-0 list-decimal pl-6 text-sm leading-6 break-words',
+          className,
+        )}
       />
     ),
     li: ({ className, children, ...props }) => {
-      const markdownContext = useContext(MarkdownContext);
-      const { currentHeading } = useContext(HeadingContext);
-      const itemText = extractTextFromChildren(children);
-      const isUnderSuggestionHeading = isSuggestionHeading(currentHeading);
-      const isQuestionItem = isQuestion(itemText);
-      const isSuggestion = isUnderSuggestionHeading || isQuestionItem;
+      const LiComponent = () => {
+        const markdownContext = useContext(MarkdownContext);
+        const { currentHeading } = useContext(HeadingContext);
+        const itemText = extractTextFromChildren(children);
+        const isUnderSuggestionHeading = isSuggestionHeading(currentHeading);
+        const isQuestionItem = isQuestion(itemText);
+        const isSuggestion = isUnderSuggestionHeading || isQuestionItem;
 
-      if (isSuggestion && markdownContext.sendMessage) {
-        const handleClick = () => {
-          const { lastUserQuestion, lastAssistantResponse } = getContextMessages(
-            markdownContext.messages,
-            markdownContext.currentMessageId,
+        if (isSuggestion && markdownContext.sendMessage) {
+          const handleClick = () => {
+            const { lastUserQuestion, lastAssistantResponse } =
+              getContextMessages(
+                markdownContext.messages,
+                markdownContext.currentMessageId,
+              );
+
+            let messageText = itemText;
+
+            // Build context template if we have previous messages
+            if (lastUserQuestion || lastAssistantResponse) {
+              const contextParts: string[] = [];
+              if (lastUserQuestion) {
+                contextParts.push(`Previous question: ${lastUserQuestion}`);
+              }
+              if (lastAssistantResponse) {
+                contextParts.push(
+                  `Previous response: ${lastAssistantResponse}`,
+                );
+              }
+              if (contextParts.length > 0) {
+                messageText = `${contextParts.join('\n\n')}\n\n${itemText}`;
+              }
+            }
+
+            if (markdownContext.sendMessage) {
+              markdownContext.sendMessage(
+                {
+                  text: messageText,
+                },
+                {},
+              );
+            }
+          };
+
+          return (
+            <li
+              {...props}
+              className={cn(
+                'marker:text-muted-foreground group overflow-wrap-anywhere relative my-1 min-w-0 pr-6 text-sm leading-6 break-words',
+                className,
+              )}
+            >
+              {children}
+              <SuggestionButton onClick={handleClick} />
+            </li>
           );
-
-          let messageText = itemText;
-
-          // Build context template if we have previous messages
-          if (lastUserQuestion || lastAssistantResponse) {
-            const contextParts: string[] = [];
-            if (lastUserQuestion) {
-              contextParts.push(`Previous question: ${lastUserQuestion}`);
-            }
-            if (lastAssistantResponse) {
-              contextParts.push(`Previous response: ${lastAssistantResponse}`);
-            }
-            if (contextParts.length > 0) {
-              messageText = `${contextParts.join('\n\n')}\n\n${itemText}`;
-            }
-          }
-
-          if (markdownContext.sendMessage) {
-            markdownContext.sendMessage(
-              {
-                text: messageText,
-              },
-              {},
-            );
-          }
-        };
+        }
 
         return (
           <li
             {...props}
             className={cn(
-              'marker:text-muted-foreground group relative my-1 pr-6 text-sm leading-6 break-words overflow-wrap-anywhere min-w-0',
+              'marker:text-muted-foreground overflow-wrap-anywhere my-1 min-w-0 text-sm leading-6 break-words',
               className,
             )}
           >
             {children}
-            <SuggestionButton onClick={handleClick} />
           </li>
         );
-      }
-
-      return (
-        <li
-          {...props}
-          className={cn(
-            'marker:text-muted-foreground my-1 text-sm leading-6 break-words overflow-wrap-anywhere min-w-0',
-            className,
-          )}
-        >
-          {children}
-        </li>
-      );
+      };
+      return <LiComponent />;
     },
     blockquote: ({ className, ...props }) => (
       <blockquote
         {...props}
         className={cn(
-          'border-border/60 text-muted-foreground my-4 border-l-2 pl-4 text-sm italic break-words overflow-wrap-anywhere',
+          'border-border/60 text-muted-foreground overflow-wrap-anywhere my-4 border-l-2 pl-4 text-sm break-words italic',
           className,
         )}
       />
@@ -251,14 +288,20 @@ export const createAgentMarkdownComponents = (): Components => {
         );
       }
       return (
-        <div className="w-full min-w-0 max-w-full overflow-x-auto" style={{ maxWidth: '100%' }}>
+        <div
+          className="w-full max-w-full min-w-0 overflow-x-auto"
+          style={{ maxWidth: '100%' }}
+        >
           <pre
             className={cn(
-              'bg-muted/50 text-muted-foreground/90 relative my-3 rounded-md p-4 text-xs max-w-full',
+              'bg-muted/50 text-muted-foreground/90 relative my-3 max-w-full rounded-md p-4 text-xs',
               className,
             )}
           >
-            <code {...props} className="font-mono leading-5 break-words whitespace-pre-wrap max-w-full">
+            <code
+              {...props}
+              className="max-w-full font-mono leading-5 break-words whitespace-pre-wrap"
+            >
               {children}
             </code>
           </pre>
@@ -266,11 +309,14 @@ export const createAgentMarkdownComponents = (): Components => {
       );
     },
     table: ({ className, ...props }) => (
-      <div className="my-4 w-full min-w-0 max-w-full overflow-x-auto" style={{ maxWidth: '100%' }}>
+      <div
+        className="my-4 w-full max-w-full min-w-0 overflow-x-auto"
+        style={{ maxWidth: '100%' }}
+      >
         <table
           {...props}
           className={cn(
-            '[&_tr:nth-child(even)]:bg-muted/30 w-full border-collapse text-left text-sm [&_td]:py-2 [&_td]:align-top [&_td]:break-words [&_td]:max-w-0 [&_th]:border-b [&_th]:pb-2 [&_th]:text-xs [&_th]:break-words',
+            '[&_tr:nth-child(even)]:bg-muted/30 w-full border-collapse text-left text-sm [&_td]:max-w-0 [&_td]:py-2 [&_td]:align-top [&_td]:break-words [&_th]:border-b [&_th]:pb-2 [&_th]:text-xs [&_th]:break-words',
             className,
           )}
           style={{ width: '100%', maxWidth: '100%' }}
@@ -278,31 +324,34 @@ export const createAgentMarkdownComponents = (): Components => {
       </div>
     ),
     hr: ({ className, ...props }) => (
-      <hr
-        {...props}
-        className={cn('border-border my-4 border-t', className)}
-      />
+      <hr {...props} className={cn('border-border my-4 border-t', className)} />
     ),
     strong: ({ className, children, ...props }) => {
-      const { currentHeading } = useContext(HeadingContext);
-      const isUnderSuggestionHeading = isSuggestionHeading(currentHeading);
-      const itemText = extractTextFromChildren(children);
-      const isQuestionItem = isQuestion(itemText);
-      const isSuggestion = isUnderSuggestionHeading || isQuestionItem;
+      const StrongComponent = () => {
+        const { currentHeading } = useContext(HeadingContext);
+        const isUnderSuggestionHeading = isSuggestionHeading(currentHeading);
+        const itemText = extractTextFromChildren(children);
+        const isQuestionItem = isQuestion(itemText);
+        const isSuggestion = isUnderSuggestionHeading || isQuestionItem;
 
-      if (isSuggestion) {
-        return (
-          <strong
-            {...props}
-            className={cn('font-semibold inline-flex items-center gap-1.5', className)}
-          >
-            <Sparkles className="inline-block h-3 w-3 text-primary/70 shrink-0" />
-            {children}
-          </strong>
-        );
-      }
+        if (isSuggestion) {
+          return (
+            <strong
+              {...props}
+              className={cn(
+                'inline-flex items-center gap-1.5 font-semibold',
+                className,
+              )}
+            >
+              <Sparkles className="text-primary/70 inline-block h-3 w-3 shrink-0" />
+              {children}
+            </strong>
+          );
+        }
 
-      return <strong {...props} className={cn('font-semibold', className)} />;
+        return <strong {...props} className={cn('font-semibold', className)} />;
+      };
+      return <StrongComponent />;
     },
     em: ({ className, ...props }) => (
       <em {...props} className={cn('italic', className)} />
@@ -310,7 +359,7 @@ export const createAgentMarkdownComponents = (): Components => {
     img: ({ className, ...props }) => (
       <img
         {...props}
-        className={cn('max-w-full h-auto rounded-md', className)}
+        className={cn('h-auto max-w-full rounded-md', className)}
         style={{ maxWidth: '100%', height: 'auto' }}
       />
     ),
@@ -318,4 +367,5 @@ export const createAgentMarkdownComponents = (): Components => {
 };
 
 // Export the default components (will be created fresh for each render)
-export const agentMarkdownComponents: Components = createAgentMarkdownComponents();
+export const agentMarkdownComponents: Components =
+  createAgentMarkdownComponents();

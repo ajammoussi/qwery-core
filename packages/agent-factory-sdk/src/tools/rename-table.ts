@@ -43,7 +43,9 @@ export const renameTable = async (
       errorMsg.includes('not found') ||
       errorMsg.includes('Catalog Error')
     ) {
-      throw new Error(`Table/view "${oldTableName}" does not exist. Cannot rename.`);
+      throw new Error(
+        `Table/view "${oldTableName}" does not exist. Cannot rename.`,
+      );
     }
     throw error;
   }

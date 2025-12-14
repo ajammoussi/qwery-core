@@ -26,7 +26,11 @@ interface NotebookCellAiPopupProps {
   onSubmit: (e: React.FormEvent) => void;
   query: string;
   selectedDatasource: string | null;
-  onRunQueryWithAgent?: (query: string, datasourceId: string, cellType?: 'query' | 'prompt') => void;
+  onRunQueryWithAgent?: (
+    query: string,
+    datasourceId: string,
+    cellType?: 'query' | 'prompt',
+  ) => void;
   cellType?: 'query' | 'prompt';
   isLoading?: boolean;
   enableShortcut?: boolean;

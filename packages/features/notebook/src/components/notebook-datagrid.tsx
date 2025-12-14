@@ -187,8 +187,14 @@ export function NotebookDataGrid({ result, className }: NotebookDataGridProps) {
             </TableBody>
           </Table>
         </div>
-        <ScrollBar orientation="vertical" className="bg-border/40 hover:bg-border/60" />
-        <ScrollBar orientation="horizontal" className="bg-border/40 hover:bg-border/60" />
+        <ScrollBar
+          orientation="vertical"
+          className="bg-border/40 hover:bg-border/60"
+        />
+        <ScrollBar
+          orientation="horizontal"
+          className="bg-border/40 hover:bg-border/60"
+        />
       </ScrollArea>
     </div>
   );

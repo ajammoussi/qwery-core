@@ -51,29 +51,37 @@ export async function action({ request }: ActionFunctionArgs) {
       const body = await request.json();
       const useCase = new CreateNotebookService(repository);
       const notebook = await useCase.execute(body);
-      
+
       // Initialize a conversation for this notebook
       // Each notebook gets its own conversation that all cells share
       try {
         const notebookTitle = `Notebook - ${notebook.id}`;
-        
+
         // Check if conversation already exists (in case of race condition or retry)
-        const existingConversations = await repositories.conversation.findByProjectId(notebook.projectId);
+        const existingConversations =
+          await repositories.conversation.findByProjectId(notebook.projectId);
         const existingConversation = existingConversations.find(
           (conv) => conv.title === notebookTitle,
         );
-        
+
         if (existingConversation) {
           // Conversation already exists, skip creation
           return Response.json(notebook, { status: 201 });
         }
-        
+
         const conversationId = uuidv4();
         const now = new Date();
-        
+
         // Get userId from notebook createdBy if available, otherwise use 'system'
-        const userId = (notebook as any).createdBy || body.createdBy || body.userId || 'system';
-        
+        const notebookWithCreatedBy = notebook as {
+          createdBy?: string;
+        };
+        const userId =
+          notebookWithCreatedBy.createdBy ||
+          body.createdBy ||
+          body.userId ||
+          'system';
+
         await repositories.conversation.create({
           id: conversationId,
           slug: '', // Repository will generate slug from ID
@@ -85,6 +93,7 @@ export async function action({ request }: ActionFunctionArgs) {
           updatedAt: now,
           createdBy: userId,
           updatedBy: userId,
+          isPublic: false,
           seedMessage: '',
         });
       } catch (convError) {
@@ -92,7 +101,7 @@ export async function action({ request }: ActionFunctionArgs) {
         // The conversation will be created on first prompt if needed
         console.error('Failed to create conversation for notebook:', convError);
       }
-      
+
       return Response.json(notebook, { status: 201 });
     }
 

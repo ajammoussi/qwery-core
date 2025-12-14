@@ -114,7 +114,9 @@ class DuckDBInstanceManager {
     if (wrapper) {
       wrapper.lastSyncTimestamp = 0;
       wrapper.lastSyncedDatasourceIds = [];
-      console.log(`[DuckDBInstanceManager] Reset sync cache for conversation ${conversationId}`);
+      console.log(
+        `[DuckDBInstanceManager] Reset sync cache for conversation ${conversationId}`,
+      );
     }
   }
 

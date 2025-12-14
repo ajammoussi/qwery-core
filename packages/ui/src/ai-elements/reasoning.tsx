@@ -9,7 +9,13 @@ import {
 import { cn } from '../lib/utils';
 import { BrainIcon, ChevronDownIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
-import React, { createContext, memo, useContext, useEffect, useState } from 'react';
+import React, {
+  createContext,
+  memo,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 import { Streamdown } from 'streamdown';
 import { Shimmer } from './shimmer';
 
@@ -120,15 +126,15 @@ const getThinkingMessage = (isStreaming: boolean, duration?: number) => {
         <span className="text-muted-foreground">Thinking</span>
         <div className="flex items-center gap-1">
           <span
-            className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-pulse"
+            className="bg-primary/60 h-1.5 w-1.5 animate-pulse rounded-full"
             style={{ animationDelay: '0ms', animationDuration: '1.4s' }}
           />
           <span
-            className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-pulse"
+            className="bg-primary/60 h-1.5 w-1.5 animate-pulse rounded-full"
             style={{ animationDelay: '200ms', animationDuration: '1.4s' }}
           />
           <span
-            className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-pulse"
+            className="bg-primary/60 h-1.5 w-1.5 animate-pulse rounded-full"
             style={{ animationDelay: '400ms', animationDuration: '1.4s' }}
           />
         </div>

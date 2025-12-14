@@ -49,7 +49,6 @@ export type ToolHeaderProps = {
   className?: string;
 };
 
-
 const getStatusConfig = (status: ToolUIPart['state']) => {
   const configs: Record<
     string,
@@ -196,8 +195,8 @@ export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
     defaultOpen={false}
     {...props}
   >
-    <CollapsibleTrigger className="group flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-muted/50 transition-colors">
-      <ChevronDownIcon className="size-3 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+    <CollapsibleTrigger className="group hover:bg-muted/50 flex w-full items-center gap-2 px-4 py-3 text-left transition-colors">
+      <ChevronDownIcon className="text-muted-foreground size-3 transition-transform duration-200 group-data-[state=open]:rotate-180" />
       <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
         Parameters
       </span>

@@ -1,6 +1,6 @@
 export * from './factory-agent';
 
-// Export actors 
+// Export actors
 export * from './actors';
 
 // Export types for use across the codebase

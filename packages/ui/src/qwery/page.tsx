@@ -1,8 +1,10 @@
 import * as React from 'react';
-import { forwardRef } from 'react';
 
 import { cn } from '../lib/utils/cn';
-import { ResizableContent, type ResizableContentRef } from './resizable-content';
+import {
+  ResizableContent,
+  type ResizableContentRef,
+} from './resizable-content';
 
 // Re-export for external use
 export type { ResizableContentRef };
@@ -34,14 +36,14 @@ function PageWithHeaderSidebar(props: PageProps) {
       {/* Topbar */}
       <div
         className={cn(
-          'bg-sidebar dark:border-border relative flex h-14 w-full shrink-0 items-center justify-between border-b px-4 overflow-x-hidden',
+          'bg-sidebar dark:border-border relative flex h-14 w-full shrink-0 items-center justify-between overflow-x-hidden border-b px-4',
           props.sticky === false
             ? ''
             : 'bg-sidebar sticky top-0 z-[100] backdrop-blur-md',
         )}
       >
         {/* Desktop Navigation */}
-        <div className="hidden w-full flex-1 items-center space-x-8 lg:flex min-w-0 overflow-x-hidden">
+        <div className="hidden w-full min-w-0 flex-1 items-center space-x-8 overflow-x-hidden lg:flex">
           {TopNavigation}
         </div>
         {/* Mobile Navigation */}
@@ -54,12 +56,14 @@ function PageWithHeaderSidebar(props: PageProps) {
         {/* Main Content */}
         <div className="bg-background relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overflow-x-hidden">
           <div className="h-full min-h-0 max-w-full min-w-0 flex-1 overflow-x-hidden">
-            <ResizableContent 
+            {/* eslint-disable react-hooks/refs -- These are props being passed, not refs being accessed during render */}
+            <ResizableContent
               ref={props.agentSidebarRef}
-              Content={Children} 
+              Content={Children}
               AgentSidebar={AgentSidebar}
               open={props.agentSidebarOpen}
             />
+            {/* eslint-enable react-hooks/refs */}
           </div>
         </div>
       </div>

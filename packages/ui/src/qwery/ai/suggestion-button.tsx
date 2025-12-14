@@ -16,7 +16,7 @@ export function SuggestionButton({
       variant="ghost"
       size="icon"
       className={cn(
-        'absolute right-0 top-0 h-5 w-5 opacity-0 transition-opacity group-hover:opacity-100',
+        'absolute top-0 right-0 h-5 w-5 opacity-0 transition-opacity group-hover:opacity-100',
         className,
       )}
       onClick={(e) => {
@@ -30,5 +30,3 @@ export function SuggestionButton({
     </Button>
   );
 }
-
-

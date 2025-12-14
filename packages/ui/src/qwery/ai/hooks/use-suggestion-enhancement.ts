@@ -1,6 +1,11 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import type { useChat } from '@ai-sdk/react';
-import { createSuggestionButton, generateSuggestionId, cleanSuggestionPatterns, scrollToConversationBottom } from '../utils/suggestion-enhancement';
+import {
+  createSuggestionButton,
+  generateSuggestionId,
+  cleanSuggestionPatterns,
+  scrollToConversationBottom,
+} from '../utils/suggestion-enhancement';
 import type { DetectedSuggestion } from './use-suggestion-detection';
 
 export interface UseSuggestionEnhancementOptions {
@@ -20,7 +25,9 @@ export function useSuggestionEnhancement({
   contextMessages,
 }: UseSuggestionEnhancementOptions): void {
   const processedElementsRef = useRef<Set<Element>>(new Set());
-  const [containerElement, setContainerElement] = useState<HTMLElement | null>(null);
+  const [containerElement, setContainerElement] = useState<HTMLElement | null>(
+    null,
+  );
 
   useEffect(() => {
     setContainerElement(containerRef.current);
@@ -33,7 +40,7 @@ export function useSuggestionEnhancement({
       try {
         let messageText = cleanSuggestionText;
         const { lastUserQuestion, lastAssistantResponse } = contextMessages;
-        
+
         if (lastUserQuestion || lastAssistantResponse || sourceSuggestionId) {
           const contextData = JSON.stringify({
             lastUserQuestion,
@@ -42,11 +49,14 @@ export function useSuggestionEnhancement({
           });
           messageText = `__QWERY_CONTEXT__${contextData}__QWERY_CONTEXT_END__${cleanSuggestionText}`;
         }
-        
+
         sendMessage({ text: messageText }, {});
         scrollToConversationBottom();
       } catch (error) {
-        console.error('[useSuggestionEnhancement] Error sending message:', error);
+        console.error(
+          '[useSuggestionEnhancement] Error sending message:',
+          error,
+        );
       }
     },
     [sendMessage, contextMessages],
@@ -69,13 +79,16 @@ export function useSuggestionEnhancement({
             return;
           }
 
-          if (element.querySelector('[data-suggestion-button]') || processedElementsRef.current.has(element)) {
+          if (
+            element.querySelector('[data-suggestion-button]') ||
+            processedElementsRef.current.has(element)
+          ) {
             return;
           }
 
           processedElementsRef.current.add(element);
           const suggestionId = generateSuggestionId(suggestionText);
-          
+
           const { cleanup } = createSuggestionButton(element, {
             suggestionText,
             suggestionId,
@@ -83,11 +96,14 @@ export function useSuggestionEnhancement({
               onClick: handleSuggestionClick,
             },
           });
-          
+
           cleanupFunctions.push(cleanup);
         });
       } catch (error) {
-        console.error('[useSuggestionEnhancement] Error processing suggestions:', error);
+        console.error(
+          '[useSuggestionEnhancement] Error processing suggestions:',
+          error,
+        );
       }
     };
 
@@ -98,8 +114,16 @@ export function useSuggestionEnhancement({
         cancelAnimationFrame(rafId);
       }
       cleanupFunctions.forEach((cleanup) => cleanup());
-      processedElementsRef.current.clear();
+      // Copy ref value to avoid accessing ref in cleanup
+      const processedElements = processedElementsRef.current;
+      if (processedElements) {
+        processedElements.clear();
+      }
     };
-  }, [detectedSuggestions, containerElement, sendMessage, handleSuggestionClick]);
+  }, [
+    detectedSuggestions,
+    containerElement,
+    sendMessage,
+    handleSuggestionClick,
+  ]);
 }
-

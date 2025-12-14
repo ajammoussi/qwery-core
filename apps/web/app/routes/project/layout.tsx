@@ -17,12 +17,15 @@ import { LayoutFooter } from '../layout/_components/layout-footer';
 import { LayoutMobileNavigation } from '../layout/_components/layout-mobile-navigation';
 import { ProjectLayoutTopBar } from './_components/project-topbar';
 import { ProjectSidebar } from './_components/project-sidebar';
-import { AgentUIWrapper, type SidebarControl } from './_components/agent-ui-wrapper';
+import { AgentUIWrapper } from './_components/agent-ui-wrapper';
 import { useWorkspace } from '~/lib/context/workspace-context';
 import { WorkspaceModeEnum } from '@qwery/domain/enums';
 import { AgentTabs, AgentStatusProvider } from '@qwery/ui/ai';
 import { useGetMessagesByConversationSlug } from '~/lib/queries/use-get-messages';
-import { NotebookSidebarProvider, useNotebookSidebar } from '~/lib/context/notebook-sidebar-context';
+import {
+  NotebookSidebarProvider,
+  useNotebookSidebar,
+} from '~/lib/context/notebook-sidebar-context';
 
 // LocalStorage key for persisting notebook sidebar conversation
 const NOTEBOOK_SIDEBAR_CONVERSATION_KEY = 'notebook-sidebar-conversation';
@@ -35,28 +38,34 @@ export async function loader(_args: Route.LoaderArgs) {
   };
 }
 
-function SidebarLayoutInner(props: Route.ComponentProps & React.PropsWithChildren) {
+function SidebarLayoutInner(
+  props: Route.ComponentProps & React.PropsWithChildren,
+) {
   const { layoutState } = props.loaderData;
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const { repositories } = useWorkspace();
   const sidebarRef = useRef<ResizableContentRef>(null);
   const { registerSidebarControl } = useNotebookSidebar();
-  const [persistedConversationSlug, setPersistedConversationSlug] = useState<string | null>(null);
-  
+  const [persistedConversationSlug, setPersistedConversationSlug] = useState<
+    string | null
+  >(null);
+
   // Only enable notebook sidebar behavior on notebook pages
   const isNotebookPage = location.pathname.startsWith('/notebook/');
-  
+
   // Get conversation slug from URL params (for notebook chat integration)
   const conversationSlugFromUrl = searchParams.get('conversation');
-  
+
   // Load persisted conversation slug from localStorage on mount
   // Restore to URL if it's not already there and we're on a notebook page
   // This ensures the sidebar opens correctly on refresh
   useEffect(() => {
     if (isNotebookPage && typeof window !== 'undefined') {
       try {
-        const persisted = localStorage.getItem(NOTEBOOK_SIDEBAR_CONVERSATION_KEY);
+        const persisted = localStorage.getItem(
+          NOTEBOOK_SIDEBAR_CONVERSATION_KEY,
+        );
         if (persisted) {
           setPersistedConversationSlug(persisted);
           // Restore conversation param to URL if not present
@@ -64,9 +73,15 @@ function SidebarLayoutInner(props: Route.ComponentProps & React.PropsWithChildre
           if (!conversationSlugFromUrl && persisted) {
             const currentUrl = new URL(window.location.href);
             currentUrl.searchParams.set('conversation', persisted);
-            window.history.replaceState({}, '', currentUrl.pathname + currentUrl.search);
+            window.history.replaceState(
+              {},
+              '',
+              currentUrl.pathname + currentUrl.search,
+            );
             // Update searchParams to trigger re-render
-            setSearchParams(new URLSearchParams(currentUrl.searchParams), { replace: true });
+            setSearchParams(new URLSearchParams(currentUrl.searchParams), {
+              replace: true,
+            });
           }
         }
       } catch (error) {
@@ -82,7 +97,10 @@ function SidebarLayoutInner(props: Route.ComponentProps & React.PropsWithChildre
     if (isNotebookPage && typeof window !== 'undefined') {
       try {
         if (conversationSlugFromUrl) {
-          localStorage.setItem(NOTEBOOK_SIDEBAR_CONVERSATION_KEY, conversationSlugFromUrl);
+          localStorage.setItem(
+            NOTEBOOK_SIDEBAR_CONVERSATION_KEY,
+            conversationSlugFromUrl,
+          );
           setPersistedConversationSlug(conversationSlugFromUrl);
         } else if (!conversationSlugFromUrl && persistedConversationSlug) {
           // Don't clear persisted conversation on URL removal - keep it for refresh
@@ -110,8 +128,10 @@ function SidebarLayoutInner(props: Route.ComponentProps & React.PropsWithChildre
     return actualSlug || 'no-conversation';
   }, [conversationSlug]);
 
-  const agentWrapperRef = useRef<{ sendMessage: (text: string) => void } | null>(null);
-  
+  const agentWrapperRef = useRef<{
+    sendMessage: (text: string) => void;
+  } | null>(null);
+
   // Register sidebar control for notebook pages only
   useEffect(() => {
     if (isNotebookPage && sidebarRef.current) {
@@ -127,13 +147,14 @@ function SidebarLayoutInner(props: Route.ComponentProps & React.PropsWithChildre
   // Track if we've already attempted to open the sidebar on this mount
   // This prevents reopening when user manually closes it
   const hasOpenedOnMountRef = useRef(false);
-  
+
   // Open sidebar on mount/refresh when conversation param is present
   // Only open once on initial mount, not on every conversation change
   useEffect(() => {
     if (isNotebookPage && sidebarRef.current && !hasOpenedOnMountRef.current) {
       // Check if we should open based on URL or persisted conversation
-      const hasConversation = conversationSlugFromUrl || persistedConversationSlug;
+      const hasConversation =
+        conversationSlugFromUrl || persistedConversationSlug;
       if (hasConversation && conversationSlug !== 'default') {
         // Small delay to ensure everything is mounted
         const timeoutId = setTimeout(() => {
@@ -143,8 +164,13 @@ function SidebarLayoutInner(props: Route.ComponentProps & React.PropsWithChildre
         return () => clearTimeout(timeoutId);
       }
     }
-  }, [isNotebookPage, conversationSlugFromUrl, persistedConversationSlug, conversationSlug]);
-  
+  }, [
+    isNotebookPage,
+    conversationSlugFromUrl,
+    persistedConversationSlug,
+    conversationSlug,
+  ]);
+
   // Reset the mount flag when navigating to a different notebook
   useEffect(() => {
     hasOpenedOnMountRef.current = false;
@@ -163,14 +189,15 @@ function SidebarLayoutInner(props: Route.ComponentProps & React.PropsWithChildre
       enabled: isNotebookPage && conversationSlug !== 'default',
       // Refetch every 2 seconds when conversation exists to catch new messages
       // This keeps messages up-to-date even when sidebar is closed
-      refetchInterval: (isNotebookPage && conversationSlug !== 'default') ? 2000 : undefined,
+      refetchInterval:
+        isNotebookPage && conversationSlug !== 'default' ? 2000 : undefined,
     },
   );
 
   return (
     <AgentStatusProvider>
       <SidebarProvider defaultOpen={layoutState.open}>
-        <Page 
+        <Page
           agentSidebarOpen={undefined}
           agentSidebarRef={isNotebookPage ? sidebarRef : undefined}
         >
@@ -193,7 +220,7 @@ function SidebarLayoutInner(props: Route.ComponentProps & React.PropsWithChildre
           {/* This ensures content is preserved when sidebar is closed */}
           {isNotebookPage && conversationSlug !== 'default' && (
             <AgentSidebar>
-              <AgentUIWrapper 
+              <AgentUIWrapper
                 key={conversationKey}
                 ref={agentWrapperRef}
                 conversationSlug={conversationSlug}

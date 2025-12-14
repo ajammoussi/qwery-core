@@ -5,7 +5,6 @@ import {
   validateUIMessages,
   detectIntent,
   PROMPT_SOURCE,
-  NOTEBOOK_CELL_TYPE,
   type PromptSource,
   type NotebookCellType,
 } from '@qwery/agent-factory-sdk';
@@ -122,13 +121,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
       // Sort both arrays to ensure consistent comparison regardless of order
       const currentSorted = [...currentDatasources].sort();
       const newSorted = [...datasources].sort();
-      const datasourcesChanged = 
+      const datasourcesChanged =
         currentSorted.length !== newSorted.length ||
         !currentSorted.every((dsId, index) => dsId === newSorted[index]);
-      
+
       if (datasourcesChanged) {
-        console.log(`[Chat API] Updating conversation datasources from [${currentDatasources.join(', ')}] to [${datasources.join(', ')}]`);
-        
+        console.log(
+          `[Chat API] Updating conversation datasources from [${currentDatasources.join(', ')}] to [${datasources.join(', ')}]`,
+        );
+
         // CRITICAL: Invalidate cached agent BEFORE updating conversation
         // This ensures the agent cache is cleared before we update the conversation
         // so the new agent will read the updated datasources
@@ -145,9 +146,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
           agents.delete(conversationSlug);
           agentLastAccess.delete(conversationSlug);
           agentCreationLocks.delete(conversationSlug);
-          console.log(`[Chat API] Invalidated cached agent for conversation ${conversationSlug} due to datasource change`);
+          console.log(
+            `[Chat API] Invalidated cached agent for conversation ${conversationSlug} due to datasource change`,
+          );
         }
-        
+
         // CRITICAL: Update conversation AFTER invalidating agent cache
         // This ensures the new agent will read the updated datasources
         await repositories.conversation.update({
@@ -156,16 +159,21 @@ export async function action({ request, params }: ActionFunctionArgs) {
           updatedBy: conversation.createdBy || 'system',
           updatedAt: new Date(),
         });
-        
+
         // Refetch conversation to get updated datasources
         // This ensures the conversation object has the latest datasources before agent creation
-        const updatedConversation = await repositories.conversation.findBySlug(conversationSlug);
+        const updatedConversation =
+          await repositories.conversation.findBySlug(conversationSlug);
         if (updatedConversation) {
           // Update the conversation reference for the rest of the function
           Object.assign(conversation, updatedConversation);
-          console.log(`[Chat API] Conversation datasources updated to: [${updatedConversation.datasources?.join(', ') || 'none'}]`);
+          console.log(
+            `[Chat API] Conversation datasources updated to: [${updatedConversation.datasources?.join(', ') || 'none'}]`,
+          );
         } else {
-          console.warn(`[Chat API] Failed to refetch conversation after datasource update`);
+          console.warn(
+            `[Chat API] Failed to refetch conversation after datasource update`,
+          );
         }
       }
     }
@@ -182,17 +190,21 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     // Get the last user message for intent detection
     const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
-    const lastUserMessageText = lastUserMessage?.parts
-      ?.filter((part) => part.type === 'text')
-      .map((part) => (part as { text: string }).text)
-      .join(' ')
-      .trim() || '';
+    const lastUserMessageText =
+      lastUserMessage?.parts
+        ?.filter((part) => part.type === 'text')
+        .map((part) => (part as { text: string }).text)
+        .join(' ')
+        .trim() || '';
 
     // Always run intent detection for both inline and chat modes
     let needSQL = false;
     if (lastUserMessageText) {
       try {
-        console.log('[Chat API] Running intent detection for:', lastUserMessageText.substring(0, 100));
+        console.log(
+          '[Chat API] Running intent detection for:',
+          lastUserMessageText.substring(0, 100),
+        );
         const intentResult = await detectIntent(lastUserMessageText);
         needSQL = (intentResult as { needsSQL?: boolean }).needsSQL ?? false;
         console.log('[Chat API] Intent detection result:', {
@@ -211,28 +223,36 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Also add datasources, promptSource, and needSQL to the last user message metadata
     const processedMessages = messages.map((message, index) => {
       // Add metadata for the last user message
-      const isLastUserMessage = message.role === 'user' && 
-        index === messages.length - 1;
-      
+      const isLastUserMessage =
+        message.role === 'user' && index === messages.length - 1;
+
       if (isLastUserMessage) {
         // Detect if message is coming from notebook (inline mode)
         // Check if metadata has promptSource: 'inline' or notebookCellType
-        const messageMetadata = (message.metadata || {}) as Record<string, unknown>;
-        const isNotebookSource = messageMetadata.promptSource === PROMPT_SOURCE.INLINE || 
-                                  messageMetadata.notebookCellType !== undefined;
-        const promptSource: PromptSource = isNotebookSource ? PROMPT_SOURCE.INLINE : PROMPT_SOURCE.CHAT;
-        const notebookCellType = messageMetadata.notebookCellType as NotebookCellType | undefined;
-        
+        const messageMetadata = (message.metadata || {}) as Record<
+          string,
+          unknown
+        >;
+        const isNotebookSource =
+          messageMetadata.promptSource === PROMPT_SOURCE.INLINE ||
+          messageMetadata.notebookCellType !== undefined;
+        const promptSource: PromptSource = isNotebookSource
+          ? PROMPT_SOURCE.INLINE
+          : PROMPT_SOURCE.CHAT;
+        const notebookCellType = messageMetadata.notebookCellType as
+          | NotebookCellType
+          | undefined;
+
         console.log('[Chat API] Detected prompt source:', {
           promptSource,
           notebookCellType,
           isNotebookSource,
         });
-        
+
         // Build metadata - preserve notebookCellType if present, remove conflicting 'source' field
         const cleanMetadata: Record<string, unknown> = { ...messageMetadata };
         delete cleanMetadata.source; // Remove conflicting source field
-        
+
         message = {
           ...message,
           metadata: {
@@ -244,23 +264,25 @@ export async function action({ request, params }: ActionFunctionArgs) {
           },
         };
       }
-      
+
       if (message.role === 'user') {
         const textPart = message.parts.find((p) => p.type === 'text');
         if (textPart && 'text' in textPart) {
           const text = textPart.text;
           const guidanceMarker = '__QWERY_SUGGESTION_GUIDANCE__';
           const guidanceEndMarker = '__QWERY_SUGGESTION_GUIDANCE_END__';
-          
+
           if (text.includes(guidanceMarker)) {
             // Extract guidance and clean message
             const startIndex = text.indexOf(guidanceMarker);
             const endIndex = text.indexOf(guidanceEndMarker);
-            
+
             if (startIndex !== -1 && endIndex !== -1) {
               // Extract the message text (everything after the guidance marker)
-              const cleanText = text.substring(endIndex + guidanceEndMarker.length).trim();
-              
+              const cleanText = text
+                .substring(endIndex + guidanceEndMarker.length)
+                .trim();
+
               // Apply suggestion guidance internally by prepending it to the user message
               const suggestionGuidance = `[SUGGESTION WORKFLOW GUIDANCE]
 - This is a suggested next step from a previous response - execute it directly and efficiently
@@ -270,7 +292,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 - If the suggestion involves a query or analysis, execute it and present the findings clearly
 
 User request: ${cleanText}`;
-              
+
               return {
                 ...message,
                 parts: message.parts.map((part) => {
@@ -353,10 +375,7 @@ User request: ${cleanText}`;
                           .filter(
                             (part: { type?: string }) => part.type === 'text',
                           )
-                          .map(
-                            (part: { text?: string }) =>
-                              part.text || '',
-                          )
+                          .map((part: { text?: string }) => part.text || '')
                           .join(' ')
                           .trim();
                       }
@@ -380,7 +399,10 @@ User request: ${cleanText}`;
                       }
                     }
                   } catch (error) {
-                    console.error('Failed to generate conversation title:', error);
+                    console.error(
+                      'Failed to generate conversation title:',
+                      error,
+                    );
                   }
                 }, 1000); // Wait 1 second for messages to be saved
               }

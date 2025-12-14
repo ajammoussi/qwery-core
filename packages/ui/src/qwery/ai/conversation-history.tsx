@@ -20,7 +20,6 @@ import {
   X,
   Edit,
   Trash2,
-  ChevronDown,
   Loader2,
 } from 'lucide-react';
 import {
@@ -219,7 +218,10 @@ export function ConversationHistory({
 
   // Group visible conversations (current is handled separately in render)
   const { groups: groupedConversations } = useMemo(() => {
-    return groupConversationsByTime(visibleConversations, currentConversationId);
+    return groupConversationsByTime(
+      visibleConversations,
+      currentConversationId,
+    );
   }, [visibleConversations, currentConversationId]);
 
   const sortedGroups = useMemo(() => {
@@ -339,9 +341,17 @@ export function ConversationHistory({
   }, [conversations]);
 
   // Reset visible count when dialog opens
+  // Use a ref to track if we've reset for this open state to avoid setState in effect
+  const hasResetRef = useRef(false);
   useEffect(() => {
-    if (open) {
-      setVisibleCount(20);
+    if (open && !hasResetRef.current) {
+      hasResetRef.current = true;
+      // Use requestAnimationFrame to defer state update
+      requestAnimationFrame(() => {
+        setVisibleCount(20);
+      });
+    } else if (!open) {
+      hasResetRef.current = false;
     }
   }, [open]);
 
@@ -534,7 +544,7 @@ export function ConversationHistory({
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                           <span
                             className={cn(
-                              'truncate text-sm font-medium transition-all duration-300 text-primary',
+                              'text-primary truncate text-sm font-medium transition-all duration-300',
                               animatingIds.has(currentConversation.id) &&
                                 'animate-in fade-in-0 slide-in-from-left-2',
                             )}

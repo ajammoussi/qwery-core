@@ -35,9 +35,12 @@ export const StreamdownWithSuggestions = memo(
     );
 
     const isStreamdownReady = useStreamdownReady(containerRef);
-    const debouncedChildren = useDebouncedValue(children, 150);
+    const _debouncedChildren = useDebouncedValue(children, 150);
 
-    const detectedSuggestions = useSuggestionDetection(containerRef, isStreamdownReady);
+    const detectedSuggestions = useSuggestionDetection(
+      containerRef,
+      isStreamdownReady,
+    );
 
     useSuggestionEnhancement({
       detectedSuggestions,
@@ -47,7 +50,11 @@ export const StreamdownWithSuggestions = memo(
     });
 
     return (
-      <div ref={containerRef} className={cn('min-w-0 max-w-full overflow-hidden', className)} style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+      <div
+        ref={containerRef}
+        className={cn('max-w-full min-w-0 overflow-hidden', className)}
+        style={{ maxWidth: '100%', overflowX: 'hidden' }}
+      >
         <MessageResponse>{children}</MessageResponse>
       </div>
     );
@@ -60,4 +67,3 @@ export const StreamdownWithSuggestions = memo(
 );
 
 StreamdownWithSuggestions.displayName = 'StreamdownWithSuggestions';
-

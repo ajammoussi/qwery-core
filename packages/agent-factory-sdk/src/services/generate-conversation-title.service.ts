@@ -1,10 +1,7 @@
 import { generateText } from 'ai';
 import { resolveModel } from './model-resolver';
 
-const GENERATE_TITLE_PROMPT = (
-  userMessage: string,
-  agentResponse?: string,
-) => {
+const GENERATE_TITLE_PROMPT = (userMessage: string, agentResponse?: string) => {
   const basePrompt = `Based on the following conversation exchange, generate a concise, descriptive title for this conversation. The title should be:
 - Maximum 60 characters
 - Clear and specific to the conversation's topic and intent

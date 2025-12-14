@@ -24,7 +24,7 @@ export function useRunQuery(
     mutationFn: async (
       payload: RunQueryPayload,
     ): Promise<DatasourceResultSet> => {
-      let { query, datasource, conversationId } = payload;
+      const { query, datasource, conversationId } = payload;
 
       if (!query.trim()) {
         throw new Error('Query cannot be empty');
@@ -69,7 +69,7 @@ export function useRunQuery(
         // Ensure rows and headers are arrays
         const rows = Array.isArray(result.rows) ? result.rows : [];
         const headers = Array.isArray(result.headers) ? result.headers : [];
-        
+
         return {
           rows,
           headers,

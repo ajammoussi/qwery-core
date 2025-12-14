@@ -1,14 +1,14 @@
 /**
  * Inferred tool types using InferUITools
- * 
+ *
  * This file provides type-safe access to tool input/output types
  * based on the actual tool definitions in read-data-agent.actor.ts
- * 
+ *
  * Note: These types are manually maintained to match the tool definitions.
  * In the future, we can extract tools to a separate file to enable automatic inference.
  */
 
-import type { InferUITool } from 'ai';
+import type { InferUITool, Tool } from 'ai';
 import type { tool } from 'ai';
 import { z } from 'zod';
 import type {
@@ -30,11 +30,10 @@ import { ChartTypeSchema, type ChartType } from '../types/chart.types';
 type TestConnectionTool = ReturnType<
   typeof tool<{
     description: string;
-    inputSchema: z.ZodObject<{}>;
+    inputSchema: z.ZodObject<Record<string, never>>;
     execute: () => Promise<string>;
   }>
 >;
-
 
 type GetSchemaTool = ReturnType<
   typeof tool<{
@@ -83,7 +82,7 @@ type SelectChartTypeTool = ReturnType<
     description: string;
     inputSchema: z.ZodObject<{
       queryResults: z.ZodObject<{
-        rows: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodUnknown>>>;
+        rows: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodUnknown>>>;
         columns: z.ZodOptional<z.ZodArray<z.ZodString>>;
         sqlQuery: z.ZodOptional<z.ZodString>;
         userInput: z.ZodOptional<z.ZodString>;
@@ -110,7 +109,7 @@ type GenerateChartTool = ReturnType<
     inputSchema: z.ZodObject<{
       chartType: typeof ChartTypeSchema;
       queryResults: z.ZodObject<{
-        rows: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodUnknown>>>;
+        rows: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodUnknown>>>;
         columns: z.ZodOptional<z.ZodArray<z.ZodString>>;
         sqlQuery: z.ZodOptional<z.ZodString>;
         userInput: z.ZodOptional<z.ZodString>;
@@ -160,9 +159,7 @@ type DeleteTableTool = ReturnType<
     inputSchema: z.ZodObject<{
       tableNames: z.ZodArray<z.ZodString>;
     }>;
-    execute: (input: {
-      tableNames: string[];
-    }) => Promise<{
+    execute: (input: { tableNames: string[] }) => Promise<{
       deletedTables: string[];
       failedTables: Array<{ tableName: string; error: string }>;
       message: string;
@@ -184,18 +181,24 @@ export type ReadDataAgentTools = {
 // Inferred Tool Types
 // ============================================================================
 
+// Helper type to work around complex Tool constraint issues with InferUITool
+// InferUITool expects a Tool type, but our tools have a slightly different structure
+// We use intersection type to satisfy the constraint
+type InferUIToolUnsafe<T> = InferUITool<T & Tool>;
+
+// Using type assertions to work around complex Tool constraint issues with InferUITool
 export type ReadDataAgentToolTypes = {
-  [K in keyof ReadDataAgentTools]: InferUITool<ReadDataAgentTools[K]>;
+  [K in keyof ReadDataAgentTools]: InferUIToolUnsafe<ReadDataAgentTools[K]>;
 };
 
 // Individual tool type exports for convenience
-export type TestConnectionToolType = InferUITool<TestConnectionTool>;
-export type RenameTableToolType = InferUITool<RenameTableTool>;
-export type DeleteTableToolType = InferUITool<DeleteTableTool>;
-export type GetSchemaToolType = InferUITool<GetSchemaTool>;
-export type RunQueryToolType = InferUITool<RunQueryTool>;
-export type SelectChartTypeToolType = InferUITool<SelectChartTypeTool>;
-export type GenerateChartToolType = InferUITool<GenerateChartTool>;
+export type TestConnectionToolType = InferUIToolUnsafe<TestConnectionTool>;
+export type RenameTableToolType = InferUIToolUnsafe<RenameTableTool>;
+export type DeleteTableToolType = InferUIToolUnsafe<DeleteTableTool>;
+export type GetSchemaToolType = InferUIToolUnsafe<GetSchemaTool>;
+export type RunQueryToolType = InferUIToolUnsafe<RunQueryTool>;
+export type SelectChartTypeToolType = InferUIToolUnsafe<SelectChartTypeTool>;
+export type GenerateChartToolType = InferUIToolUnsafe<GenerateChartTool>;
 
 // ============================================================================
 // Tool Name Type
@@ -208,5 +211,5 @@ export type ToolName = keyof ReadDataAgentTools;
 // ============================================================================
 
 export type ToolInput<T extends ToolName> = ReadDataAgentToolTypes[T]['input'];
-export type ToolOutput<T extends ToolName> = ReadDataAgentToolTypes[T]['output'];
-
+export type ToolOutput<T extends ToolName> =
+  ReadDataAgentToolTypes[T]['output'];

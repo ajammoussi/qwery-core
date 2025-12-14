@@ -2,7 +2,13 @@
 
 import * as React from 'react';
 import { cn } from '../../../lib/utils';
-import { BarChart3, TrendingUp, PieChart as PieChartIcon, Sparkles, Check } from 'lucide-react';
+import {
+  BarChart3,
+  TrendingUp,
+  PieChart as PieChartIcon,
+  Sparkles,
+  Check,
+} from 'lucide-react';
 
 export type ChartType = 'bar' | 'line' | 'pie';
 
@@ -65,16 +71,16 @@ export function ChartTypeSelector({
   return (
     <div className={cn('space-y-4', className)}>
       {/* AI Reasoning Section */}
-      <div className="relative overflow-hidden rounded-xl border bg-muted/30 p-4">
+      <div className="bg-muted/30 relative overflow-hidden rounded-xl border p-4">
         <div className="flex items-start gap-3">
           <div className="bg-background flex size-8 shrink-0 items-center justify-center rounded-lg border shadow-sm">
-            <Sparkles className="size-4 text-primary" />
+            <Sparkles className="text-primary size-4" />
           </div>
           <div className="space-y-1">
-            <h4 className="text-sm font-medium text-foreground">
+            <h4 className="text-foreground text-sm font-medium">
               AI Recommendation
             </h4>
-            <p className="text-sm leading-relaxed text-muted-foreground">
+            <p className="text-muted-foreground text-sm leading-relaxed">
               {selection.reasoning}
             </p>
           </div>
@@ -93,23 +99,28 @@ export function ChartTypeSelector({
               className={cn(
                 'group relative flex flex-col rounded-xl border p-4 transition-all duration-200',
                 isSelected
-                  ? 'border-primary bg-background ring-1 ring-primary'
+                  ? 'border-primary bg-background ring-primary ring-1'
                   : 'border-border bg-card/50 hover:border-sidebar-accent hover:bg-sidebar-accent/50',
               )}
             >
               {/* Card Header & Icon */}
-              <div className="flex items-start justify-between mb-3">
+              <div className="mb-3 flex items-start justify-between">
                 <div
                   className={cn(
                     'flex size-10 items-center justify-center rounded-lg transition-colors duration-200',
                     isSelected ? card.bgColor : 'bg-muted',
                   )}
                 >
-                  <Icon className={cn('h-5 w-5', isSelected ? card.color : 'text-muted-foreground')} />
+                  <Icon
+                    className={cn(
+                      'h-5 w-5',
+                      isSelected ? card.color : 'text-muted-foreground',
+                    )}
+                  />
                 </div>
                 {isSelected && (
-                  <div className="flex items-center justify-center size-5 bg-primary rounded-full shadow-sm animate-in fade-in zoom-in duration-300">
-                    <Check className="size-3 text-primary-foreground stroke-[3]" />
+                  <div className="bg-primary animate-in fade-in zoom-in flex size-5 items-center justify-center rounded-full shadow-sm duration-300">
+                    <Check className="text-primary-foreground size-3 stroke-[3]" />
                   </div>
                 )}
               </div>
@@ -119,12 +130,12 @@ export function ChartTypeSelector({
                 <h5
                   className={cn(
                     'text-sm font-medium tracking-tight transition-colors',
-                    isSelected ? 'text-foreground' : 'text-foreground/80'
+                    isSelected ? 'text-foreground' : 'text-foreground/80',
                   )}
                 >
                   {card.label}
                 </h5>
-                <p className="text-xs text-muted-foreground line-clamp-2">
+                <p className="text-muted-foreground line-clamp-2 text-xs">
                   {card.description}
                 </p>
               </div>

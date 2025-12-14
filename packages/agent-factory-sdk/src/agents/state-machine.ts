@@ -124,9 +124,16 @@ export const createStateMachine = (
               streamResult: () => undefined, // Clear previous result when starting new request
               error: () => undefined,
               promptSource: ({ event }) => {
-                const lastUserMessage = event.messages.filter((m: UIMessage) => m.role === 'user').pop();
-                const source = (lastUserMessage?.metadata as { promptSource?: PromptSource })?.promptSource;
-                console.log('[StateMachine] Extracted promptSource from metadata:', source);
+                const lastUserMessage = event.messages
+                  .filter((m: UIMessage) => m.role === 'user')
+                  .pop();
+                const source = (
+                  lastUserMessage?.metadata as { promptSource?: PromptSource }
+                )?.promptSource;
+                console.log(
+                  '[StateMachine] Extracted promptSource from metadata:',
+                  source,
+                );
                 return source;
               },
             }),
@@ -146,8 +153,12 @@ export const createStateMachine = (
                 event.messages[event.messages.length - 1]?.parts[0]?.text ?? '',
               streamResult: undefined,
               promptSource: ({ event }) => {
-                const lastUserMessage = event.messages.filter((m: UIMessage) => m.role === 'user').pop();
-                return (lastUserMessage?.metadata as { promptSource?: PromptSource })?.promptSource;
+                const lastUserMessage = event.messages
+                  .filter((m: UIMessage) => m.role === 'user')
+                  .pop();
+                return (
+                  lastUserMessage?.metadata as { promptSource?: PromptSource }
+                )?.promptSource;
               },
             }),
           },
@@ -172,11 +183,14 @@ export const createStateMachine = (
                       actions: assign({
                         intent: ({ event }) => {
                           const intent = event.output;
-                          console.log('[StateMachine] Set intent from detection:', {
-                            intent: intent.intent,
-                            needsChart: intent.needsChart,
-                            needsSQL: intent.needsSQL,
-                          });
+                          console.log(
+                            '[StateMachine] Set intent from detection:',
+                            {
+                              intent: intent.intent,
+                              needsChart: intent.needsChart,
+                              needsSQL: intent.needsSQL,
+                            },
+                          );
                           return intent;
                         },
                         retryCount: () => 0, // Reset on success
@@ -189,11 +203,14 @@ export const createStateMachine = (
                       actions: assign({
                         intent: ({ event }) => {
                           const intent = event.output;
-                          console.log('[StateMachine] Set intent from detection (greeting):', {
-                            intent: intent.intent,
-                            needsChart: intent.needsChart,
-                            needsSQL: intent.needsSQL,
-                          });
+                          console.log(
+                            '[StateMachine] Set intent from detection (greeting):',
+                            {
+                              intent: intent.intent,
+                              needsChart: intent.needsChart,
+                              needsSQL: intent.needsSQL,
+                            },
+                          );
                           return intent;
                         },
                         retryCount: () => 0,
@@ -206,11 +223,14 @@ export const createStateMachine = (
                       actions: assign({
                         intent: ({ event }) => {
                           const intent = event.output;
-                          console.log('[StateMachine] Set intent from detection (readData):', {
-                            intent: intent.intent,
-                            needsChart: intent.needsChart,
-                            needsSQL: intent.needsSQL,
-                          });
+                          console.log(
+                            '[StateMachine] Set intent from detection (readData):',
+                            {
+                              intent: intent.intent,
+                              needsChart: intent.needsChart,
+                              needsSQL: intent.needsSQL,
+                            },
+                          );
                           return intent;
                         },
                         retryCount: () => 0,
@@ -223,11 +243,14 @@ export const createStateMachine = (
                       actions: assign({
                         intent: ({ event }) => {
                           const intent = event.output;
-                          console.log('[StateMachine] Set intent from detection (system):', {
-                            intent: intent.intent,
-                            needsChart: intent.needsChart,
-                            needsSQL: intent.needsSQL,
-                          });
+                          console.log(
+                            '[StateMachine] Set intent from detection (system):',
+                            {
+                              intent: intent.intent,
+                              needsChart: intent.needsChart,
+                              needsSQL: intent.needsSQL,
+                            },
+                          );
                           return intent;
                         },
                         retryCount: () => 0,
@@ -360,10 +383,13 @@ export const createStateMachine = (
                       src: 'readDataAgentActor',
                       id: 'READ_DATA',
                       input: ({ context }: { context: AgentContext }) => {
-                        console.log('[StateMachine] Passing to readDataAgentActor:', {
-                          promptSource: context.promptSource,
-                          intentNeedsSQL: context.intent.needsSQL,
-                        });
+                        console.log(
+                          '[StateMachine] Passing to readDataAgentActor:',
+                          {
+                            promptSource: context.promptSource,
+                            intentNeedsSQL: context.intent.needsSQL,
+                          },
+                        );
                         return {
                           conversationId: context.conversationSlug, // Use slug for conversation lookups
                           previousMessages: context.previousMessages,

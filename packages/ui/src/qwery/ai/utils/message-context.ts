@@ -5,7 +5,10 @@ import { getUserFriendlyToolName } from './tool-name';
 const CONTEXT_MARKER = '__QWERY_CONTEXT__';
 const CONTEXT_END_MARKER = '__QWERY_CONTEXT_END__';
 
-export function cleanContextMarkers(text: string, options?: { removeWorkflowGuidance?: boolean }): string {
+export function cleanContextMarkers(
+  text: string,
+  options?: { removeWorkflowGuidance?: boolean },
+): string {
   const { removeWorkflowGuidance = false } = options ?? {};
   let cleaned = text;
   let previousCleaned = '';
@@ -24,7 +27,10 @@ export function cleanContextMarkers(text: string, options?: { removeWorkflowGuid
   cleaned = cleaned.replace(/__QWERY_SUGGESTION_GUIDANCE__/g, '');
   cleaned = cleaned.replace(/__QWERY_SUGGESTION_GUIDANCE_END__/g, '');
   if (removeWorkflowGuidance) {
-    cleaned = cleaned.replace(/\[SUGGESTION WORKFLOW GUIDANCE\][\s\S]*?(?=\n\n|$)/g, '');
+    cleaned = cleaned.replace(
+      /\[SUGGESTION WORKFLOW GUIDANCE\][\s\S]*?(?=\n\n|$)/g,
+      '',
+    );
   }
   return cleaned;
 }
@@ -51,12 +57,16 @@ export function formatToolCalls(parts: UIMessage['parts']): string {
       textParts.push(part.text.trim());
     } else if (part.type.startsWith('tool-')) {
       const toolPart = part as ToolUIPart;
-      
+
       let toolName: string = 'Tool';
-      
-      if ('toolName' in toolPart && typeof toolPart.toolName === 'string' && toolPart.toolName.trim()) {
+
+      if (
+        'toolName' in toolPart &&
+        typeof toolPart.toolName === 'string' &&
+        toolPart.toolName.trim()
+      ) {
         const rawName = toolPart.toolName.trim();
-        const formatted = rawName.startsWith('tool-') 
+        const formatted = rawName.startsWith('tool-')
           ? getUserFriendlyToolName(rawName)
           : getUserFriendlyToolName(`tool-${rawName}`);
         if (formatted && formatted.trim()) {
@@ -68,9 +78,9 @@ export function formatToolCalls(parts: UIMessage['parts']): string {
           toolName = formatted;
         }
       }
-      
+
       const status = toolPart.state ? getToolStatusLabel(toolPart.state) : null;
-      
+
       if (status) {
         toolCalls.push(`**${toolName}** called (${status})`);
       } else {
@@ -87,7 +97,7 @@ export function formatToolCalls(parts: UIMessage['parts']): string {
       result.push(toolCalls.map((tc) => `- ${tc}`).join('\n'));
     }
   }
-  
+
   if (textParts.length > 0) {
     const textContent = textParts.join('\n\n').trim();
     if (textContent) {
@@ -112,7 +122,7 @@ export function getContextMessages(
   }
 
   const currentMessage = messages[currentIndex];
-  
+
   let lastUserQuestion: string | undefined;
   for (let i = currentIndex - 1; i >= 0; i--) {
     const msg = messages[i];
@@ -136,4 +146,3 @@ export function getContextMessages(
 
   return { lastUserQuestion, lastAssistantResponse };
 }
-

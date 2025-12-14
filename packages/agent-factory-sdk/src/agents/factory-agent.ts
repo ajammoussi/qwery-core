@@ -377,13 +377,13 @@ export class FactoryAgent {
    */
   stop(): void {
     const currentState = this.factoryActor.getSnapshot().value;
-    
+
     if (currentState !== 'idle' && currentState !== 'stopped') {
       this.factoryActor.send({ type: 'STOP' });
     }
-    
+
     this.actorRegistry.stopAll();
-    
+
     this.factoryActor.stop();
   }
 }

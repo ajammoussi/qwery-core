@@ -174,7 +174,7 @@ export function AgentsProvider({
     try {
       if (!projectId || !userId) {
         throw new Error('Project ID and User ID are required');
-        }
+      }
 
       // Call the notebook prompt API endpoint
       const response = await apiPost<NotebookPromptResponse>(

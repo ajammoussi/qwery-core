@@ -8,7 +8,6 @@ import {
   NOTEBOOK_CELL_TYPE,
   type NotebookCellType,
 } from '@qwery/agent-factory-sdk';
-import { MessageRole } from '@qwery/domain/entities';
 import { createRepositories } from '~/lib/repositories/repositories-factory';
 import { handleDomainException } from '~/lib/utils/error-handler';
 import { v4 as uuidv4 } from 'uuid';
@@ -55,7 +54,7 @@ async function getOrCreateConversation(
   // First, try to find an existing conversation for this notebook
   const existingConversations =
     await repositories.conversation.findByProjectId(projectId);
-  
+
   // Look for a conversation with title matching this notebook
   // We use a pattern: "Notebook - {notebookId}" to identify notebook conversations
   const notebookTitle = `Notebook - ${notebookId}`;
@@ -84,7 +83,7 @@ async function getOrCreateConversation(
   const conversationId = uuidv4();
   const now = new Date();
   let conversation;
-  
+
   try {
     conversation = await repositories.conversation.create({
       id: conversationId,
@@ -178,7 +177,9 @@ async function extractSqlFromAgentResponse(
   let sqlQuery: string | null = null;
   let shouldPaste = false;
 
-  console.log('[extractSqlFromAgentResponse] Starting to extract SQL from response');
+  console.log(
+    '[extractSqlFromAgentResponse] Starting to extract SQL from response',
+  );
 
   try {
     while (true) {
@@ -211,22 +212,34 @@ async function extractSqlFromAgentResponse(
 
             // Simplified: Only look for tool-runQuery result with sqlQuery and shouldPaste
             // The tool returns { result: null, shouldPaste: true, sqlQuery: query } when inline mode
-            if (parsed.type === 'message-part' && parsed.part?.type === 'tool-runQuery') {
+            if (
+              parsed.type === 'message-part' &&
+              parsed.part?.type === 'tool-runQuery'
+            ) {
               const part = parsed.part;
               if (part.result) {
                 // Get SQL from tool result (either sqlQuery field or from input.query)
                 if (part.result.sqlQuery) {
                   sqlQuery = part.result.sqlQuery;
-                  console.log('[extractSqlFromAgentResponse] Found SQL in tool result:', sqlQuery?.substring(0, 100));
+                  console.log(
+                    '[extractSqlFromAgentResponse] Found SQL in tool result:',
+                    sqlQuery?.substring(0, 100),
+                  );
                 } else if (part.input?.query) {
                   sqlQuery = part.input.query;
-                  console.log('[extractSqlFromAgentResponse] Found SQL in tool input:', sqlQuery?.substring(0, 100));
+                  console.log(
+                    '[extractSqlFromAgentResponse] Found SQL in tool input:',
+                    sqlQuery?.substring(0, 100),
+                  );
                 }
 
                 // Get shouldPaste flag from tool result
                 if (part.result.shouldPaste) {
                   shouldPaste = part.result.shouldPaste;
-                  console.log('[extractSqlFromAgentResponse] Found shouldPaste flag:', shouldPaste);
+                  console.log(
+                    '[extractSqlFromAgentResponse] Found shouldPaste flag:',
+                    shouldPaste,
+                  );
                 }
               }
             }
@@ -280,9 +293,8 @@ export async function action({ request }: ActionFunctionArgs) {
     );
 
     // Verify conversation exists before creating agent
-    const conversation = await repositories.conversation.findBySlug(
-      conversationSlug,
-    );
+    const conversation =
+      await repositories.conversation.findBySlug(conversationSlug);
     if (!conversation) {
       throw new Error(
         `Failed to create or find conversation with slug '${conversationSlug}'`,
@@ -293,7 +305,10 @@ export async function action({ request }: ActionFunctionArgs) {
     let needSQL = false;
     if (query) {
       try {
-        console.log('[Notebook Prompt API] Running intent detection for:', query.substring(0, 100));
+        console.log(
+          '[Notebook Prompt API] Running intent detection for:',
+          query.substring(0, 100),
+        );
         const intentResult = await detectIntent(query);
         needSQL = (intentResult as { needsSQL?: boolean }).needsSQL ?? false;
         console.log('[Notebook Prompt API] Intent detection result:', {
@@ -313,7 +328,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Get cellType from request body if provided (for distinguishing code cell vs prompt cell)
     // Default to 'prompt' for backward compatibility (fallback API path)
-    const cellType: NotebookCellType = (notebookCellType as NotebookCellType | undefined) || NOTEBOOK_CELL_TYPE.PROMPT;
+    const cellType: NotebookCellType =
+      (notebookCellType as NotebookCellType | undefined) ||
+      NOTEBOOK_CELL_TYPE.PROMPT;
 
     // Create user message with datasource metadata from notebook cell
     // All notebook calls (Ctrl+K popup or prompt cells) are inline mode
@@ -330,7 +347,7 @@ export async function action({ request }: ActionFunctionArgs) {
         },
       },
     ];
-    
+
     console.log('[Notebook Prompt API] Created message with metadata:', {
       promptSource: PROMPT_SOURCE.INLINE,
       notebookCellType: cellType,
@@ -344,7 +361,8 @@ export async function action({ request }: ActionFunctionArgs) {
     });
 
     // Extract SQL from the response and detect if SQL was generated
-    const { sqlQuery, shouldPaste } = await extractSqlFromAgentResponse(streamResponse);
+    const { sqlQuery, shouldPaste } =
+      await extractSqlFromAgentResponse(streamResponse);
     const hasSql = !!sqlQuery;
 
     console.log('[Notebook Prompt API] Response:', {
@@ -373,4 +391,3 @@ export async function action({ request }: ActionFunctionArgs) {
     return handleDomainException(error);
   }
 }
-

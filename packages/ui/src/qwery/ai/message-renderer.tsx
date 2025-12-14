@@ -15,7 +15,9 @@ export interface MessageRendererProps {
   messages: UIMessage[];
   status: ChatStatus | undefined;
   onRegenerate?: () => void;
-  sendMessage?: ReturnType<typeof import('@ai-sdk/react').useChat>['sendMessage'];
+  sendMessage?: ReturnType<
+    typeof import('@ai-sdk/react').useChat
+  >['sendMessage'];
 }
 
 export function MessageRenderer({

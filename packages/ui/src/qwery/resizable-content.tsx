@@ -1,4 +1,9 @@
-import React, { useEffect, useState, useImperativeHandle, forwardRef } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useImperativeHandle,
+  forwardRef,
+} from 'react';
 import {
   ResizableHandle,
   ResizablePanel,
@@ -17,17 +22,19 @@ export interface ResizableContentRef {
   toggle: () => void;
 }
 
-export const ResizableContent = forwardRef<ResizableContentRef, ResizableContentProps>(
-  function ResizableContent(props, ref) {
-    const { Content, AgentSidebar, open: initialOpen = false } = props;
-    const [isOpen, setIsOpen] = useState(initialOpen);
+export const ResizableContent = forwardRef<
+  ResizableContentRef,
+  ResizableContentProps
+>(function ResizableContent(props, ref) {
+  const { Content, AgentSidebar, open: initialOpen = false } = props;
+  const [isOpen, setIsOpen] = useState(initialOpen);
 
-    // Expose imperative handle for external control
-    useImperativeHandle(ref, () => ({
-      open: () => setIsOpen(true),
-      close: () => setIsOpen(false),
-      toggle: () => setIsOpen((prev) => !prev),
-    }));
+  // Expose imperative handle for external control
+  useImperativeHandle(ref, () => ({
+    open: () => setIsOpen(true),
+    close: () => setIsOpen(false),
+    toggle: () => setIsOpen((prev) => !prev),
+  }));
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -55,11 +62,16 @@ export const ResizableContent = forwardRef<ResizableContentRef, ResizableContent
   useEffect(() => {
     // When open prop is true, always open (even if user had closed it)
     // This allows notebook prompts to force-open the sidebar
+    // Use requestAnimationFrame to defer state updates outside of effect
     if (initialOpen === true) {
-      setIsOpen(true);
+      requestAnimationFrame(() => {
+        setIsOpen(true);
+      });
     } else if (initialOpen === false) {
       // Only close if explicitly set to false (not just undefined)
-      setIsOpen(false);
+      requestAnimationFrame(() => {
+        setIsOpen(false);
+      });
     }
     // If initialOpen is undefined, maintain current state (user-controlled)
   }, [initialOpen]);
@@ -90,8 +102,12 @@ export const ResizableContent = forwardRef<ResizableContentRef, ResizableContent
             defaultSize={sidebarSize}
             minSize={isOpen ? 25 : 0}
             maxSize={isOpen ? 80 : 0}
-            className={isOpen ? "flex h-full min-h-0 min-w-0 flex-col overflow-hidden overflow-x-hidden" : "hidden"}
-            >
+            className={
+              isOpen
+                ? 'flex h-full min-h-0 min-w-0 flex-col overflow-hidden overflow-x-hidden'
+                : 'hidden'
+            }
+          >
             <div className="h-full min-h-0 w-full max-w-full min-w-0 overflow-hidden overflow-x-hidden">
               {AgentSidebar}
             </div>
@@ -100,5 +116,4 @@ export const ResizableContent = forwardRef<ResizableContentRef, ResizableContent
       )}
     </ResizablePanelGroup>
   );
-  },
-);
+});

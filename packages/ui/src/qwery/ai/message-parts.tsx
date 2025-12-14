@@ -8,7 +8,6 @@ import {
 import {
   Message,
   MessageContent,
-  MessageResponse,
   MessageActions,
   MessageAction,
 } from '../../ai-elements/message';
@@ -29,8 +28,6 @@ import { SQLQueryVisualizer } from './sql-query-visualizer';
 
 import { SchemaVisualizer } from './schema-visualizer';
 
-import { AvailableSheetsVisualizer } from './sheets/available-sheets-visualizer';
-
 import { ViewSheetVisualizer } from './sheets/view-sheet-visualizer';
 
 import { ViewSheetError } from './sheets/view-sheet-error';
@@ -40,7 +37,7 @@ import {
   SourcesContent,
   SourcesTrigger,
 } from '../../ai-elements/sources';
-import { useState, createContext, useContext, useMemo } from 'react';
+import { useState, createContext, useMemo } from 'react';
 import { CopyIcon, RefreshCcwIcon, CheckIcon } from 'lucide-react';
 import { ToolUIPart, UIMessage } from 'ai';
 import ReactMarkdown from 'react-markdown';
@@ -193,11 +190,13 @@ export function TextPart({
   );
 
   return (
-    <MarkdownProvider value={{ sendMessage, messages, currentMessageId: messageId }}>
+    <MarkdownProvider
+      value={{ sendMessage, messages, currentMessageId: messageId }}
+    >
       <HeadingContext.Provider value={headingContextValue}>
         <Message key={`${messageId}-${index}`} from={messageRole}>
           <MessageContent>
-            <div className="prose prose-sm dark:prose-invert max-w-none min-w-0 break-words overflow-wrap-anywhere overflow-x-hidden [&>*]:max-w-full [&>*]:min-w-0 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-words">
+            <div className="prose prose-sm dark:prose-invert overflow-wrap-anywhere max-w-none min-w-0 overflow-x-hidden break-words [&_code]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto [&>*]:max-w-full [&>*]:min-w-0">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={agentMarkdownComponents}
@@ -231,7 +230,6 @@ export function TextPart({
   );
 }
 
-
 export interface ReasoningPartProps {
   part: { type: 'reasoning'; text: string };
   messageId: string;
@@ -260,7 +258,9 @@ export function ReasoningPart({
   );
 
   return (
-    <MarkdownProvider value={{ sendMessage, messages, currentMessageId: messageId }}>
+    <MarkdownProvider
+      value={{ sendMessage, messages, currentMessageId: messageId }}
+    >
       <HeadingContext.Provider value={headingContextValue}>
         <Reasoning
           key={`${messageId}-${index}`}
@@ -269,7 +269,7 @@ export function ReasoningPart({
         >
           <ReasoningTrigger />
           <ReasoningContent>
-            <div className="prose prose-sm dark:prose-invert max-w-none min-w-0 break-words overflow-wrap-anywhere overflow-x-hidden [&>*]:max-w-full [&>*]:min-w-0 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-words [&_p]:text-foreground/90 [&_li]:text-foreground/90 [&_strong]:text-foreground [&_em]:text-foreground/80 [&_h1]:text-foreground [&_h2]:text-foreground [&_h3]:text-foreground [&_a]:text-primary">
+            <div className="prose prose-sm dark:prose-invert overflow-wrap-anywhere [&_p]:text-foreground/90 [&_li]:text-foreground/90 [&_strong]:text-foreground [&_em]:text-foreground/80 [&_h1]:text-foreground [&_h2]:text-foreground [&_h3]:text-foreground [&_a]:text-primary max-w-none min-w-0 overflow-x-hidden break-words [&_code]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto [&>*]:max-w-full [&>*]:min-w-0">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={agentMarkdownComponents}
@@ -292,7 +292,12 @@ export interface ToolPartProps {
   onDeleteSheets?: (sheetNames: string[]) => void;
   onRenameSheet?: (oldSheetName: string, newSheetName: string) => void;
   isRequestInProgress?: boolean;
-  onPasteToNotebook?: (sqlQuery: string, notebookCellType: 'query' | 'prompt', datasourceId: string, cellId: number) => void;
+  onPasteToNotebook?: (
+    sqlQuery: string,
+    notebookCellType: 'query' | 'prompt',
+    datasourceId: string,
+    cellId: number,
+  ) => void;
   notebookContext?: {
     cellId?: number;
     notebookCellType?: 'query' | 'prompt';
@@ -304,17 +309,17 @@ export function ToolPart({
   part,
   messageId,
   index,
-  onViewSheet,
-  onDeleteSheets,
-  onRenameSheet,
-  isRequestInProgress,
   onPasteToNotebook,
   notebookContext,
 }: ToolPartProps) {
   let toolName: string;
-  if ('toolName' in part && typeof part.toolName === 'string' && part.toolName) {
+  if (
+    'toolName' in part &&
+    typeof part.toolName === 'string' &&
+    part.toolName
+  ) {
     const rawName = part.toolName;
-    toolName = rawName.startsWith('tool-') 
+    toolName = rawName.startsWith('tool-')
       ? getUserFriendlyToolName(rawName)
       : getUserFriendlyToolName(`tool-${rawName}`);
   } else {
@@ -345,7 +350,9 @@ export function ToolPart({
       part.state === 'output-error' &&
       part.errorText
     ) {
-      const input = part.input as { queryResults?: { sqlQuery?: string } } | null;
+      const input = part.input as {
+        queryResults?: { sqlQuery?: string };
+      } | null;
       return (
         <div className="space-y-3">
           {input?.queryResults?.sqlQuery && (
@@ -365,7 +372,9 @@ export function ToolPart({
       part.state === 'output-error' &&
       part.errorText
     ) {
-      const input = part.input as { queryResults?: { sqlQuery?: string } } | null;
+      const input = part.input as {
+        queryResults?: { sqlQuery?: string };
+      } | null;
       return (
         <div className="space-y-3">
           {input?.queryResults?.sqlQuery && (
@@ -390,7 +399,7 @@ export function ToolPart({
         <div className="space-y-3">
           {input?.instruction && (
             <div className="bg-muted/50 rounded-md p-3">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+              <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
                 Instruction
               </p>
               <p className="text-sm">{input.instruction}</p>
@@ -412,7 +421,7 @@ export function ToolPart({
         <div className="space-y-3">
           {input?.viewNames && input.viewNames.length > 0 && (
             <div className="bg-muted/50 rounded-md p-3">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+              <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
                 Requested Views
               </p>
               <p className="text-sm">{input.viewNames.join(', ')}</p>
@@ -434,7 +443,7 @@ export function ToolPart({
         <div className="space-y-3">
           {input?.objective && (
             <div className="bg-muted/50 rounded-md p-3">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+              <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
                 Workflow Objective
               </p>
               <p className="text-sm">{input.objective}</p>
@@ -464,8 +473,20 @@ export function ToolPart({
     // Handle runQuery tool - show SQL query during streaming (from input) and results when available (from output)
     if (part.type === 'tool-runQuery') {
       const input = part.input as { query?: string } | null;
-      const output = part.output as any;
-      
+      const output = part.output as
+        | {
+            result?: {
+              rows?: unknown[];
+              columns?: unknown[];
+              query?: string;
+            };
+            sqlQuery?: string;
+            shouldPaste?: boolean;
+            chartExecutionOverride?: boolean;
+          }
+        | null
+        | undefined;
+
       // During streaming, show SQL from input even if output is not available yet
       if (!part.output && input?.query) {
         return (
@@ -478,17 +499,18 @@ export function ToolPart({
           />
         );
       }
-      
+
       // If no output and no input query, don't render anything yet
       if (!part.output) {
         return null;
       }
 
       // Check notebook context availability
-      const hasNotebookContext = notebookContext?.cellId !== undefined && 
-                                  notebookContext?.notebookCellType && 
-                                  notebookContext?.datasourceId;
-      
+      const _hasNotebookContext =
+        notebookContext?.cellId !== undefined &&
+        notebookContext?.notebookCellType &&
+        notebookContext?.datasourceId;
+
       // Check notebook context availability for paste functionality
 
       // Show results if rows and columns are present (implies execution)
@@ -504,25 +526,31 @@ export function ToolPart({
       let sqlQuery: string | undefined = undefined;
       let shouldPaste: boolean = false;
       let chartExecutionOverride: boolean = false;
-      
+
       // Check top-level output first (expected structure)
       if (output) {
         if ('sqlQuery' in output && typeof output.sqlQuery === 'string') {
           sqlQuery = output.sqlQuery;
         }
-        if ('shouldPaste' in output && typeof output.shouldPaste === 'boolean') {
+        if (
+          'shouldPaste' in output &&
+          typeof output.shouldPaste === 'boolean'
+        ) {
           shouldPaste = output.shouldPaste;
         }
-        if ('chartExecutionOverride' in output && typeof output.chartExecutionOverride === 'boolean') {
+        if (
+          'chartExecutionOverride' in output &&
+          typeof output.chartExecutionOverride === 'boolean'
+        ) {
           chartExecutionOverride = output.chartExecutionOverride;
         }
       }
-      
+
       // Fallback to input.query if sqlQuery not found
       if (!sqlQuery && input?.query) {
         sqlQuery = input.query;
       }
-      
+
       // Fallback to result.query if still not found
       if (!sqlQuery && output?.result?.query) {
         sqlQuery = output.result.query;
@@ -530,28 +558,33 @@ export function ToolPart({
 
       // Check if we should show paste button (inline mode with shouldPaste flag)
       const shouldShowPasteButton = Boolean(
-        shouldPaste === true && 
-        sqlQuery && 
-        onPasteToNotebook &&
-        notebookContext?.cellId !== undefined &&
-        notebookContext?.notebookCellType &&
-        notebookContext?.datasourceId
+        shouldPaste === true &&
+          sqlQuery &&
+          onPasteToNotebook &&
+          notebookContext?.cellId !== undefined &&
+          notebookContext?.notebookCellType &&
+          notebookContext?.datasourceId,
       );
 
-
       // Create paste handler callback
-      const handlePasteToNotebook = shouldShowPasteButton && onPasteToNotebook
-        ? () => {
-            if (sqlQuery && notebookContext?.cellId !== undefined && notebookContext?.notebookCellType && notebookContext?.datasourceId) {
-              onPasteToNotebook(
-                sqlQuery,
-                notebookContext.notebookCellType,
-                notebookContext.datasourceId,
-                notebookContext.cellId
-              );
+      const handlePasteToNotebook =
+        shouldShowPasteButton && onPasteToNotebook
+          ? () => {
+              if (
+                sqlQuery &&
+                notebookContext?.cellId !== undefined &&
+                notebookContext?.notebookCellType &&
+                notebookContext?.datasourceId
+              ) {
+                onPasteToNotebook(
+                  sqlQuery,
+                  notebookContext.notebookCellType,
+                  notebookContext.datasourceId,
+                  notebookContext.cellId,
+                );
+              }
             }
-          }
-        : undefined;
+          : undefined;
 
       return (
         <SQLQueryVisualizer
@@ -559,11 +592,11 @@ export function ToolPart({
           result={
             hasResults && output?.result
               ? {
-                result: {
-                  columns: output.result.columns,
-                  rows: output.result.rows,
-                },
-              }
+                  result: {
+                    columns: output.result.columns as string[],
+                    rows: output.result.rows as Array<Record<string, unknown>>,
+                  },
+                }
               : undefined
           }
           onPasteToNotebook={handlePasteToNotebook}
@@ -589,7 +622,6 @@ export function ToolPart({
         return <SchemaVisualizer schema={output.schema} />;
       }
     }
-
 
     // Handle viewSheet tool with ViewSheetVisualizer
     if (part.type === 'tool-viewSheet' && part.output) {
@@ -670,9 +702,7 @@ export function ToolPart({
         {showInput ? (
           <ToolInput input={part.input} className="border-b" />
         ) : null}
-        <div className="p-4">
-          {renderToolOutput()}
-        </div>
+        <div className="p-4">{renderToolOutput()}</div>
       </ToolContent>
     </Tool>
   );

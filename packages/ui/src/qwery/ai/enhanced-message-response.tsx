@@ -36,13 +36,11 @@ export const EnhancedMessageResponse = memo(
     );
 
     return (
-      <MarkdownProvider
-        value={{ sendMessage, messages, currentMessageId }}
-      >
+      <MarkdownProvider value={{ sendMessage, messages, currentMessageId }}>
         <HeadingContext.Provider value={headingContextValue}>
           <div
             className={cn(
-              'size-full break-words overflow-x-hidden [&_a]:break-all [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&>*]:max-w-full [&>*]:min-w-0 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-words',
+              'size-full overflow-x-hidden break-words [&_a]:break-all [&_code]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto [&>*]:max-w-full [&>*]:min-w-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
               className,
             )}
           >
@@ -61,4 +59,3 @@ export const EnhancedMessageResponse = memo(
 );
 
 EnhancedMessageResponse.displayName = 'EnhancedMessageResponse';
-

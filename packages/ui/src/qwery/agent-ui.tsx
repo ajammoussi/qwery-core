@@ -36,11 +36,6 @@ import {
   SourcesContent,
   SourcesTrigger,
 } from '../ai-elements/sources';
-import {
-  Reasoning,
-  ReasoningContent,
-  ReasoningTrigger,
-} from '../ai-elements/reasoning';
 import { Tool, ToolHeader, ToolContent, ToolInput } from '../ai-elements/tool';
 import { Loader } from '../ai-elements/loader';
 import { ChatTransport, UIMessage, ToolUIPart } from 'ai';
@@ -69,13 +64,21 @@ export interface QweryAgentUIProps {
   // Message persistence
   onMessageUpdate?: (messageId: string, content: string) => Promise<void>;
   // Expose sendMessage function and current model for external use (e.g., notebook sidebar)
-  onSendMessageReady?: (sendMessage: ReturnType<typeof useChat>['sendMessage'], model: string) => void;
+  onSendMessageReady?: (
+    sendMessage: ReturnType<typeof useChat>['sendMessage'],
+    model: string,
+  ) => void;
   // Callback when messages change (for detecting tool results)
   onMessagesChange?: (messages: UIMessage[]) => void;
   // Loading state for initial messages/conversation
   isLoading?: boolean;
   // Notebook integration props
-  onPasteToNotebook?: (sqlQuery: string, notebookCellType: 'query' | 'prompt', datasourceId: string, cellId: number) => void;
+  onPasteToNotebook?: (
+    sqlQuery: string,
+    notebookCellType: 'query' | 'prompt',
+    datasourceId: string,
+    cellId: number,
+  ) => void;
   notebookContext?: {
     cellId?: number;
     notebookCellType?: 'query' | 'prompt';
@@ -103,13 +106,19 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     onPasteToNotebook,
     notebookContext,
   } = props;
-  
+
   // Preserve notebook context in a ref so it persists across re-renders and message updates
   // This is critical because messages can be reset during streaming, causing context to be lost
   const notebookContextRef = useRef(notebookContext);
+  const [currentNotebookContext, setCurrentNotebookContext] =
+    useState(notebookContext);
   useEffect(() => {
     if (notebookContext) {
       notebookContextRef.current = notebookContext;
+      // Defer state update to avoid setState in effect
+      requestAnimationFrame(() => {
+        setCurrentNotebookContext(notebookContext);
+      });
     }
   }, [notebookContext]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -173,11 +182,23 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
   useEffect(() => {
     if (onSendMessageReady) {
       // Create a wrapper that also exposes setMessages for metadata updates
-      const wrappedSendMessage = (message: Parameters<typeof sendMessage>[0], options?: Parameters<typeof sendMessage>[1]) => {
+      const wrappedSendMessage = (
+        message: Parameters<typeof sendMessage>[0],
+        options?: Parameters<typeof sendMessage>[1],
+      ) => {
         return sendMessage(message, options);
       };
-      (wrappedSendMessage as any).setMessages = setMessages;
-      onSendMessageReady(wrappedSendMessage as any, state.model);
+      (
+        wrappedSendMessage as typeof sendMessage & {
+          setMessages: typeof setMessages;
+        }
+      ).setMessages = setMessages;
+      onSendMessageReady(
+        wrappedSendMessage as typeof sendMessage & {
+          setMessages: typeof setMessages;
+        },
+        state.model,
+      );
     }
   }, [sendMessage, setMessages, state.model, onSendMessageReady]);
 
@@ -198,8 +219,13 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
         const container = conversationContainerRef.current;
         if (container) {
           // Find the first scrollable child (the StickToBottom element)
-          const scrollContainer = container.querySelector('[role="log"]') as HTMLElement;
-          if (scrollContainer && scrollContainer.scrollHeight > scrollContainer.clientHeight) {
+          const scrollContainer = container.querySelector(
+            '[role="log"]',
+          ) as HTMLElement;
+          if (
+            scrollContainer &&
+            scrollContainer.scrollHeight > scrollContainer.clientHeight
+          ) {
             // Scroll instantly to bottom by setting scrollTop directly
             scrollContainer.scrollTop = scrollContainer.scrollHeight;
           }
@@ -217,34 +243,37 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
   const isStreamingRef = useRef(false);
   const lastStreamingEndTimeRef = useRef<number>(0);
   const STREAMING_COOLDOWN_MS = 5000; // Don't update messages for 5s after streaming ends
-  
+
   // Track streaming state in a ref to avoid dependency issues
   useEffect(() => {
     const wasStreaming = isStreamingRef.current;
     isStreamingRef.current = status === 'streaming' || status === 'submitted';
-    
+
     // Track when streaming ends
     if (wasStreaming && !isStreamingRef.current) {
       lastStreamingEndTimeRef.current = Date.now();
     }
   }, [status]);
-  
+
   useEffect(() => {
     // Never update during streaming
     if (isStreamingRef.current) {
       return;
     }
-    
+
     // Don't update for a cooldown period after streaming ends (prevents flicker from refetches)
     const timeSinceStreamingEnd = Date.now() - lastStreamingEndTimeRef.current;
-    if (timeSinceStreamingEnd < STREAMING_COOLDOWN_MS && timeSinceStreamingEnd > 0) {
+    if (
+      timeSinceStreamingEnd < STREAMING_COOLDOWN_MS &&
+      timeSinceStreamingEnd > 0
+    ) {
       return;
     }
-    
+
     // Only update if initialMessages actually changed (reference equality check)
     if (initialMessages !== previousInitialMessagesRef.current) {
       previousInitialMessagesRef.current = initialMessages;
-      
+
       if (initialMessages && initialMessages.length > 0) {
         // On initial mount, always set messages (even if messages already exist from cache/previous render)
         // This ensures old conversations load correctly
@@ -253,30 +282,33 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
           setMessages(initialMessages);
           return;
         }
-        
+
         // Check if messages are actually different
         const currentMessageIds = new Set(messages.map((m) => m.id));
         const initialMessageIds = new Set(initialMessages.map((m) => m.id));
         const idsMatch =
           currentMessageIds.size === initialMessageIds.size &&
-          Array.from(currentMessageIds).every((id) => initialMessageIds.has(id));
+          Array.from(currentMessageIds).every((id) =>
+            initialMessageIds.has(id),
+          );
 
         // Only update if IDs don't match
         if (!idsMatch) {
           // Check if current messages have tool outputs or are more complete
-          const currentHasToolOutputs = messages.some((msg) => 
-            msg.role === 'assistant' && 
-            msg.parts?.some((part) => part.type?.startsWith('tool-'))
+          const currentHasToolOutputs = messages.some(
+            (msg) =>
+              msg.role === 'assistant' &&
+              msg.parts?.some((part) => part.type?.startsWith('tool-')),
           );
-          
+
           // Check if current messages have more parts than initialMessages (more complete)
-          const currentMoreComplete = messages.some((msg, idx) => {
+          const currentMoreComplete = messages.some((msg) => {
             const initialMsg = initialMessages.find((im) => im.id === msg.id);
             if (!initialMsg) return false;
             // Current message is more complete if it has more parts
             return (msg.parts?.length || 0) > (initialMsg.parts?.length || 0);
           });
-          
+
           if (currentHasToolOutputs || currentMoreComplete) {
             // Don't replace messages that are more complete - they might have tool outputs or streaming content
             // that hasn't been persisted to initialMessages yet
@@ -288,32 +320,41 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
         } else {
           // IDs match, but check if initialMessages has more complete content
           // Only update if initialMessages is significantly more complete (has tool outputs we don't have)
-          const initialHasToolOutputs = initialMessages.some((msg) => 
-            msg.role === 'assistant' && 
-            msg.parts?.some((part) => part.type?.startsWith('tool-'))
+          const initialHasToolOutputs = initialMessages.some(
+            (msg) =>
+              msg.role === 'assistant' &&
+              msg.parts?.some((part) => part.type?.startsWith('tool-')),
           );
-          const currentHasToolOutputs = messages.some((msg) => 
-            msg.role === 'assistant' && 
-            msg.parts?.some((part) => part.type?.startsWith('tool-'))
+          const currentHasToolOutputs = messages.some(
+            (msg) =>
+              msg.role === 'assistant' &&
+              msg.parts?.some((part) => part.type?.startsWith('tool-')),
           );
-          
+
           // Only update if initialMessages has tool outputs that current messages don't have
           if (initialHasToolOutputs && !currentHasToolOutputs) {
             setMessages(initialMessages);
           }
           // Otherwise, keep current messages (they might be more up-to-date from streaming)
         }
-      } else if (initialMessages && initialMessages.length === 0 && messages.length > 0) {
+      } else if (
+        initialMessages &&
+        initialMessages.length === 0 &&
+        messages.length > 0
+      ) {
         // If initialMessages is empty array, clear messages (conversation was cleared)
         // But only if not streaming and cooldown has passed
-        if (!isStreamingRef.current && timeSinceStreamingEnd >= STREAMING_COOLDOWN_MS) {
+        if (
+          !isStreamingRef.current &&
+          timeSinceStreamingEnd >= STREAMING_COOLDOWN_MS
+        ) {
           setMessages([]);
         }
       } else if (!initialMessages && messages.length === 0) {
         // If initialMessages is undefined and we have no messages, that's fine
         // Don't update
       }
-      
+
       isInitialMountRef.current = false;
     }
   }, [initialMessages, setMessages, messages]);
@@ -379,15 +420,17 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     const lastAssistantMessage = messages
       .filter((m) => m.role === 'assistant')
       .at(-1);
-    
+
     if (lastAssistantMessage) {
       // Remove the old assistant message
-      setMessages((prev) => prev.filter((msg) => msg.id !== lastAssistantMessage.id));
+      setMessages((prev) =>
+        prev.filter((msg) => msg.id !== lastAssistantMessage.id),
+      );
     }
 
     // Small delay to ensure state update, then regenerate
     setTimeout(() => {
-    regenerate();
+      regenerate();
     }, 0);
   }, [messages, regenerate, setMessages]);
 
@@ -417,13 +460,17 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
   const lastAssistantHasText = useMemo(() => {
     if (!lastAssistantMessage) return false;
     // Check for text parts or any parts (streaming might start with empty parts)
-    return lastAssistantMessage.parts.some((p) => p.type === 'text' || p.type === 'reasoning');
+    return lastAssistantMessage.parts.some(
+      (p) => p.type === 'text' || p.type === 'reasoning',
+    );
   }, [lastAssistantMessage]);
   // Check if the last assistant message is actually the last message (to ensure it's rendered)
   const lastMessageIsAssistant = useMemo(() => {
-    return messages.length > 0 && messages[messages.length - 1]?.role === 'assistant';
+    return (
+      messages.length > 0 && messages[messages.length - 1]?.role === 'assistant'
+    );
   }, [messages]);
-  
+
   const prevViewSheetCountRef = useRef(0);
 
   // Auto-scroll to the latest view sheet when it's rendered
@@ -468,17 +515,24 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     <PromptInputProvider initialInput={state.input}>
       <div
         ref={containerRef}
-        className="relative mx-auto flex h-full w-full max-w-4xl min-w-0 flex-col p-6 overflow-x-hidden"
+        className="relative mx-auto flex h-full w-full max-w-4xl min-w-0 flex-col overflow-x-hidden p-6"
       >
-        <div ref={conversationContainerRef} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overflow-x-hidden">
+        <div
+          ref={conversationContainerRef}
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overflow-x-hidden"
+        >
           <Conversation className="min-h-0 min-w-0 flex-1 overflow-x-hidden">
-            <ConversationContent className="min-w-0 max-w-full overflow-x-hidden">
+            <ConversationContent className="max-w-full min-w-0 overflow-x-hidden">
               {isLoading ? (
                 <div className="flex size-full flex-col items-center justify-center gap-4 p-8 text-center">
                   <BotAvatar size={12} isLoading={true} />
                   <div className="space-y-1">
-                    <h3 className="text-sm font-medium">Loading conversation...</h3>
-                    <p className="text-muted-foreground text-sm">Please wait while we load your messages</p>
+                    <h3 className="text-sm font-medium">
+                      Loading conversation...
+                    </h3>
+                    <p className="text-muted-foreground text-sm">
+                      Please wait while we load your messages
+                    </p>
                   </div>
                 </div>
               ) : messages.length === 0 ? (
@@ -505,7 +559,10 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                       : -1;
 
                   return (
-                    <div key={message.id} className="min-w-0 max-w-full overflow-x-hidden">
+                    <div
+                      key={message.id}
+                      className="max-w-full min-w-0 overflow-x-hidden"
+                    >
                       {message.role === 'assistant' &&
                         sourceParts.length > 0 && (
                           <Sources>
@@ -545,7 +602,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                               <div
                                 key={`${message.id}-${i}`}
                                 className={cn(
-                                  'flex items-start gap-3 min-w-0 max-w-full overflow-x-hidden',
+                                  'flex max-w-full min-w-0 items-start gap-3 overflow-x-hidden',
                                   message.role === 'user' && 'justify-end',
                                   message.role === 'assistant' &&
                                     'animate-in fade-in slide-in-from-bottom-4 duration-300',
@@ -610,48 +667,90 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                       {message.role === 'user' ? (
                                         // User messages - check if it's a suggestion with context
                                         (() => {
-                                          const { text, context } = parseMessageWithContext(
-                                            part.text,
-                                          );
-                                          
+                                          const { text, context } =
+                                            parseMessageWithContext(part.text);
+
                                           // Extract datasources from message metadata or use selectedDatasources for the last user message
                                           const messageDatasources = (() => {
                                             // Priority 1: Check message metadata first (for notebook cell messages and persisted messages)
                                             // This ensures notebook cell datasource is always used
-                                            if (message.metadata && typeof message.metadata === 'object') {
-                                              const metadata = message.metadata as Record<string, unknown>;
-                                              if ('datasources' in metadata && Array.isArray(metadata.datasources)) {
-                                                const metadataDatasources = (metadata.datasources as string[])
-                                                  .map((dsId) => datasources?.find((ds) => ds.id === dsId))
-                                                  .filter((ds): ds is DatasourceItem => ds !== undefined);
+                                            if (
+                                              message.metadata &&
+                                              typeof message.metadata ===
+                                                'object'
+                                            ) {
+                                              const metadata =
+                                                message.metadata as Record<
+                                                  string,
+                                                  unknown
+                                                >;
+                                              if (
+                                                'datasources' in metadata &&
+                                                Array.isArray(
+                                                  metadata.datasources,
+                                                )
+                                              ) {
+                                                const metadataDatasources = (
+                                                  metadata.datasources as string[]
+                                                )
+                                                  .map((dsId) =>
+                                                    datasources?.find(
+                                                      (ds) => ds.id === dsId,
+                                                    ),
+                                                  )
+                                                  .filter(
+                                                    (
+                                                      ds,
+                                                    ): ds is DatasourceItem =>
+                                                      ds !== undefined,
+                                                  );
                                                 // Only use metadata datasources if they exist and are valid
-                                                if (metadataDatasources.length > 0) {
+                                                if (
+                                                  metadataDatasources.length > 0
+                                                ) {
                                                   return metadataDatasources;
                                                 }
                                               }
                                             }
-                                            
+
                                             // Priority 2: For the last user message (especially during streaming), use selectedDatasources
                                             // This ensures correct datasource is shown immediately, even before metadata is set
-                                            const lastUserMessage = [...messages]
+                                            const lastUserMessage = [
+                                              ...messages,
+                                            ]
                                               .reverse()
-                                              .find((msg) => msg.role === 'user');
-                                            
-                                            const isLastUserMessage = lastUserMessage?.id === message.id;
-                                            
+                                              .find(
+                                                (msg) => msg.role === 'user',
+                                              );
+
+                                            const isLastUserMessage =
+                                              lastUserMessage?.id ===
+                                              message.id;
+
                                             // Use selectedDatasources for the last user message if:
                                             // 1. It's the last user message (most recent)
                                             // 2. We're streaming or the message was just sent (metadata might not be set yet)
                                             // 3. selectedDatasources is available
-                                            if (isLastUserMessage && selectedDatasources && selectedDatasources.length > 0) {
+                                            if (
+                                              isLastUserMessage &&
+                                              selectedDatasources &&
+                                              selectedDatasources.length > 0
+                                            ) {
                                               return selectedDatasources
-                                                .map((dsId) => datasources?.find((ds) => ds.id === dsId))
-                                                .filter((ds): ds is DatasourceItem => ds !== undefined);
+                                                .map((dsId) =>
+                                                  datasources?.find(
+                                                    (ds) => ds.id === dsId,
+                                                  ),
+                                                )
+                                                .filter(
+                                                  (ds): ds is DatasourceItem =>
+                                                    ds !== undefined,
+                                                );
                                             }
-                                            
+
                                             return undefined;
                                           })();
-                                          
+
                                           if (context) {
                                             // Use UserMessageBubble for suggestions with context
                                             return (
@@ -665,25 +764,31 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                               />
                                             );
                                           }
-                                          
+
                                           // Regular user message with datasources
                                           return (
                                             <div className="flex flex-col items-end gap-1.5">
-                                              {messageDatasources && messageDatasources.length > 0 && (
-                                                <div className="flex w-full max-w-[80%] min-w-0 justify-end overflow-x-hidden">
-                                                  <DatasourceBadges
-                                                    datasources={messageDatasources}
-                                                    pluginLogoMap={pluginLogoMap}
-                                                  />
-                                                </div>
-                                              )}
+                                              {messageDatasources &&
+                                                messageDatasources.length >
+                                                  0 && (
+                                                  <div className="flex w-full max-w-[80%] min-w-0 justify-end overflow-x-hidden">
+                                                    <DatasourceBadges
+                                                      datasources={
+                                                        messageDatasources
+                                                      }
+                                                      pluginLogoMap={
+                                                        pluginLogoMap
+                                                      }
+                                                    />
+                                                  </div>
+                                                )}
                                               <Message
                                                 key={`${message.id}-${i}`}
                                                 from={message.role}
-                                                className="w-full min-w-0 max-w-full"
+                                                className="w-full max-w-full min-w-0"
                                               >
-                                                <MessageContent className="min-w-0 max-w-full overflow-x-hidden">
-                                                  <div className="inline-flex items-baseline gap-0.5 min-w-0 break-words overflow-wrap-anywhere">
+                                                <MessageContent className="max-w-full min-w-0 overflow-x-hidden">
+                                                  <div className="overflow-wrap-anywhere inline-flex min-w-0 items-baseline gap-0.5 break-words">
                                                     {part.text}
                                                   </div>
                                                 </MessageContent>
@@ -697,14 +802,16 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                           {!isStreaming && (
                                             <Message
                                               from={message.role}
-                                              className="w-full min-w-0 max-w-full"
+                                              className="w-full max-w-full min-w-0"
                                             >
-                                              <MessageContent className="min-w-0 max-w-full overflow-x-hidden">
-                                                <div className="inline-flex items-baseline gap-0.5 min-w-0 break-words overflow-wrap-anywhere">
+                                              <MessageContent className="max-w-full min-w-0 overflow-x-hidden">
+                                                <div className="overflow-wrap-anywhere inline-flex min-w-0 items-baseline gap-0.5 break-words">
                                                   <StreamdownWithSuggestions
                                                     sendMessage={sendMessage}
                                                     messages={messages}
-                                                    currentMessageId={message.id}
+                                                    currentMessageId={
+                                                      message.id
+                                                    }
                                                   >
                                                     {part.text}
                                                   </StreamdownWithSuggestions>
@@ -715,14 +822,16 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                           {isStreaming && (
                                             <Message
                                               from={message.role}
-                                              className="w-full min-w-0 max-w-full"
+                                              className="w-full max-w-full min-w-0"
                                             >
-                                              <MessageContent className="min-w-0 max-w-full overflow-x-hidden">
-                                                <div className="inline-flex items-baseline gap-0.5 min-w-0 break-words overflow-wrap-anywhere">
+                                              <MessageContent className="max-w-full min-w-0 overflow-x-hidden">
+                                                <div className="overflow-wrap-anywhere inline-flex min-w-0 items-baseline gap-0.5 break-words">
                                                   <StreamdownWithSuggestions
                                                     sendMessage={sendMessage}
                                                     messages={messages}
-                                                    currentMessageId={message.id}
+                                                    currentMessageId={
+                                                      message.id
+                                                    }
                                                   >
                                                     {part.text}
                                                   </StreamdownWithSuggestions>
@@ -804,7 +913,9 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                             return (
                               <ReasoningPart
                                 key={`${message.id}-${i}`}
-                                part={part as { type: 'reasoning'; text: string }}
+                                part={
+                                  part as { type: 'reasoning'; text: string }
+                                }
                                 messageId={message.id}
                                 index={i}
                                 isStreaming={
@@ -833,22 +944,24 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                 const toolName =
                                   'toolName' in toolPart &&
                                   typeof toolPart.toolName === 'string'
-                                    ? getUserFriendlyToolName(`tool-${toolPart.toolName}`)
+                                    ? getUserFriendlyToolName(
+                                        `tool-${toolPart.toolName}`,
+                                      )
                                     : getUserFriendlyToolName(toolPart.type);
-                              return (
-                                <Tool
-                                  key={`${message.id}-${i}`}
+                                return (
+                                  <Tool
+                                    key={`${message.id}-${i}`}
                                     defaultOpen={false}
-                                >
-                                  <ToolHeader
-                                    title={toolName}
-                                    type={toolPart.type}
-                                    state={toolPart.state}
-                                  />
-                                  <ToolContent>
+                                  >
+                                    <ToolHeader
+                                      title={toolName}
+                                      type={toolPart.type}
+                                      state={toolPart.state}
+                                    />
+                                    <ToolContent>
                                       {toolPart.input != null ? (
-                                      <ToolInput input={toolPart.input} />
-                                    ) : null}
+                                        <ToolInput input={toolPart.input} />
+                                      ) : null}
                                       <div className="flex items-center justify-center py-8">
                                         <Loader size={20} />
                                       </div>
@@ -867,7 +980,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                                   messageId={message.id}
                                   index={i}
                                   onPasteToNotebook={onPasteToNotebook}
-                                  notebookContext={notebookContextRef.current || notebookContext}
+                                  notebookContext={currentNotebookContext}
                                 />
                               );
                             }
@@ -878,17 +991,22 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                   );
                 })
               )}
-              {((status === 'submitted') || (status === 'streaming' && (!lastAssistantHasText || !lastMessageIsAssistant))) && (
-                <div className="animate-in fade-in slide-in-from-bottom-4 flex items-start gap-3 duration-300 min-w-0 max-w-full overflow-x-hidden">
+              {(status === 'submitted' ||
+                (status === 'streaming' &&
+                  (!lastAssistantHasText || !lastMessageIsAssistant))) && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 flex max-w-full min-w-0 items-start gap-3 overflow-x-hidden duration-300">
                   <BotAvatar
                     size={6}
                     isLoading={true}
                     className="mt-1 shrink-0"
                   />
-                                <div className="flex-end flex w-full max-w-[80%] min-w-0 flex-col justify-start gap-2 overflow-x-hidden">
-                    <Message from="assistant" className="w-full min-w-0 max-w-full">
-                      <MessageContent className="min-w-0 max-w-full overflow-x-hidden">
-                        <div className="inline-flex items-baseline gap-0.5 min-w-0 break-words overflow-wrap-anywhere">
+                  <div className="flex-end flex w-full max-w-[80%] min-w-0 flex-col justify-start gap-2 overflow-x-hidden">
+                    <Message
+                      from="assistant"
+                      className="w-full max-w-full min-w-0"
+                    >
+                      <MessageContent className="max-w-full min-w-0 overflow-x-hidden">
+                        <div className="overflow-wrap-anywhere inline-flex min-w-0 items-baseline gap-0.5 break-words">
                           <MessageResponse></MessageResponse>
                         </div>
                       </MessageContent>
@@ -933,14 +1051,14 @@ function ScrollToBottomRefSetter({
   scrollRef: React.RefObject<(() => void) | null>;
 }) {
   const { scrollToBottom } = useStickToBottomContext();
-  
+
   useEffect(() => {
     scrollRef.current = scrollToBottom;
     return () => {
       scrollRef.current = null;
     };
   }, [scrollRef, scrollToBottom]);
-  
+
   return null;
 }
 
@@ -989,7 +1107,7 @@ function PromptInputInner({
   useEffect(() => {
     const currentLength = _messages.length;
     const previousLength = previousMessagesLengthRef.current;
-    
+
     if (currentLength > previousLength) {
       const lastMessage = _messages[_messages.length - 1];
       // Only scroll if the new message is from the user
@@ -1008,7 +1126,7 @@ function PromptInputInner({
         });
       }
     }
-    
+
     previousMessagesLengthRef.current = currentLength;
   }, [_messages, scrollToBottomRef]);
 
@@ -1043,9 +1161,10 @@ function PromptInputInner({
           body: {
             model: state.model,
             webSearch: state.webSearch,
-            datasources: selectedDatasources && selectedDatasources.length > 0 
-              ? selectedDatasources 
-              : undefined,
+            datasources:
+              selectedDatasources && selectedDatasources.length > 0
+                ? selectedDatasources
+                : undefined,
           },
         },
       );
