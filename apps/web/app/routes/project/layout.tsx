@@ -198,6 +198,7 @@ function SidebarLayoutInner(props: Route.ComponentProps & React.PropsWithChildre
                 ref={agentWrapperRef}
                 conversationSlug={conversationSlug}
                 initialMessages={messages.data}
+                isMessagesLoading={messages.isLoading}
               />
             </AgentSidebar>
           )}

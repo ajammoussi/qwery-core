@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { Database, Play, Table2 } from 'lucide-react';
+import { Database, Play, Table2, FileText, BarChart3 } from 'lucide-react';
 import { CodeBlock, CodeBlockCopyButton } from '../../ai-elements/code-block';
+import { Button } from '../../shadcn/button';
 import { cn } from '../../lib/utils';
 import { DataGrid } from './data-grid';
 
@@ -17,6 +18,9 @@ export interface SQLQueryVisualizerProps {
   query?: string;
   result?: SQLQueryResult;
   className?: string;
+  onPasteToNotebook?: () => void;
+  showPasteButton?: boolean;
+  chartExecutionOverride?: boolean;
 }
 
 /**
@@ -26,6 +30,9 @@ export function SQLQueryVisualizer({
   query,
   result,
   className,
+  onPasteToNotebook,
+  showPasteButton = false,
+  chartExecutionOverride = false,
 }: SQLQueryVisualizerProps) {
   return (
     <div className={cn('flex flex-col rounded-md border text-sm overflow-hidden', className)}>
@@ -33,16 +40,35 @@ export function SQLQueryVisualizer({
       {query && (
         <div className="bg-muted/10">
           <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/20">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Database className="h-3.5 w-3.5" />
-              <span className="text-xs font-medium uppercase tracking-wider">SQL</span>
+            <div className="flex items-center gap-2">
+              <Database className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">SQL</span>
+              {chartExecutionOverride && (
+                <div className="flex items-center gap-1.5 ml-2 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded-sm">
+                  <BarChart3 className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                  <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                    Chart Mode
+                  </span>
+                </div>
+              )}
             </div>
+            {showPasteButton && onPasteToNotebook && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onPasteToNotebook}
+                className="h-7 gap-1.5 text-xs"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Paste to Notebook
+              </Button>
+            )}
           </div>
-          <div className="relative">
+          <div className="relative overflow-hidden min-w-0">
             <CodeBlock
               code={query}
               language="sql"
-              className="border-0 rounded-none bg-transparent"
+              className="border-0 rounded-none bg-transparent [&>div]:overflow-x-hidden [&>div]:min-w-0 [&_pre]:overflow-x-hidden [&_pre]:whitespace-pre-wrap [&_pre]:break-words [&_pre]:overflow-wrap-anywhere [&_code]:whitespace-pre-wrap [&_code]:break-words [&_code]:overflow-wrap-anywhere"
             >
               <CodeBlockCopyButton className="text-muted-foreground hover:text-foreground" />
             </CodeBlock>

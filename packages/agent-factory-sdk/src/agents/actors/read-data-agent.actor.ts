@@ -27,6 +27,8 @@ import { AbstractQueryEngine } from '@qwery/domain/ports';
 import { loadDatasources } from '../../tools/datasource-loader';
 import { getDatasourceDatabaseName } from '../../tools/datasource-name-utils';
 import { TransformMetadataToSimpleSchemaService } from '@qwery/domain/services';
+import type { PromptSource } from '../../domain';
+import { PROMPT_SOURCE } from '../../domain';
 
 // Lazy workspace resolution - only resolve when actually needed, not at module load time
 // This prevents side effects when the module is imported in browser/SSR contexts
@@ -66,7 +68,20 @@ export const readDataAgent = async (
   model: string,
   queryEngine: AbstractQueryEngine,
   repositories?: Repositories,
+  promptSource?: PromptSource,
+  intent?: { intent: string; complexity: string; needsChart: boolean; needsSQL: boolean },
 ) => {
+  const needSQL = intent?.needsSQL ?? false;
+  const needChart = intent?.needsChart ?? false;
+  console.log('[readDataAgent] Starting with context:', {
+    conversationId,
+    promptSource,
+    needSQL,
+    needChart,
+    intentNeedsSQL: intent?.needsSQL,
+    intentNeedsChart: intent?.needsChart,
+    messageCount: messages.length,
+  });
   // Initialize engine and attach datasources if repositories are provided
   const agentInitStartTime = performance.now();
   if (repositories && queryEngine) {
@@ -645,6 +660,50 @@ export const readDataAgent = async (
           query: z.string(),
         }),
         execute: async ({ query }) => {
+          // Use promptSource, needSQL, and needChart from context (passed to readDataAgent function)
+          // needSQL comes from intent.needsSQL, needChart from intent.needsChart
+          
+          // TEMPORARY OVERRIDE: When needChart is true AND inline mode, execute query for chart generation
+          // but still return SQL for pasting to notebook
+          const isChartRequestInInlineMode = 
+            needChart === true && 
+            promptSource === PROMPT_SOURCE.INLINE && 
+            needSQL === true;
+          
+          // Normal inline mode: skip execution, return SQL for pasting
+          const shouldSkipExecution = 
+            promptSource === PROMPT_SOURCE.INLINE && 
+            needSQL === true && 
+            !isChartRequestInInlineMode;
+          
+          console.log('[runQuery] Tool execution:', {
+            promptSource,
+            needSQL,
+            needChart,
+            isChartRequestInInlineMode,
+            shouldSkipExecution,
+            queryLength: query.length,
+            queryPreview: query.substring(0, 100),
+          });
+
+          // If inline mode and needSQL is true (but NOT chart request), don't execute - return SQL for pasting
+          if (shouldSkipExecution) {
+            console.log('[runQuery] Skipping execution - SQL will be pasted to notebook cell');
+            return {
+              result: null,
+              shouldPaste: true,
+              sqlQuery: query,
+            };
+          }
+
+          // For chart requests in inline mode, we'll execute but still return SQL for pasting
+          if (isChartRequestInInlineMode) {
+            console.log('[runQuery] Executing query for chart generation (inline mode override)');
+          } else {
+            console.log('[runQuery] Executing query normally');
+          }
+
+          // Normal execution path for chat mode or when needSQL is false
           const startTime = performance.now();
 
           if (!queryEngine) {
@@ -693,6 +752,16 @@ export const readDataAgent = async (
           console.log(
             `[ReadDataAgent] [PERF] runQuery TOTAL took ${totalTime.toFixed(2)}ms (sync: ${syncTime.toFixed(2)}ms, query: ${queryTime.toFixed(2)}ms, rows: ${result.rows.length})`,
           );
+
+          // For chart requests in inline mode, return both result AND SQL for pasting
+          if (isChartRequestInInlineMode) {
+            return {
+              result: result,
+              shouldPaste: true,
+              sqlQuery: query,
+              chartExecutionOverride: true, // Flag to show visual indicator in UI
+            };
+          }
 
           return {
             result: result,
@@ -855,14 +924,24 @@ export const readDataAgentActor = fromPromise(
       model: string;
       repositories?: Repositories;
       queryEngine: AbstractQueryEngine;
+      promptSource?: PromptSource;
+      intent?: { intent: string; complexity: string; needsChart: boolean; needsSQL: boolean };
     };
   }) => {
+    console.log('[readDataAgentActor] Received input:', {
+      conversationId: input.conversationId,
+      promptSource: input.promptSource,
+      intentNeedsSQL: input.intent?.needsSQL,
+      messageCount: input.previousMessages.length,
+    });
     return readDataAgent(
       input.conversationId,
       input.previousMessages,
       input.model,
       input.queryEngine,
       input.repositories,
+      input.promptSource,
+      input.intent,
     );
   },
 );

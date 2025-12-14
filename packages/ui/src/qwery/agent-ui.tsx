@@ -69,6 +69,17 @@ export interface QweryAgentUIProps {
   onMessageUpdate?: (messageId: string, content: string) => Promise<void>;
   // Expose sendMessage function and current model for external use (e.g., notebook sidebar)
   onSendMessageReady?: (sendMessage: ReturnType<typeof useChat>['sendMessage'], model: string) => void;
+  // Callback when messages change (for detecting tool results)
+  onMessagesChange?: (messages: UIMessage[]) => void;
+  // Loading state for initial messages/conversation
+  isLoading?: boolean;
+  // Notebook integration props
+  onPasteToNotebook?: (sqlQuery: string, notebookCellType: 'query' | 'prompt', datasourceId: string, cellId: number) => void;
+  notebookContext?: {
+    cellId?: number;
+    notebookCellType?: 'query' | 'prompt';
+    datasourceId?: string;
+  };
 }
 
 export default function QweryAgentUI(props: QweryAgentUIProps) {
@@ -86,7 +97,20 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     datasourcesLoading,
     onMessageUpdate,
     onSendMessageReady,
+    onMessagesChange,
+    isLoading = false,
+    onPasteToNotebook,
+    notebookContext,
   } = props;
+  
+  // Preserve notebook context in a ref so it persists across re-renders and message updates
+  // This is critical because messages can be reset during streaming, causing context to be lost
+  const notebookContextRef = useRef(notebookContext);
+  useEffect(() => {
+    if (notebookContext) {
+      notebookContextRef.current = notebookContext;
+    }
+  }, [notebookContext]);
   const containerRef = useRef<HTMLDivElement>(null);
   const hasFocusedRef = useRef(false);
 
@@ -137,6 +161,13 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
       transport: transportInstance,
     });
 
+  // Notify parent when messages change (for detecting tool results)
+  useEffect(() => {
+    if (onMessagesChange) {
+      onMessagesChange(messages);
+    }
+  }, [messages, onMessagesChange]);
+
   // Expose sendMessage, setMessages, and current model to parent component (for notebook sidebar integration)
   useEffect(() => {
     if (onSendMessageReady) {
@@ -155,25 +186,68 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     setIsProcessing(status === 'streaming' || status === 'submitted');
   }, [status, setIsProcessing]);
 
+  // Scroll to bottom instantly when loading completes
+  useEffect(() => {
+    if (previousIsLoadingRef.current && !isLoading && messages.length > 0) {
+      // Loading just finished - scroll to bottom instantly without animation
+      // Use requestAnimationFrame to ensure DOM is updated
+      requestAnimationFrame(() => {
+        // Find the scrollable container within the conversation container
+        // The Conversation component renders a StickToBottom which is the scrollable element
+        const container = conversationContainerRef.current;
+        if (container) {
+          // Find the first scrollable child (the StickToBottom element)
+          const scrollContainer = container.querySelector('[role="log"]') as HTMLElement;
+          if (scrollContainer && scrollContainer.scrollHeight > scrollContainer.clientHeight) {
+            // Scroll instantly to bottom by setting scrollTop directly
+            scrollContainer.scrollTop = scrollContainer.scrollHeight;
+          }
+        }
+      });
+    }
+    previousIsLoadingRef.current = isLoading;
+  }, [isLoading, messages.length]);
+
   // Update messages when initialMessages changes (e.g., when conversation loads)
   // This is important for notebook chat integration where messages load asynchronously
   // IMPORTANT: Don't update during streaming to avoid flickering
   const previousInitialMessagesRef = useRef<UIMessage[] | undefined>(undefined);
   const isInitialMountRef = useRef(true);
+  const isStreamingRef = useRef(false);
+  const lastStreamingEndTimeRef = useRef<number>(0);
+  const STREAMING_COOLDOWN_MS = 5000; // Don't update messages for 5s after streaming ends
+  
+  // Track streaming state in a ref to avoid dependency issues
+  useEffect(() => {
+    const wasStreaming = isStreamingRef.current;
+    isStreamingRef.current = status === 'streaming' || status === 'submitted';
+    
+    // Track when streaming ends
+    if (wasStreaming && !isStreamingRef.current) {
+      lastStreamingEndTimeRef.current = Date.now();
+    }
+  }, [status]);
   
   useEffect(() => {
-    // Skip updates during streaming to prevent flickering
-    if (status === 'streaming' || status === 'submitted') {
+    // Never update during streaming
+    if (isStreamingRef.current) {
       return;
     }
     
-    // Only update if initialMessages actually changed
+    // Don't update for a cooldown period after streaming ends (prevents flicker from refetches)
+    const timeSinceStreamingEnd = Date.now() - lastStreamingEndTimeRef.current;
+    if (timeSinceStreamingEnd < STREAMING_COOLDOWN_MS && timeSinceStreamingEnd > 0) {
+      return;
+    }
+    
+    // Only update if initialMessages actually changed (reference equality check)
     if (initialMessages !== previousInitialMessagesRef.current) {
       previousInitialMessagesRef.current = initialMessages;
       
       if (initialMessages && initialMessages.length > 0) {
-        // On initial mount, always set messages
-        if (isInitialMountRef.current && messages.length === 0) {
+        // On initial mount, always set messages (even if messages already exist from cache/previous render)
+        // This ensures old conversations load correctly
+        if (isInitialMountRef.current) {
           isInitialMountRef.current = false;
           setMessages(initialMessages);
           return;
@@ -186,14 +260,54 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
           currentMessageIds.size === initialMessageIds.size &&
           Array.from(currentMessageIds).every((id) => initialMessageIds.has(id));
 
-        // Only update if IDs don't match AND we're not streaming
+        // Only update if IDs don't match
         if (!idsMatch) {
-          setMessages(initialMessages);
+          // Check if current messages have tool outputs or are more complete
+          const currentHasToolOutputs = messages.some((msg) => 
+            msg.role === 'assistant' && 
+            msg.parts?.some((part) => part.type?.startsWith('tool-'))
+          );
+          
+          // Check if current messages have more parts than initialMessages (more complete)
+          const currentMoreComplete = messages.some((msg, idx) => {
+            const initialMsg = initialMessages.find((im) => im.id === msg.id);
+            if (!initialMsg) return false;
+            // Current message is more complete if it has more parts
+            return (msg.parts?.length || 0) > (initialMsg.parts?.length || 0);
+          });
+          
+          if (currentHasToolOutputs || currentMoreComplete) {
+            // Don't replace messages that are more complete - they might have tool outputs or streaming content
+            // that hasn't been persisted to initialMessages yet
+            return;
+          } else {
+            // Only update if initialMessages has new messages or is more complete
+            setMessages(initialMessages);
+          }
+        } else {
+          // IDs match, but check if initialMessages has more complete content
+          // Only update if initialMessages is significantly more complete (has tool outputs we don't have)
+          const initialHasToolOutputs = initialMessages.some((msg) => 
+            msg.role === 'assistant' && 
+            msg.parts?.some((part) => part.type?.startsWith('tool-'))
+          );
+          const currentHasToolOutputs = messages.some((msg) => 
+            msg.role === 'assistant' && 
+            msg.parts?.some((part) => part.type?.startsWith('tool-'))
+          );
+          
+          // Only update if initialMessages has tool outputs that current messages don't have
+          if (initialHasToolOutputs && !currentHasToolOutputs) {
+            setMessages(initialMessages);
+          }
+          // Otherwise, keep current messages (they might be more up-to-date from streaming)
         }
       } else if (initialMessages && initialMessages.length === 0 && messages.length > 0) {
         // If initialMessages is empty array, clear messages (conversation was cleared)
-        // But only if not streaming
-        setMessages([]);
+        // But only if not streaming and cooldown has passed
+        if (!isStreamingRef.current && timeSinceStreamingEnd >= STREAMING_COOLDOWN_MS) {
+          setMessages([]);
+        }
       } else if (!initialMessages && messages.length === 0) {
         // If initialMessages is undefined and we have no messages, that's fine
         // Don't update
@@ -201,16 +315,18 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
       
       isInitialMountRef.current = false;
     }
-  }, [initialMessages, setMessages, messages, status]);
+  }, [initialMessages, setMessages, messages]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollToBottomRef = useRef<(() => void) | null>(null);
+  const conversationContainerRef = useRef<HTMLDivElement>(null);
   const viewSheetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editText, setEditText] = useState<string>('');
   const [copiedMessagePartId, setCopiedMessagePartId] = useState<string | null>(
     null,
   );
+  const previousIsLoadingRef = useRef(isLoading);
 
   // Handle edit message
   const _handleEditStart = useCallback((messageId: string, text: string) => {
@@ -299,13 +415,14 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
   // Check if last assistant message has any text parts
   const lastAssistantHasText = useMemo(() => {
     if (!lastAssistantMessage) return false;
-    return lastAssistantMessage.parts.some((p) => p.type === 'text');
+    // Check for text parts or any parts (streaming might start with empty parts)
+    return lastAssistantMessage.parts.some((p) => p.type === 'text' || p.type === 'reasoning');
   }, [lastAssistantMessage]);
   // Check if the last assistant message is actually the last message (to ensure it's rendered)
   const lastMessageIsAssistant = useMemo(() => {
     return messages.length > 0 && messages[messages.length - 1]?.role === 'assistant';
   }, [messages]);
-  // Track previous view sheet count to detect new additions
+  
   const prevViewSheetCountRef = useRef(0);
 
   // Auto-scroll to the latest view sheet when it's rendered
@@ -352,10 +469,18 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
         ref={containerRef}
         className="relative mx-auto flex h-full w-full max-w-4xl min-w-0 flex-col p-6 overflow-x-hidden"
       >
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overflow-x-hidden">
+        <div ref={conversationContainerRef} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overflow-x-hidden">
           <Conversation className="min-h-0 min-w-0 flex-1 overflow-x-hidden">
             <ConversationContent className="min-w-0 max-w-full overflow-x-hidden">
-              {messages.length === 0 ? (
+              {isLoading ? (
+                <div className="flex size-full flex-col items-center justify-center gap-4 p-8 text-center">
+                  <BotAvatar size={12} isLoading={true} />
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium">Loading conversation...</h3>
+                    <p className="text-muted-foreground text-sm">Please wait while we load your messages</p>
+                  </div>
+                </div>
+              ) : messages.length === 0 ? (
                 <ConversationEmptyState
                   title="Start a conversation"
                   description="Ask me anything and I'll help you out. You can ask questions or get explanations."
@@ -732,12 +857,16 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                               }
 
                               // Use ToolPart component for completed tools (includes visualizers)
+                              // Use ref to ensure notebook context persists even if prop changes during re-render
+                              // This prevents paste button from disappearing when messages reset
                               return (
                                 <ToolPart
                                   key={`${message.id}-${i}`}
                                   part={toolPart}
                                   messageId={message.id}
                                   index={i}
+                                  onPasteToNotebook={onPasteToNotebook}
+                                  notebookContext={notebookContextRef.current || notebookContext}
                                 />
                               );
                             }

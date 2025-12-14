@@ -58,7 +58,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import { NotebookCellAiPopup } from './notebook-cell-ai-popup';
-import { NotebookDataGrid } from './notebook-datagrid';
+import { DataGrid } from '@qwery/ui/ai';
 import { notebookMarkdownComponents } from './notebook-markdown-components';
 
 export interface NotebookCellData {
@@ -85,7 +85,7 @@ interface NotebookCellProps {
   onQueryChange: (query: string) => void;
   onDatasourceChange: (datasourceId: string | null) => void;
   onRunQuery?: (query: string, datasourceId: string) => void;
-  onRunQueryWithAgent?: (query: string, datasourceId: string) => void;
+  onRunQueryWithAgent?: (query: string, datasourceId: string, cellType?: 'query' | 'prompt') => void;
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
   dragHandleRef?: (node: HTMLButtonElement | null) => void;
   isDragging?: boolean;
@@ -301,7 +301,7 @@ function NotebookCellComponent({
       return;
     }
     setPromptDatasourceError(false);
-    onRunQueryWithAgent(query, selectedDatasource);
+    onRunQueryWithAgent(query, selectedDatasource, cell.cellType);
   };
 
   const renderPromptError = useCallback(() => {
@@ -368,7 +368,7 @@ function NotebookCellComponent({
     if (!aiQuestion.trim() || !onRunQueryWithAgent || !selectedDatasource)
       return;
 
-    onRunQueryWithAgent(query, selectedDatasource);
+    onRunQueryWithAgent(aiQuestion, selectedDatasource, cell.cellType);
 
     // Close popup and reset
     onCloseAiPopup();
@@ -400,6 +400,7 @@ function NotebookCellComponent({
   return (
     <div
       ref={cellContainerRef}
+      data-cell-id={cell.cellId}
       className={cn(
         'group border-border relative flex w-full min-w-0 border-b',
         isDragging && 'opacity-50',
@@ -671,6 +672,7 @@ function NotebookCellComponent({
                   query={query}
                   selectedDatasource={selectedDatasource}
                   onRunQueryWithAgent={onRunQueryWithAgent}
+                  cellType={cell.cellType}
                   isLoading={isLoading}
                   enableShortcut={isAdvancedMode}
                 />
@@ -743,8 +745,12 @@ function NotebookCellComponent({
 
           {/* Results Grid */}
           {isQueryCell && result && !isCollapsed && (
-            <div className="border-border h-[400px] min-h-[400px] border-t">
-              <NotebookDataGrid result={result} />
+            <div className="border-border h-[400px] min-h-[400px] border-t p-4">
+              <DataGrid
+                columns={result.headers.map((header) => header.name)}
+                rows={result.rows}
+                pageSize={50}
+              />
             </div>
           )}
 

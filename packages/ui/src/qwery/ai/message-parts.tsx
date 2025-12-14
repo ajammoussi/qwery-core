@@ -268,7 +268,7 @@ export function ReasoningPart({
         >
           <ReasoningTrigger />
           <ReasoningContent>
-            <div className="prose prose-sm dark:prose-invert max-w-none min-w-0 break-words overflow-wrap-anywhere overflow-x-hidden [&>*]:max-w-full [&>*]:min-w-0 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-words">
+            <div className="prose prose-sm dark:prose-invert max-w-none min-w-0 break-words overflow-wrap-anywhere overflow-x-hidden [&>*]:max-w-full [&>*]:min-w-0 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-words [&_p]:text-foreground/90 [&_li]:text-foreground/90 [&_strong]:text-foreground [&_em]:text-foreground/80 [&_h1]:text-foreground [&_h2]:text-foreground [&_h3]:text-foreground [&_a]:text-primary">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={agentMarkdownComponents}
@@ -291,6 +291,12 @@ export interface ToolPartProps {
   onDeleteSheets?: (sheetNames: string[]) => void;
   onRenameSheet?: (oldSheetName: string, newSheetName: string) => void;
   isRequestInProgress?: boolean;
+  onPasteToNotebook?: (sqlQuery: string, notebookCellType: 'query' | 'prompt', datasourceId: string, cellId: number) => void;
+  notebookContext?: {
+    cellId?: number;
+    notebookCellType?: 'query' | 'prompt';
+    datasourceId?: string;
+  };
 }
 
 export function ToolPart({
@@ -301,6 +307,8 @@ export function ToolPart({
   onDeleteSheets,
   onRenameSheet,
   isRequestInProgress,
+  onPasteToNotebook,
+  notebookContext,
 }: ToolPartProps) {
   // Determine dynamic tool name for listTables based on returned data
   let toolName = part.type.replace('tool-', '');
@@ -493,17 +501,35 @@ export function ToolPart({
       );
     }
 
-    // Handle runQuery tool - show results only if executed (chat mode), otherwise just SQL (inline mode)
-    if (part.type === 'tool-runQuery' && part.output) {
+    // Handle runQuery tool - show SQL query during streaming (from input) and results when available (from output)
+    if (part.type === 'tool-runQuery') {
       const input = part.input as { query?: string } | null;
-      const output = part.output as {
-        result?: {
-          query: string;
-          executed: boolean;
-          columns: string[];
-          rows: Array<Record<string, unknown>>;
-        };
-      } | null;
+      const output = part.output as any;
+      
+      // During streaming, show SQL from input even if output is not available yet
+      if (!part.output && input?.query) {
+        return (
+          <SQLQueryVisualizer
+            query={input.query}
+            result={undefined}
+            onPasteToNotebook={undefined}
+            showPasteButton={false}
+            chartExecutionOverride={false}
+          />
+        );
+      }
+      
+      // If no output and no input query, don't render anything yet
+      if (!part.output) {
+        return null;
+      }
+
+      // Check notebook context availability
+      const hasNotebookContext = notebookContext?.cellId !== undefined && 
+                                  notebookContext?.notebookCellType && 
+                                  notebookContext?.datasourceId;
+      
+      // Check notebook context availability for paste functionality
 
       // Show results if rows and columns are present (implies execution)
       const hasResults =
@@ -512,9 +538,64 @@ export function ToolPart({
         output?.result?.columns &&
         Array.isArray(output.result.columns);
 
+      // Extract SQL - check multiple possible locations
+      // The tool returns { result: null, shouldPaste: true, sqlQuery: query }
+      // But it might be serialized differently, so check all possibilities
+      let sqlQuery: string | undefined = undefined;
+      let shouldPaste: boolean = false;
+      let chartExecutionOverride: boolean = false;
+      
+      // Check top-level output first (expected structure)
+      if (output) {
+        if ('sqlQuery' in output && typeof output.sqlQuery === 'string') {
+          sqlQuery = output.sqlQuery;
+        }
+        if ('shouldPaste' in output && typeof output.shouldPaste === 'boolean') {
+          shouldPaste = output.shouldPaste;
+        }
+        if ('chartExecutionOverride' in output && typeof output.chartExecutionOverride === 'boolean') {
+          chartExecutionOverride = output.chartExecutionOverride;
+        }
+      }
+      
+      // Fallback to input.query if sqlQuery not found
+      if (!sqlQuery && input?.query) {
+        sqlQuery = input.query;
+      }
+      
+      // Fallback to result.query if still not found
+      if (!sqlQuery && output?.result?.query) {
+        sqlQuery = output.result.query;
+      }
+
+      // Check if we should show paste button (inline mode with shouldPaste flag)
+      const shouldShowPasteButton = Boolean(
+        shouldPaste === true && 
+        sqlQuery && 
+        onPasteToNotebook &&
+        notebookContext?.cellId !== undefined &&
+        notebookContext?.notebookCellType &&
+        notebookContext?.datasourceId
+      );
+
+
+      // Create paste handler callback
+      const handlePasteToNotebook = shouldShowPasteButton && onPasteToNotebook
+        ? () => {
+            if (sqlQuery && notebookContext?.cellId !== undefined && notebookContext?.notebookCellType && notebookContext?.datasourceId) {
+              onPasteToNotebook(
+                sqlQuery,
+                notebookContext.notebookCellType,
+                notebookContext.datasourceId,
+                notebookContext.cellId
+              );
+            }
+          }
+        : undefined;
+
       return (
         <SQLQueryVisualizer
-          query={input?.query || output?.result?.query}
+          query={sqlQuery}
           result={
             hasResults && output?.result
               ? {
@@ -525,6 +606,9 @@ export function ToolPart({
               }
               : undefined
           }
+          onPasteToNotebook={handlePasteToNotebook}
+          showPasteButton={shouldShowPasteButton}
+          chartExecutionOverride={chartExecutionOverride}
         />
       );
     }
@@ -684,8 +768,8 @@ export function ToolPart({
     return <ToolOutput output={part.output} errorText={part.errorText} />;
   };
 
-  // Hide input section for listTables (no meaningful parameters)
-  const showInput = part.input != null && part.type !== 'tool-listTables';
+  // Hide input section for listTables (no meaningful parameters) and runQuery (we show SQL in SQLQueryVisualizer)
+  const showInput = part.input != null && part.type !== 'tool-listTables' && part.type !== 'tool-runQuery';
 
   return (
     <Tool

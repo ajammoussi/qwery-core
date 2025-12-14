@@ -39,3 +39,6 @@ export * from './charts/bar-chart';
 export * from './charts/line-chart';
 export * from './charts/pie-chart';
 export * from './charts/chart-utils';
+
+// Scroll utilities
+export * from './scroll-utils';

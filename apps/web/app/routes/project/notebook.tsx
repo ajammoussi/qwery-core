@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Navigate, useNavigate, useParams } from 'react-router';
 
@@ -24,6 +24,8 @@ import { Skeleton } from '@qwery/ui/skeleton';
 import { getAllExtensionMetadata } from '@qwery/extensions-loader';
 import { useNotebookSidebar } from '~/lib/context/notebook-sidebar-context';
 import { useGetNotebookConversation } from '~/lib/queries/use-get-notebook-conversation';
+import { NOTEBOOK_CELL_TYPE, type NotebookCellType } from '@qwery/agent-factory-sdk';
+import { scrollToElementBySelector } from '@qwery/ui/ai';
 
 export default function NotebookPage() {
   const params = useParams();
@@ -187,22 +189,82 @@ export default function NotebookPage() {
       query,
       datasourceId,
       datasource,
+      conversationId: notebookConversation.data?.id, // Pass conversationId for DuckDB execution (Google Sheets)
     });
   };
 
   // Run query with agent mutation
-  const { openSidebar } = useNotebookSidebar();
+  const queryClient = useQueryClient();
+  const { 
+    openSidebar, 
+    registerSqlPasteHandler, 
+    unregisterSqlPasteHandler,
+    registerLoadingStateCallback,
+    unregisterLoadingStateCallback,
+  } = useNotebookSidebar();
 
   const runQueryWithAgentMutation = useRunQueryWithAgent(
     (result, cellId, datasourceId) => {
-      // Check if SQL was generated
-      if (result.hasSql && result.sqlQuery) {
-        // SQL generation path: create a new code cell with the SQL and execute it
+      const cell = normalizedNotebook?.cells.find((c) => c.cellId === cellId);
+      const cellType = cell?.cellType;
+      
+      console.log('[Notebook] runQueryWithAgent success callback:', {
+        cellId,
+        cellType,
+        hasSql: result.hasSql,
+        needSQL: result.needSQL,
+        shouldPaste: result.shouldPaste,
+        hasSqlQuery: !!result.sqlQuery,
+      });
+      
+      // Check if this is inline mode and needs SQL pasting
+      // shouldPaste comes from the tool result (set when promptSource === 'inline' && needSQL === true)
+      const shouldPaste = result.shouldPaste === true && result.sqlQuery;
+      
+      if (shouldPaste && result.sqlQuery) {
+        console.log('[Notebook] Pasting SQL to notebook cell:', {
+          cellId,
+          cellType,
+          sqlPreview: result.sqlQuery.substring(0, 100),
+        });
+        // Inline mode with SQL: paste SQL into notebook cell
+        if (cellType === NOTEBOOK_CELL_TYPE.QUERY) {
+          // Code cell: paste SQL directly
+          console.log('[Notebook] Pasting SQL to existing code cell:', cellId);
+          handleCellsChange(
+            normalizedNotebook!.cells.map((c) =>
+              c.cellId === cellId
+                ? { ...c, query: result.sqlQuery! }
+                : c,
+            ),
+          );
+          // Simulate click to run query
+          console.log('[Notebook] Auto-running query after paste');
+          handleRunQuery(cellId, result.sqlQuery, datasourceId);
+        } else if (cellType === NOTEBOOK_CELL_TYPE.PROMPT) {
+          // Prompt cell: create new code cell with SQL
+          const maxCellId = Math.max(...normalizedNotebook!.cells.map((c) => c.cellId), 0);
+          const newCellId = maxCellId + 1;
+          console.log('[Notebook] Creating new code cell with SQL:', newCellId);
+          const newCodeCell: NotebookCellData = {
+            cellId: newCellId,
+            cellType: NOTEBOOK_CELL_TYPE.QUERY,
+            query: result.sqlQuery,
+            datasources: [datasourceId],
+            isActive: true,
+            runMode: 'default',
+          };
+          handleCellsChange([...normalizedNotebook!.cells, newCodeCell]);
+          // Simulate click to run query on the new cell
+          console.log('[Notebook] Auto-running query on new cell');
+          handleRunQuery(newCellId, result.sqlQuery, datasourceId);
+        }
+      } else if (result.hasSql && result.sqlQuery) {
+        // SQL generation path (chat mode): execute SQL normally
+        console.log('[Notebook] Executing SQL normally (chat mode)');
         handleRunQuery(cellId, result.sqlQuery, datasourceId);
       } else {
         // Chat path: open sidebar with the conversation and send message for streaming
-        // Pass the cell's datasource and the query to send through chat interface
-        const cell = normalizedNotebook?.cells.find((c) => c.cellId === cellId);
         const query = cell?.query || '';
         
         // Open sidebar and send message through chat interface for proper streaming
@@ -237,6 +299,7 @@ export default function NotebookPage() {
     cellId: number,
     query: string,
     datasourceId: string,
+    cellType?: NotebookCellType,
   ) => {
     setLoadingCellId(cellId);
     telemetry.trackEvent(NOTEBOOK_EVENTS.NOTEBOOK_RUN_QUERY, {
@@ -287,27 +350,20 @@ export default function NotebookPage() {
       }
 
       // Open sidebar and send message through chat interface for proper streaming
+      // Pass cellType and cellId so the chat API can set notebookCellType in metadata
       openSidebar(conversationSlug, {
         datasourceId,
         messageToSend: query, // This will be sent through chat interface and stream properly
+        notebookCellType: cellType, // Pass cellType to distinguish code cell vs prompt cell
+        cellId, // Pass cellId to track which cell is loading
       });
       
-      // Keep loading state until message is sent (delay matches the send delay in notebook-sidebar-context)
-      // The chat interface will handle the loading state once streaming starts
-      setTimeout(() => {
-        setLoadingCellId(null);
-      }, 600); // Slightly longer than the 500ms delay in notebook-sidebar-context
+      // Loading state will be synced with chat interface streaming state
+      // Don't clear it here - it will be cleared when streaming completes
     } else {
-      // Fallback to old API if notebook not loaded
-      runQueryWithAgentMutation.mutate({
-        cellId,
-        query,
-        datasourceId,
-        datasourceRepository,
-        projectId: workspace.projectId || '',
-        userId: workspace.userId || '',
-        notebookId: notebook.data?.id,
-      });
+      // Notebook not loaded yet - show error and don't proceed
+      toast.error('Notebook not loaded yet, please wait');
+      setLoadingCellId(null);
     }
   };
 
@@ -480,6 +536,135 @@ export default function NotebookPage() {
 
     currentNotebookStateRef.current = null;
   }, [normalizedNotebook?.updatedAt]);
+
+  // Register SQL paste handler for chat interface
+  useEffect(() => {
+    const handleSqlPaste = (
+      sqlQuery: string,
+      notebookCellType: NotebookCellType,
+      datasourceId: string,
+      cellId: number,
+    ) => {
+      console.log('[Notebook] SQL paste handler called:', {
+        cellId,
+        notebookCellType,
+        datasourceId,
+        sqlPreview: sqlQuery.substring(0, 100),
+        sqlLength: sqlQuery.length,
+      });
+
+      if (!normalizedNotebook) {
+        console.warn('[Notebook] Cannot paste SQL - notebook not loaded');
+        return;
+      }
+
+      // Determine target cell ID (existing or new)
+      let targetCellId = cellId;
+      const isNewCell = notebookCellType === NOTEBOOK_CELL_TYPE.PROMPT;
+
+      if (isNewCell) {
+        // Prompt cell: create new code cell below
+        const maxCellId = Math.max(...normalizedNotebook.cells.map((c) => c.cellId), 0);
+        targetCellId = maxCellId + 1;
+      }
+
+      const cellSelector = `[data-cell-id="${targetCellId}"]`;
+      const scrollDelay = 100; // Small delay before scrolling
+      const pasteDelay = 600; // Delay after scroll before pasting (allows scroll animation)
+      const runDelay = 400; // Delay after paste before running
+
+      if (isNewCell) {
+        // For new cells: create first, then scroll and paste
+        console.log('[Notebook] Creating new code cell with SQL:', targetCellId);
+        const newCodeCell: NotebookCellData = {
+          cellId: targetCellId,
+          cellType: NOTEBOOK_CELL_TYPE.QUERY,
+          query: sqlQuery,
+          datasources: [datasourceId],
+          isActive: true,
+          runMode: 'default',
+        };
+        handleCellsChange([...normalizedNotebook.cells, newCodeCell]);
+
+        // Wait for cell to be rendered, then scroll
+        setTimeout(() => {
+          scrollToElementBySelector(cellSelector, {
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest',
+            offset: -20,
+            maxRetries: 5, // More retries for newly created cells
+            enableHighlight: true,
+            highlightDuration: 2000,
+          });
+
+          // Wait for scroll animation, then run query
+          setTimeout(() => {
+            console.log('[Notebook] Auto-running query on new cell');
+            handleRunQuery(targetCellId, sqlQuery, datasourceId);
+          }, pasteDelay + runDelay);
+        }, scrollDelay);
+      } else {
+        // For existing cells: scroll first, then paste
+        setTimeout(() => {
+          scrollToElementBySelector(cellSelector, {
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest',
+            offset: -20,
+            maxRetries: 3,
+            enableHighlight: true,
+            highlightDuration: 2000,
+          });
+
+          // Wait for scroll animation, then paste SQL
+          setTimeout(() => {
+            console.log('[Notebook] Pasting SQL to existing code cell:', cellId);
+            handleCellsChange(
+              normalizedNotebook.cells.map((c) =>
+                c.cellId === cellId
+                  ? { ...c, query: sqlQuery }
+                  : c,
+              ),
+            );
+
+            // Wait a bit more, then auto-run query
+            setTimeout(() => {
+              console.log('[Notebook] Auto-running query after paste');
+              handleRunQuery(cellId, sqlQuery, datasourceId);
+            }, runDelay);
+          }, pasteDelay);
+        }, scrollDelay);
+      }
+    };
+
+    registerSqlPasteHandler(handleSqlPaste);
+    return () => {
+      unregisterSqlPasteHandler();
+    };
+  }, [normalizedNotebook, handleCellsChange, handleRunQuery, registerSqlPasteHandler, unregisterSqlPasteHandler]);
+
+  // Register loading state callback to sync with chat interface
+  useEffect(() => {
+    const handleLoadingStateChange = (cellId: number | undefined, isProcessing: boolean) => {
+      if (cellId !== undefined) {
+        if (isProcessing) {
+          // Chat is processing - keep cell loading
+          setLoadingCellId(cellId);
+        } else {
+          // Chat finished processing - clear cell loading
+          if (loadingCellId === cellId) {
+            setLoadingCellId(null);
+          }
+        }
+      }
+    };
+
+    registerLoadingStateCallback(handleLoadingStateChange);
+    return () => {
+      unregisterLoadingStateCallback();
+    };
+  }, [loadingCellId, registerLoadingStateCallback, unregisterLoadingStateCallback]);
 
   // Map datasources to the format expected by NotebookUI
   const datasources = useMemo(() => {

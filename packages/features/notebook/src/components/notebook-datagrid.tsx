@@ -9,7 +9,7 @@ import type {
   DatasourceResultSet,
   DatasourceRow,
 } from '@qwery/domain/entities';
-import { ScrollArea } from '@qwery/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@qwery/ui/scroll-area';
 import {
   Table,
   TableBody,
@@ -187,6 +187,8 @@ export function NotebookDataGrid({ result, className }: NotebookDataGridProps) {
             </TableBody>
           </Table>
         </div>
+        <ScrollBar orientation="vertical" className="bg-border/40 hover:bg-border/60" />
+        <ScrollBar orientation="horizontal" className="bg-border/40 hover:bg-border/60" />
       </ScrollArea>
     </div>
   );

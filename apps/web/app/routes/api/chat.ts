@@ -3,6 +3,11 @@ import {
   type UIMessage,
   FactoryAgent,
   validateUIMessages,
+  detectIntent,
+  PROMPT_SOURCE,
+  NOTEBOOK_CELL_TYPE,
+  type PromptSource,
+  type NotebookCellType,
 } from '@qwery/agent-factory-sdk';
 import { generateConversationTitle } from '@qwery/agent-factory-sdk';
 import { MessageRole } from '@qwery/domain/entities';
@@ -175,21 +180,67 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const agent = await getOrCreateAgent(conversationSlug, model);
 
+    // Get the last user message for intent detection
+    const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
+    const lastUserMessageText = lastUserMessage?.parts
+      ?.filter((part) => part.type === 'text')
+      .map((part) => (part as { text: string }).text)
+      .join(' ')
+      .trim() || '';
+
+    // Always run intent detection for both inline and chat modes
+    let needSQL = false;
+    if (lastUserMessageText) {
+      try {
+        console.log('[Chat API] Running intent detection for:', lastUserMessageText.substring(0, 100));
+        const intentResult = await detectIntent(lastUserMessageText);
+        needSQL = (intentResult as { needsSQL?: boolean }).needsSQL ?? false;
+        console.log('[Chat API] Intent detection result:', {
+          intent: (intentResult as { intent?: string }).intent,
+          needSQL,
+          needsChart: (intentResult as { needsChart?: boolean }).needsChart,
+        });
+      } catch (error) {
+        console.warn('[Chat API] Intent detection failed:', error);
+        // Default to false if detection fails
+        needSQL = false;
+      }
+    }
+
     // Process messages to extract suggestion guidance and apply it internally
-    // Also add datasources to the last user message metadata
+    // Also add datasources, promptSource, and needSQL to the last user message metadata
     const processedMessages = messages.map((message, index) => {
-      // Add datasources to metadata for the last user message
+      // Add metadata for the last user message
       const isLastUserMessage = message.role === 'user' && 
-        index === messages.length - 1 &&
-        datasources && 
-        datasources.length > 0;
+        index === messages.length - 1;
       
       if (isLastUserMessage) {
+        // Detect if message is coming from notebook (inline mode)
+        // Check if metadata has promptSource: 'inline' or notebookCellType
+        const messageMetadata = (message.metadata || {}) as Record<string, unknown>;
+        const isNotebookSource = messageMetadata.promptSource === PROMPT_SOURCE.INLINE || 
+                                  messageMetadata.notebookCellType !== undefined;
+        const promptSource: PromptSource = isNotebookSource ? PROMPT_SOURCE.INLINE : PROMPT_SOURCE.CHAT;
+        const notebookCellType = messageMetadata.notebookCellType as NotebookCellType | undefined;
+        
+        console.log('[Chat API] Detected prompt source:', {
+          promptSource,
+          notebookCellType,
+          isNotebookSource,
+        });
+        
+        // Build metadata - preserve notebookCellType if present, remove conflicting 'source' field
+        const cleanMetadata: Record<string, unknown> = { ...messageMetadata };
+        delete cleanMetadata.source; // Remove conflicting source field
+        
         message = {
           ...message,
           metadata: {
-            ...(message.metadata || {}),
-            datasources,
+            ...cleanMetadata,
+            promptSource,
+            needSQL,
+            ...(notebookCellType ? { notebookCellType } : {}),
+            ...(datasources && datasources.length > 0 ? { datasources } : {}),
           },
         };
       }

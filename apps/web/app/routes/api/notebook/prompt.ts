@@ -3,6 +3,10 @@ import {
   type UIMessage,
   FactoryAgent,
   validateUIMessages,
+  detectIntent,
+  PROMPT_SOURCE,
+  NOTEBOOK_CELL_TYPE,
+  type NotebookCellType,
 } from '@qwery/agent-factory-sdk';
 import { MessageRole } from '@qwery/domain/entities';
 import { createRepositories } from '~/lib/repositories/repositories-factory';
@@ -94,6 +98,7 @@ async function getOrCreateConversation(
       createdBy: userId,
       updatedBy: userId,
       seedMessage: '',
+      isPublic: false,
     });
   } catch (error) {
     // If creation fails (e.g., due to race condition), try to find it again
@@ -162,16 +167,18 @@ async function getOrCreateAgent(
 
 async function extractSqlFromAgentResponse(
   response: Response,
-): Promise<string | null> {
+): Promise<{ sqlQuery: string | null; shouldPaste: boolean }> {
   if (!response.body) {
-    return null;
+    return { sqlQuery: null, shouldPaste: false };
   }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   let sqlQuery: string | null = null;
-  let fullText = '';
+  let shouldPaste = false;
+
+  console.log('[extractSqlFromAgentResponse] Starting to extract SQL from response');
 
   try {
     while (true) {
@@ -182,7 +189,6 @@ async function extractSqlFromAgentResponse(
 
       const chunk = decoder.decode(value, { stream: true });
       buffer += chunk;
-      fullText += chunk;
 
       // Parse SSE format
       const lines = buffer.split('\n');
@@ -203,79 +209,45 @@ async function extractSqlFromAgentResponse(
           try {
             const parsed = JSON.parse(data);
 
-            // Look for tool calls with SQL queries
-            // Format: { type: 'tool-call', toolName: 'runQuery', args: { query: '...' } }
-            if (parsed.type === 'tool-call' && parsed.toolName === 'runQuery') {
-              if (parsed.args?.query) {
-                sqlQuery = parsed.args.query;
-              }
-            }
-
-            // Check for tool parts in message updates
-            // Format: { type: 'message-part', part: { type: 'tool-runQuery', input: { query: '...' } } }
-            if (parsed.type === 'message-part' && parsed.part) {
+            // Simplified: Only look for tool-runQuery result with sqlQuery and shouldPaste
+            // The tool returns { result: null, shouldPaste: true, sqlQuery: query } when inline mode
+            if (parsed.type === 'message-part' && parsed.part?.type === 'tool-runQuery') {
               const part = parsed.part;
-              if (
-                (part.type === 'tool-runQuery' || part.type === 'tool-call') &&
-                part.input?.query
-              ) {
-                sqlQuery = part.input.query;
+              if (part.result) {
+                // Get SQL from tool result (either sqlQuery field or from input.query)
+                if (part.result.sqlQuery) {
+                  sqlQuery = part.result.sqlQuery;
+                  console.log('[extractSqlFromAgentResponse] Found SQL in tool result:', sqlQuery?.substring(0, 100));
+                } else if (part.input?.query) {
+                  sqlQuery = part.input.query;
+                  console.log('[extractSqlFromAgentResponse] Found SQL in tool input:', sqlQuery?.substring(0, 100));
+                }
+
+                // Get shouldPaste flag from tool result
+                if (part.result.shouldPaste) {
+                  shouldPaste = part.result.shouldPaste;
+                  console.log('[extractSqlFromAgentResponse] Found shouldPaste flag:', shouldPaste);
+                }
               }
             }
-
-            // Also check for tool input in different formats
-            if (parsed.type === 'tool-call' && parsed.toolName === 'runQuery') {
-              if (parsed.input?.query) {
-                sqlQuery = parsed.input.query;
-              }
-            }
-
-            // Check for tool parts directly
-            if (parsed.type === 'tool-runQuery' && parsed.input?.query) {
-              sqlQuery = parsed.input.query;
-            }
-
-            // Check for tool results that might contain SQL
-            if (
-              parsed.type === 'tool-result' &&
-              parsed.toolName === 'runQuery' &&
-              parsed.result?.sqlQuery
-            ) {
-              sqlQuery = parsed.result.sqlQuery;
-            }
-
-            // Check message parts for tool calls
-            if (parsed.type === 'text-delta' || parsed.type === 'text') {
-              // Look for SQL in text responses as fallback
-              const text = parsed.delta || parsed.text || '';
-              const sqlMatch = text.match(
-                /(?:SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\s+[\s\S]*?(?=\n\n|\n$|$)/i,
-              );
-              if (sqlMatch && !sqlQuery) {
-                sqlQuery = sqlMatch[0].trim();
-              }
-            }
-          } catch {
+          } catch (error) {
             // Ignore parse errors
+            console.warn('[extractSqlFromAgentResponse] Parse error:', error);
           }
         }
-      }
-    }
-
-    // Fallback: Try to extract SQL from the full text if we didn't find it in tool calls
-    if (!sqlQuery && fullText) {
-      const sqlMatch = fullText.match(
-        /(?:SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\s+[\s\S]*?(?=\n\n|\n$|$)/i,
-      );
-      if (sqlMatch) {
-        sqlQuery = sqlMatch[0].trim();
       }
     }
   } finally {
     reader.releaseLock();
   }
 
-  return sqlQuery;
+  console.log('[extractSqlFromAgentResponse] Final result:', {
+    hasSql: !!sqlQuery,
+    shouldPaste,
+    sqlPreview: sqlQuery?.substring(0, 100),
+  });
+
+  return { sqlQuery, shouldPaste };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -291,6 +263,7 @@ export async function action({ request }: ActionFunctionArgs) {
     projectId,
     userId,
     model = 'azure/gpt-5-mini',
+    notebookCellType,
   } = body;
 
   if (!query || !notebookId || !datasourceId || !projectId || !userId) {
@@ -316,10 +289,34 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    // Always run intent detection for both inline and chat modes
+    let needSQL = false;
+    if (query) {
+      try {
+        console.log('[Notebook Prompt API] Running intent detection for:', query.substring(0, 100));
+        const intentResult = await detectIntent(query);
+        needSQL = (intentResult as { needsSQL?: boolean }).needsSQL ?? false;
+        console.log('[Notebook Prompt API] Intent detection result:', {
+          intent: (intentResult as { intent?: string }).intent,
+          needSQL,
+          needsChart: (intentResult as { needsChart?: boolean }).needsChart,
+        });
+      } catch (error) {
+        console.warn('[Notebook Prompt API] Intent detection failed:', error);
+        // Default to false if detection fails
+        needSQL = false;
+      }
+    }
+
     // Get or create agent
     const agent = await getOrCreateAgent(conversationSlug, model);
 
+    // Get cellType from request body if provided (for distinguishing code cell vs prompt cell)
+    // Default to 'prompt' for backward compatibility (fallback API path)
+    const cellType: NotebookCellType = (notebookCellType as NotebookCellType | undefined) || NOTEBOOK_CELL_TYPE.PROMPT;
+
     // Create user message with datasource metadata from notebook cell
+    // All notebook calls (Ctrl+K popup or prompt cells) are inline mode
     const messages: UIMessage[] = [
       {
         id: uuidv4(),
@@ -327,10 +324,19 @@ export async function action({ request }: ActionFunctionArgs) {
         parts: [{ type: 'text', text: query }],
         metadata: {
           datasources: [datasourceId],
-          source: 'notebook-cell',
+          promptSource: PROMPT_SOURCE.INLINE,
+          notebookCellType: cellType,
+          needSQL,
         },
       },
     ];
+    
+    console.log('[Notebook Prompt API] Created message with metadata:', {
+      promptSource: PROMPT_SOURCE.INLINE,
+      notebookCellType: cellType,
+      needSQL,
+      queryPreview: query.substring(0, 100),
+    });
 
     // Get agent response
     const streamResponse = await agent.respond({
@@ -338,8 +344,16 @@ export async function action({ request }: ActionFunctionArgs) {
     });
 
     // Extract SQL from the response and detect if SQL was generated
-    const sqlQuery = await extractSqlFromAgentResponse(streamResponse);
+    const { sqlQuery, shouldPaste } = await extractSqlFromAgentResponse(streamResponse);
     const hasSql = !!sqlQuery;
+
+    console.log('[Notebook Prompt API] Response:', {
+      hasSql,
+      shouldPaste,
+      needSQL,
+      conversationSlug,
+      sqlPreview: sqlQuery?.substring(0, 100),
+    });
 
     // Return response with both SQL (if available) and conversation info
     return new Response(
@@ -347,6 +361,8 @@ export async function action({ request }: ActionFunctionArgs) {
         sqlQuery: sqlQuery || null,
         hasSql,
         conversationSlug,
+        needSQL,
+        shouldPaste,
         // If no SQL, the client should open the chat interface with this conversation
       }),
       {

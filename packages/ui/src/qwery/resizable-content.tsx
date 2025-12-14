@@ -86,11 +86,11 @@ export const ResizableContent = forwardRef<ResizableContentRef, ResizableContent
         <>
           {isOpen && <ResizableHandle withHandle />}
           <ResizablePanel
+            key={isOpen ? 'sidebar-open' : 'sidebar-closed'}
             defaultSize={sidebarSize}
-            minSize={isOpen ? 10 : 0}
+            minSize={isOpen ? 25 : 0}
             maxSize={isOpen ? 80 : 0}
             className={isOpen ? "flex h-full min-h-0 min-w-0 flex-col overflow-hidden overflow-x-hidden" : "hidden"}
-            style={{ minWidth: '400px' }}
             >
             <div className="h-full min-h-0 w-full max-w-full min-w-0 overflow-hidden overflow-x-hidden">
               {AgentSidebar}

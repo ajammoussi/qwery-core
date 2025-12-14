@@ -124,10 +124,18 @@ Available tools:
    - Use getSchema first to discover available tables and get exact table names. Table names are case-sensitive and must match exactly.
    - **Federated Queries**: DuckDB enables querying across multiple datasources in a single query
    - **Business Context Integration**: Business context is automatically loaded and returned to help understand query results
-   - Returns: 
-     * result: { query: string, executed: true, columns: string[], rows: Array<Record<string, unknown>> }
-   - IMPORTANT: The result has a nested structure with 'result.columns' and 'result.rows'
-   - View usage is automatically tracked when registered views are queried
+   - **IMPORTANT - Notebook Integration & SQL Paste Functionality**:
+     * When a prompt originates from a notebook cell (inline mode) and the user's intent requires SQL generation (needSQL=true), the tool behaves differently:
+     * **EXCEPTION FOR CHART REQUESTS**: If the user requests a chart/visualization (needChart=true) in inline mode, the query WILL be executed to generate the chart, but the SQL will still be available for pasting to the notebook. The tool will return: { result: { columns, rows }, shouldPaste: true, sqlQuery: query, chartExecutionOverride: true }
+     * **NORMAL INLINE MODE**: For non-chart requests, instead of executing the query, it returns: { result: null, shouldPaste: true, sqlQuery: query }
+     * This allows the SQL to be automatically pasted into the notebook cell for the user to review, modify, or execute manually
+     * The SQL will be pasted into the originating cell (if code cell) or a new code cell below (if prompt cell)
+     * When chartExecutionOverride is true, a visual indicator will show "Chart Mode" in the tool UI
+     * When this happens, you should acknowledge that SQL has been generated and is ready to paste (rendered inside the tool UI component), but don't claim to have executed it (unless chartExecutionOverride is true)
+   - **Normal Execution Mode** (chat mode or when needSQL=false):
+     * Returns: { result: { query: string, executed: true, columns: string[], rows: Array<Record<string, unknown>> } }
+     * The result has a nested structure with 'result.columns' and 'result.rows'
+     * View usage is automatically tracked when registered views are queried
    - **CRITICAL**: After calling runQuery, DO NOT repeat the query results in your response - they're already visible in the tool output. Only provide insights, analysis, or answer the user's question based on the data.
 
 6. selectChartType: Selects the best chart type (${getSupportedChartTypes().join(', ')}) for visualizing query results. Uses business context to understand data semantics for better chart selection.
@@ -394,8 +402,6 @@ Workflow for Chart Generation:
 5. Create a SQL query using the selected view name
 6. Use runQuery to execute the SQL query
 7. If runQuery reports an error, fix the SQL and try again
-8. runQuery returns: { result: { columns: string[], rows: Array<Record<string, unknown>> } }
-7. Extract columns and rows from the runQuery result: result.columns (string[]) and result.rows (Array<Record<string, unknown>>)
 8. FIRST call selectChartType with: { queryResults: { columns: string[], rows: Array<Record<string, unknown>> }, sqlQuery: string, userInput: string }
 9. selectChartType returns: { chartType: ${getChartTypesUnionString()}, reasoning: string }
 10. THEN call generateChart with: { chartType: ${getChartTypesUnionString()}, queryResults: { columns: string[], rows: Array<Record<string, unknown>> }, sqlQuery: string, userInput: string }

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import * as React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../../shadcn/button';
+import { ScrollArea, ScrollBar } from '../../shadcn/scroll-area';
 import { cn } from '../../lib/utils';
 
 export interface DataGridColumn {
@@ -214,70 +215,74 @@ export function DataGrid({
   }
 
   return (
-    <div className={cn('space-y-3', className)}>
+    <div className={cn('flex h-full flex-col space-y-3', className)}>
       {/* Data Grid */}
-      <div className="bg-muted/50 max-w-full min-w-0 overflow-hidden rounded-md">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-muted/30 border-b">
-                {normalizedColumns.map((column) => (
-                  <th
-                    key={column.name}
-                    className="text-muted-foreground px-4 py-2 text-left text-xs font-medium whitespace-nowrap"
-                  >
-                    {column.displayName}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {currentRows.map((row, rowIndex) => (
-                <tr
-                  key={startIndex + rowIndex}
-                  className="hover:bg-muted/20 border-b transition-colors"
-                >
-                  {normalizedColumns.map((column) => {
-                    const value = row[column.name];
-                    const formattedValue = formatCellValue(value, column);
-                    const isNull = value === null || value === undefined;
-                    const isDateColumn = isDateTimeColumn(column);
-
-                    return (
-                      <td
-                        key={column.name}
-                        className={cn(
-                          'px-4 py-2 text-sm',
-                          isDateColumn
-                            ? 'whitespace-nowrap'
-                            : 'whitespace-normal',
-                          isNull && 'text-muted-foreground italic',
-                        )}
-                        title={isNull ? 'null' : formattedValue}
-                      >
-                        {isNull ? (
-                          <span className="text-muted-foreground italic">
-                            null
-                          </span>
-                        ) : (
-                          <div
-                            className={cn(
-                              isDateColumn
-                                ? 'whitespace-nowrap'
-                                : 'break-words',
-                            )}
-                          >
-                            {formattedValue}
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
+      <div className="bg-muted/50 max-w-full min-w-0 flex-1 overflow-hidden rounded-md">
+        <ScrollArea className="h-full">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-muted/30 border-b">
+                  {normalizedColumns.map((column) => (
+                    <th
+                      key={column.name}
+                      className="text-muted-foreground px-4 py-2 text-left text-xs font-medium whitespace-nowrap"
+                    >
+                      {column.displayName}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {currentRows.map((row, rowIndex) => (
+                  <tr
+                    key={startIndex + rowIndex}
+                    className="hover:bg-muted/20 border-b transition-colors"
+                  >
+                    {normalizedColumns.map((column) => {
+                      const value = row[column.name];
+                      const formattedValue = formatCellValue(value, column);
+                      const isNull = value === null || value === undefined;
+                      const isDateColumn = isDateTimeColumn(column);
+
+                      return (
+                        <td
+                          key={column.name}
+                          className={cn(
+                            'px-4 py-2 text-sm',
+                            isDateColumn
+                              ? 'whitespace-nowrap'
+                              : 'whitespace-normal',
+                            isNull && 'text-muted-foreground italic',
+                          )}
+                          title={isNull ? 'null' : formattedValue}
+                        >
+                          {isNull ? (
+                            <span className="text-muted-foreground italic">
+                              null
+                            </span>
+                          ) : (
+                            <div
+                              className={cn(
+                                isDateColumn
+                                  ? 'whitespace-nowrap'
+                                  : 'break-words',
+                              )}
+                            >
+                              {formattedValue}
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <ScrollBar orientation="vertical" className="bg-border/40 hover:bg-border/60" />
+          <ScrollBar orientation="horizontal" className="bg-border/40 hover:bg-border/60" />
+        </ScrollArea>
       </div>
 
       {/* Pagination Controls */}

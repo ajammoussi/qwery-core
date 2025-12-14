@@ -13,6 +13,7 @@ type RunQueryPayload = {
   query: string;
   datasourceId: string;
   datasource: Datasource;
+  conversationId?: string; // Optional: for DuckDB execution (Google Sheets)
 };
 
 export function useRunQuery(
@@ -23,7 +24,7 @@ export function useRunQuery(
     mutationFn: async (
       payload: RunQueryPayload,
     ): Promise<DatasourceResultSet> => {
-      const { query, datasource } = payload;
+      let { query, datasource, conversationId } = payload;
 
       if (!query.trim()) {
         throw new Error('Query cannot be empty');
@@ -33,6 +34,52 @@ export function useRunQuery(
         throw new Error(
           `Datasource ${datasource.id} is missing datasource_provider`,
         );
+      }
+
+      // For Google Sheets, use DuckDB (same as agent's runQuery tool) if conversationId is provided
+      // This allows queries to use the same attached database references as the agent
+      if (datasource.datasource_provider === 'gsheet-csv' && conversationId) {
+        const response = await fetch('/api/notebook/query', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversationId,
+            query,
+            datasourceId: datasource.id,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response
+            .json()
+            .catch(() => ({ error: 'Failed to execute query' }));
+          throw new Error(error.error || 'Failed to execute query');
+        }
+
+        const apiResult = await response.json();
+        if (!apiResult.success || !apiResult.data) {
+          throw new Error(
+            apiResult.error || 'Query execution failed on server',
+          );
+        }
+
+        const result = apiResult.data;
+        // Ensure rows and headers are arrays
+        const rows = Array.isArray(result.rows) ? result.rows : [];
+        const headers = Array.isArray(result.headers) ? result.headers : [];
+        
+        return {
+          rows,
+          headers,
+          stat: result.stat ?? {
+            rowsAffected: 0,
+            rowsRead: rows.length,
+            rowsWritten: 0,
+            queryDurationMs: null,
+          },
+        };
       }
 
       // Get driver metadata to check runtime

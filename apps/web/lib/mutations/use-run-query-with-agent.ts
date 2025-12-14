@@ -17,6 +17,8 @@ type NotebookPromptResponse = {
   sqlQuery: string | null;
   hasSql: boolean;
   conversationSlug: string;
+  needSQL?: boolean;
+  shouldPaste?: boolean;
 };
 
 export function useRunQueryWithAgent(

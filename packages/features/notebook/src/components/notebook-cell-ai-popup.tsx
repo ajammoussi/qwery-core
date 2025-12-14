@@ -26,7 +26,8 @@ interface NotebookCellAiPopupProps {
   onSubmit: (e: React.FormEvent) => void;
   query: string;
   selectedDatasource: string | null;
-  onRunQueryWithAgent?: (query: string, datasourceId: string) => void;
+  onRunQueryWithAgent?: (query: string, datasourceId: string, cellType?: 'query' | 'prompt') => void;
+  cellType?: 'query' | 'prompt';
   isLoading?: boolean;
   enableShortcut?: boolean;
 }
@@ -45,6 +46,7 @@ export function NotebookCellAiPopup({
   onCloseAiPopup,
   selectedDatasource,
   onRunQueryWithAgent,
+  cellType,
   isLoading = false,
   enableShortcut = true,
 }: NotebookCellAiPopupProps) {
@@ -262,7 +264,7 @@ export function NotebookCellAiPopup({
           }
 
           setShowDatasourceError(false);
-          onRunQueryWithAgent(aiQuestion, selectedDatasource);
+          onRunQueryWithAgent(aiQuestion, selectedDatasource, cellType);
         }}
         className="relative flex w-full flex-col px-4 py-3"
       >

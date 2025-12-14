@@ -39,7 +39,7 @@ import {
   type NotebookCellData,
   type NotebookDatasourceInfo,
 } from './notebook-cell';
-import { NotebookDataGrid } from './notebook-datagrid';
+import { DataGrid } from '@qwery/ui/ai';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { sql } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -165,10 +165,10 @@ const SortableCell = React.memo(function SortableCellComponent({
   );
 
   const handleRunQueryWithAgent = useCallback(
-    (query: string, datasourceId: string) => {
-      onRunQueryWithAgent?.(cell.cellId, query, datasourceId);
+    (query: string, datasourceId: string, cellType?: 'query' | 'prompt') => {
+      onRunQueryWithAgent?.(cell.cellId, query, datasourceId, cellType || cell.cellType);
     },
-    [cell.cellId, onRunQueryWithAgent],
+    [cell.cellId, cell.cellType, onRunQueryWithAgent],
   );
 
   const handleMoveUp = useCallback(() => {
@@ -372,8 +372,12 @@ function FullViewDialog({
           {/* Results Grid */}
           {isQueryCell && result && (
             <div className="overflow-hidden rounded-md border">
-              <div className="h-[60vh] min-h-[400px]">
-                <NotebookDataGrid result={result} />
+              <div className="h-[60vh] min-h-[400px] p-4">
+                <DataGrid
+                  columns={result.headers.map((header) => header.name)}
+                  rows={result.rows}
+                  pageSize={50}
+                />
               </div>
             </div>
           )}
@@ -675,10 +679,12 @@ export function NotebookUI({
   );
 
   const handleRunQueryWithAgent = useCallback(
-    (cellId: number, query: string, datasourceId: string) => {
-      onRunQueryWithAgent?.(cellId, query, datasourceId);
+    (cellId: number, query: string, datasourceId: string, cellType?: 'query' | 'prompt') => {
+      // Get cellType from cell if not provided
+      const actualCellType = cellType || cells.find((c) => c.cellId === cellId)?.cellType;
+      onRunQueryWithAgent?.(cellId, query, datasourceId, actualCellType);
     },
-    [onRunQueryWithAgent],
+    [cells, onRunQueryWithAgent],
   );
 
   const handleMoveCellUp = useCallback(

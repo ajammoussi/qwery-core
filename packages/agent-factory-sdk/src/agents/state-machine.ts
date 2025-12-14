@@ -1,4 +1,5 @@
 import { setup, assign } from 'xstate';
+import type { UIMessage } from 'ai';
 import { AgentContext, AgentEvents } from './types';
 import {
   detectIntentActor,
@@ -11,6 +12,7 @@ import {
 import { Repositories } from '@qwery/domain/repositories';
 import { createCachedActor } from './utils/actor-cache';
 import { AbstractQueryEngine } from '@qwery/domain/ports';
+import type { PromptSource } from '../domain';
 
 export const createStateMachine = (
   conversationId: string,
@@ -80,7 +82,9 @@ export const createStateMachine = (
         intent: 'other',
         complexity: 'simple',
         needsChart: false,
+        needsSQL: false,
       },
+      promptSource: undefined,
       error: undefined,
       retryCount: 0,
       lastError: undefined,
@@ -119,6 +123,12 @@ export const createStateMachine = (
                 event.messages[event.messages.length - 1]?.parts[0]?.text ?? '',
               streamResult: () => undefined, // Clear previous result when starting new request
               error: () => undefined,
+              promptSource: ({ event }) => {
+                const lastUserMessage = event.messages.filter((m: UIMessage) => m.role === 'user').pop();
+                const source = (lastUserMessage?.metadata as { promptSource?: PromptSource })?.promptSource;
+                console.log('[StateMachine] Extracted promptSource from metadata:', source);
+                return source;
+              },
             }),
           },
           STOP: 'stopped',
@@ -135,6 +145,10 @@ export const createStateMachine = (
               inputMessage: ({ event }) =>
                 event.messages[event.messages.length - 1]?.parts[0]?.text ?? '',
               streamResult: undefined,
+              promptSource: ({ event }) => {
+                const lastUserMessage = event.messages.filter((m: UIMessage) => m.role === 'user').pop();
+                return (lastUserMessage?.metadata as { promptSource?: PromptSource })?.promptSource;
+              },
             }),
           },
           STOP: 'idle',
@@ -156,7 +170,15 @@ export const createStateMachine = (
                       guard: 'isOther',
                       target: '#factory-agent.running.summarizeIntent',
                       actions: assign({
-                        intent: ({ event }) => event.output,
+                        intent: ({ event }) => {
+                          const intent = event.output;
+                          console.log('[StateMachine] Set intent from detection:', {
+                            intent: intent.intent,
+                            needsChart: intent.needsChart,
+                            needsSQL: intent.needsSQL,
+                          });
+                          return intent;
+                        },
                         retryCount: () => 0, // Reset on success
                         model: ({ context }) => context.model,
                       }),
@@ -165,7 +187,15 @@ export const createStateMachine = (
                       guard: 'isGreeting',
                       target: '#factory-agent.running.greeting',
                       actions: assign({
-                        intent: ({ event }) => event.output,
+                        intent: ({ event }) => {
+                          const intent = event.output;
+                          console.log('[StateMachine] Set intent from detection (greeting):', {
+                            intent: intent.intent,
+                            needsChart: intent.needsChart,
+                            needsSQL: intent.needsSQL,
+                          });
+                          return intent;
+                        },
                         retryCount: () => 0,
                         model: ({ context }) => context.model,
                       }),
@@ -174,7 +204,15 @@ export const createStateMachine = (
                       guard: 'isReadData',
                       target: '#factory-agent.running.readData',
                       actions: assign({
-                        intent: ({ event }) => event.output,
+                        intent: ({ event }) => {
+                          const intent = event.output;
+                          console.log('[StateMachine] Set intent from detection (readData):', {
+                            intent: intent.intent,
+                            needsChart: intent.needsChart,
+                            needsSQL: intent.needsSQL,
+                          });
+                          return intent;
+                        },
                         retryCount: () => 0,
                         model: ({ context }) => context.model,
                       }),
@@ -183,7 +221,15 @@ export const createStateMachine = (
                       guard: 'isSystem',
                       target: '#factory-agent.running.systemInfo',
                       actions: assign({
-                        intent: ({ event }) => event.output,
+                        intent: ({ event }) => {
+                          const intent = event.output;
+                          console.log('[StateMachine] Set intent from detection (system):', {
+                            intent: intent.intent,
+                            needsChart: intent.needsChart,
+                            needsSQL: intent.needsSQL,
+                          });
+                          return intent;
+                        },
                         retryCount: () => 0,
                         model: ({ context }) => context.model,
                       }),
@@ -314,12 +360,18 @@ export const createStateMachine = (
                       src: 'readDataAgentActor',
                       id: 'READ_DATA',
                       input: ({ context }: { context: AgentContext }) => {
+                        console.log('[StateMachine] Passing to readDataAgentActor:', {
+                          promptSource: context.promptSource,
+                          intentNeedsSQL: context.intent.needsSQL,
+                        });
                         return {
                           conversationId: context.conversationSlug, // Use slug for conversation lookups
                           previousMessages: context.previousMessages,
                           model: context.model,
                           repositories: repositories,
                           queryEngine: queryEngine,
+                          promptSource: context.promptSource,
+                          intent: context.intent,
                         };
                       },
                       onDone: {
