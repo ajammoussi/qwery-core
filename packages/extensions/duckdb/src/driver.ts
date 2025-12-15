@@ -69,6 +69,55 @@ export function makeDuckDBDriver(context: DriverContext): IDataSourceDriver {
         is_nullable: string;
       }>;
 
+      const pkResult = await connection.run(`
+        SELECT
+          kcu.table_schema,
+          kcu.table_name,
+          kcu.column_name
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu
+          ON tc.constraint_name = kcu.constraint_name
+         AND tc.constraint_schema = kcu.constraint_schema
+        WHERE tc.constraint_type = 'PRIMARY KEY'
+          AND kcu.table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_internal');
+      `);
+
+      const primaryKeyRows = await pkResult.getRowObjectsJS() as Array<{
+        table_schema: string;
+        table_name: string;
+        column_name: string;
+      }>;
+
+      const fkResult = await connection.run(`
+        SELECT
+          tc.constraint_name,
+          kcu.table_schema AS source_schema,
+          kcu.table_name AS source_table_name,
+          kcu.column_name AS source_column_name,
+          ccu.table_schema AS target_table_schema,
+          ccu.table_name AS target_table_name,
+          ccu.column_name AS target_column_name
+        FROM information_schema.table_constraints AS tc
+        JOIN information_schema.key_column_usage AS kcu
+          ON tc.constraint_name = kcu.constraint_name
+         AND tc.constraint_schema = kcu.constraint_schema
+        JOIN information_schema.constraint_column_usage AS ccu
+          ON ccu.constraint_name = tc.constraint_name
+         AND ccu.constraint_schema = tc.constraint_schema
+        WHERE tc.constraint_type = 'FOREIGN KEY'
+          AND kcu.table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_internal');
+      `);
+
+      const foreignKeyRows = await fkResult.getRowObjectsJS() as Array<{
+        constraint_name: string;
+        source_schema: string;
+        source_table_name: string;
+        source_column_name: string;
+        target_table_schema: string;
+        target_table_name: string;
+        target_column_name: string;
+      }>;
+
       let tableId = 1;
       const tableMap = new Map<
         string,
@@ -131,20 +180,53 @@ export function makeDuckDBDriver(context: DriverContext): IDataSourceDriver {
         );
       }
 
-      const tables = Array.from(tableMap.values()).map((table) => ({
-        id: table.id,
-        schema: table.schema,
-        name: table.name,
-        rls_enabled: false,
-        rls_forced: false,
-        bytes: 0,
-        size: '0',
-        live_rows_estimate: 0,
-        dead_rows_estimate: 0,
-        comment: null,
-        primary_keys: [],
-        relationships: [],
-      }));
+      let relationshipId = 1;
+
+      const tables = Array.from(tableMap.values()).map((table) => {
+        const primary_keys = primaryKeyRows
+          .filter(
+            (pk) =>
+              pk.table_schema === table.schema && pk.table_name === table.name,
+          )
+          .map((pk) => ({
+            table_id: table.id,
+            name: pk.column_name,
+            schema: table.schema,
+            table_name: table.name,
+          }));
+
+        const relationships = foreignKeyRows
+          .filter(
+            (rel) =>
+              rel.source_schema === table.schema &&
+              rel.source_table_name === table.name,
+          )
+          .map((rel) => ({
+            id: relationshipId++,
+            constraint_name: rel.constraint_name,
+            source_schema: rel.source_schema,
+            source_table_name: rel.source_table_name,
+            source_column_name: rel.source_column_name,
+            target_table_schema: rel.target_table_schema,
+            target_table_name: rel.target_table_name,
+            target_column_name: rel.target_column_name,
+          }));
+
+        return {
+          id: table.id,
+          schema: table.schema,
+          name: table.name,
+          rls_enabled: false,
+          rls_forced: false,
+          bytes: 0,
+          size: '0',
+          live_rows_estimate: 0,
+          dead_rows_estimate: 0,
+          comment: null,
+          primary_keys,
+          relationships,
+        };
+      });
 
       const columns = Array.from(tableMap.values()).flatMap((table) =>
         table.columns.map((column) => ({
