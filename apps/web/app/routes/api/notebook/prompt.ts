@@ -302,24 +302,22 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Always run intent detection for both inline and chat modes
     let needSQL = false;
-    if (query) {
-      try {
-        console.log(
-          '[Notebook Prompt API] Running intent detection for:',
-          query.substring(0, 100),
-        );
-        const intentResult = await detectIntent(query);
-        needSQL = (intentResult as { needsSQL?: boolean }).needsSQL ?? false;
-        console.log('[Notebook Prompt API] Intent detection result:', {
-          intent: (intentResult as { intent?: string }).intent,
-          needSQL,
-          needsChart: (intentResult as { needsChart?: boolean }).needsChart,
-        });
-      } catch (error) {
-        console.warn('[Notebook Prompt API] Intent detection failed:', error);
-        // Default to false if detection fails
-        needSQL = false;
-      }
+    try {
+      console.log(
+        '[Notebook Prompt API] Running intent detection for:',
+        query.substring(0, 100),
+      );
+      const intentResult = await detectIntent(query);
+      needSQL = (intentResult as { needsSQL?: boolean }).needsSQL ?? false;
+      console.log('[Notebook Prompt API] Intent detection result:', {
+        intent: (intentResult as { intent?: string }).intent,
+        needSQL,
+        needsChart: (intentResult as { needsChart?: boolean }).needsChart,
+      });
+    } catch (error) {
+      console.warn('[Notebook Prompt API] Intent detection failed:', error);
+      // Default to false if detection fails
+      needSQL = false;
     }
 
     // Get or create agent

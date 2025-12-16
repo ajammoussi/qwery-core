@@ -53,7 +53,8 @@
     },
     "typecheck": {
       "dependsOn": [
-        "^topo"
+        "^topo",
+        "^build"
       ],
       "outputs": [
         "node_modules/.cache/tsbuildinfo.json"

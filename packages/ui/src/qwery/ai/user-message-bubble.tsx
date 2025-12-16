@@ -92,13 +92,13 @@ export function parseMessageWithContext(messageText: string): {
       }
     } catch {
       // If JSON parsing fails, try to extract fields using a more robust regex
-      // Match quoted strings that may contain escaped quotes and various markers
-      // Use a more permissive pattern that captures until the closing quote
-      // Note: Using [\s\S] instead of /s flag for ES2017 compatibility
+      // Use a safer regex pattern that avoids exponential backtracking
+      // Match quoted strings by finding the key, then capturing until the closing quote
+      // This pattern uses a non-capturing group with a limited repetition to prevent backtracking
       const lastUserQuestionRegex =
-        /"lastUserQuestion"\s*:\s*"((?:[^"\\]|\\.|__QWERY[^"]*)*)"/;
+        /"lastUserQuestion"\s*:\s*"((?:[^"\\]|\\(?:[\\"nrt]|u[0-9a-fA-F]{4}))*?)"/;
       const lastAssistantResponseRegex =
-        /"lastAssistantResponse"\s*:\s*"((?:[^"\\]|\\.|__QWERY[^"]*)*)"/;
+        /"lastAssistantResponse"\s*:\s*"((?:[^"\\]|\\(?:[\\"nrt]|u[0-9a-fA-F]{4}))*?)"/;
       const sourceSuggestionIdRegex = /"sourceSuggestionId"\s*:\s*"([^"]+)"/;
 
       const lastUserQuestionMatch = contextJson.match(lastUserQuestionRegex);
@@ -113,26 +113,48 @@ export function parseMessageWithContext(messageText: string): {
         let value = lastUserQuestionMatch[1];
         // Remove nested context markers and suggestion guidance markers
         value = removeAllContextMarkers(value);
-        // Unescape JSON string
-        value = value
-          .replace(/\\n/g, '\n')
-          .replace(/\\"/g, '"')
-          .replace(/\\\\/g, '\\')
-          .replace(/\\t/g, '\t')
-          .replace(/\\r/g, '\r');
+        // Unescape JSON string - order matters: handle \\ first to avoid double unescaping
+        // Use a single pass with a function to handle all escape sequences correctly
+        value = value.replace(/\\(.)/g, (match, char) => {
+          switch (char) {
+            case 'n':
+              return '\n';
+            case 't':
+              return '\t';
+            case 'r':
+              return '\r';
+            case '"':
+              return '"';
+            case '\\':
+              return '\\';
+            default:
+              return match; // Preserve unknown escape sequences
+          }
+        });
         parsedContext.lastUserQuestion = value.trim();
       }
       if (lastAssistantResponseMatch && lastAssistantResponseMatch[1]) {
         let value = lastAssistantResponseMatch[1];
         // Remove nested context markers and suggestion guidance markers
         value = removeAllContextMarkers(value);
-        // Unescape JSON string
-        value = value
-          .replace(/\\n/g, '\n')
-          .replace(/\\"/g, '"')
-          .replace(/\\\\/g, '\\')
-          .replace(/\\t/g, '\t')
-          .replace(/\\r/g, '\r');
+        // Unescape JSON string - order matters: handle \\ first to avoid double unescaping
+        // Use a single pass with a function to handle all escape sequences correctly
+        value = value.replace(/\\(.)/g, (match, char) => {
+          switch (char) {
+            case 'n':
+              return '\n';
+            case 't':
+              return '\t';
+            case 'r':
+              return '\r';
+            case '"':
+              return '"';
+            case '\\':
+              return '\\';
+            default:
+              return match;
+          }
+        });
         parsedContext.lastAssistantResponse = value.trim();
       }
       if (sourceSuggestionIdMatch && sourceSuggestionIdMatch[1]) {

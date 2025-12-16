@@ -4,6 +4,13 @@
   "private": true,
   "type": "module",
   "main": "./dist/driver.js",
+  "types": "./dist/driver.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/driver.d.ts",
+      "default": "./dist/driver.js"
+    }
+  },
   "scripts": {
     "lint": "echo \"no lint configured\"",
     "test": "vitest run --coverage --passWithNoTests",
