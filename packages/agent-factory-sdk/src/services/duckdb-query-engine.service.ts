@@ -120,8 +120,9 @@ export class DuckDBQueryEngine extends AbstractQueryEngine {
     // Load required extension based on workingDir URI protocol
     const requiredExtension = this.getRequiredExtension(workingDir);
     if (requiredExtension) {
+      // Check if extension is already installed
+      let isInstalled = false;
       try {
-        // Check if extension is already installed
         const checkReader = await this.connection.runAndReadAll(
           `SELECT extension_name FROM duckdb_extensions() WHERE extension_name = '${requiredExtension}'`,
         );
@@ -129,33 +130,50 @@ export class DuckDBQueryEngine extends AbstractQueryEngine {
         const extensions = checkReader.getRowObjectsJS() as Array<{
           extension_name: string;
         }>;
-
-        if (extensions.length === 0) {
-          await this.connection.run(`INSTALL ${requiredExtension}`);
-        }
+        isInstalled = extensions.length > 0;
       } catch {
-        // If check fails, try installing anyway
+        // If check fails, assume not installed
+        isInstalled = false;
+      }
+
+      // Install if not already installed
+      if (!isInstalled) {
         try {
           await this.connection.run(`INSTALL ${requiredExtension}`);
+          // Verify installation succeeded by checking again
+          const verifyReader = await this.connection.runAndReadAll(
+            `SELECT extension_name FROM duckdb_extensions() WHERE extension_name = '${requiredExtension}'`,
+          );
+          await verifyReader.readAll();
+          const verified = verifyReader.getRowObjectsJS() as Array<{
+            extension_name: string;
+          }>;
+          if (verified.length === 0) {
+            throw new Error(
+              `Extension ${requiredExtension} installation completed but extension not found`,
+            );
+          }
         } catch (installError) {
           const errorMsg =
             installError instanceof Error
               ? installError.message
               : String(installError);
-          console.warn(
-            `Failed to install extension ${requiredExtension}: ${errorMsg}`,
+          throw new Error(
+            `Failed to install extension ${requiredExtension}: ${errorMsg}. ` +
+              `Please ensure the extension is available and network connectivity is working.`,
           );
         }
       }
 
-      // Load the extension
+      // Load the extension (required for each connection)
       try {
         await this.connection.run(`LOAD ${requiredExtension}`);
       } catch (loadError) {
         const errorMsg =
           loadError instanceof Error ? loadError.message : String(loadError);
         throw new Error(
-          `Failed to load extension ${requiredExtension}: ${errorMsg}`,
+          `Failed to load extension ${requiredExtension}: ${errorMsg}. ` +
+            `Extension may not be installed correctly.`,
         );
       }
     }
