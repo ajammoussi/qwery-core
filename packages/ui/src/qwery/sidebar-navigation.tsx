@@ -5,7 +5,6 @@ import {
   SidebarSeparator,
   SidebarGroup,
   SidebarGroupLabel,
-  SidebarGroupAction,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuButton,
@@ -53,12 +52,14 @@ function SidebarLabelText({
   truncate,
   title,
   className,
+  hasUnsavedChanges,
 }: {
   label: string;
   suffix?: string;
   truncate?: boolean;
   title?: string;
   className?: string;
+  hasUnsavedChanges?: boolean;
 }) {
   const { t } = useTranslation();
   const translatedLabel = useMemo(
@@ -78,7 +79,7 @@ function SidebarLabelText({
   return (
     <span
       className={cn(
-        'flex min-w-0 items-center gap-1',
+        'flex min-w-0 items-center gap-1.5',
         truncate && 'overflow-hidden',
         className,
       )}
@@ -87,6 +88,14 @@ function SidebarLabelText({
       <span className={cn('min-w-0', truncate && 'truncate')}>
         <Trans i18nKey={label} defaults={label} />
       </span>
+      {hasUnsavedChanges && (
+        <span
+          className="h-3 w-3 shrink-0 rounded-full border border-[#ffcb51]/50 bg-[#ffcb51] shadow-sm"
+          aria-label="Unsaved changes"
+          title="Unsaved changes"
+          style={{ minWidth: '12px', minHeight: '12px' }}
+        />
+      )}
       {suffix ? (
         <span className="text-muted-foreground shrink-0 text-xs font-normal whitespace-nowrap">
           {suffix}
@@ -224,36 +233,40 @@ export function SidebarNavigation({
           return (
             <Container key={`collapsible-${index}`}>
               <SidebarGroup key={item.label}>
-                <If
-                  condition={groupState.collapsible}
-                  fallback={
-                    <SidebarGroupLabel className={cn({ hidden: isCollapsed })}>
-                      <SidebarLabelText
-                        label={item.label}
-                        suffix={item.labelSuffix}
-                      />
-                    </SidebarGroupLabel>
-                  }
-                >
-                  <SidebarGroupLabel
-                    className={cn({ hidden: isCollapsed })}
-                    asChild
+                <div className="flex items-center gap-2">
+                  <If
+                    condition={groupState.collapsible}
+                    fallback={
+                      <SidebarGroupLabel
+                        className={cn('flex-1', { hidden: isCollapsed })}
+                      >
+                        <SidebarLabelText
+                          label={item.label}
+                          suffix={item.labelSuffix}
+                        />
+                      </SidebarGroupLabel>
+                    }
                   >
-                    <CollapsibleTrigger className="flex items-center gap-1">
-                      <SidebarLabelText
-                        label={item.label}
-                        suffix={item.labelSuffix}
-                      />
-                      <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
-                    </CollapsibleTrigger>
-                  </SidebarGroupLabel>
-                </If>
+                    <SidebarGroupLabel
+                      className={cn('flex-1', { hidden: isCollapsed })}
+                      asChild
+                    >
+                      <CollapsibleTrigger className="flex items-center gap-1">
+                        <SidebarLabelText
+                          label={item.label}
+                          suffix={item.labelSuffix}
+                        />
+                        <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                      </CollapsibleTrigger>
+                    </SidebarGroupLabel>
+                  </If>
 
-                <If condition={item.renderAction && !isCollapsed}>
-                  <SidebarGroupAction title={translateKey(item.label)}>
-                    {item.renderAction}
-                  </SidebarGroupAction>
-                </If>
+                  <If condition={item.renderAction && !isCollapsed}>
+                    <div className="flex shrink-0 items-center justify-center">
+                      {item.renderAction}
+                    </div>
+                  </If>
+                </div>
 
                 <SidebarGroupContent>
                   <SidebarMenu>
@@ -349,6 +362,11 @@ export function SidebarNavigation({
                               <SidebarLabelText
                                 label={child.label}
                                 suffix={child.labelSuffix}
+                                hasUnsavedChanges={
+                                  'hasUnsavedChanges' in child
+                                    ? (child.hasUnsavedChanges as boolean)
+                                    : undefined
+                                }
                               />
                             </span>
                           );
@@ -510,6 +528,12 @@ export function SidebarNavigation({
                                                           ? child.title
                                                           : child.label
                                                       }
+                                                      hasUnsavedChanges={
+                                                        'hasUnsavedChanges' in
+                                                        child
+                                                          ? (child.hasUnsavedChanges as boolean)
+                                                          : undefined
+                                                      }
                                                     />
                                                   </span>
                                                 </Link>
@@ -544,7 +568,7 @@ export function SidebarNavigation({
                               <If
                                 condition={child.renderAction && !isCollapsed}
                               >
-                                <SidebarMenuAction>
+                                <SidebarMenuAction asChild>
                                   {child.renderAction}
                                 </SidebarMenuAction>
                               </If>

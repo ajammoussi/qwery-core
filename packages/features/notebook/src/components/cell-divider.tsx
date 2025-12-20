@@ -2,15 +2,9 @@
 
 import * as React from 'react';
 
-import { BookText, Plus, Sparkles, Type } from 'lucide-react';
+import { Plus, Sparkles } from 'lucide-react';
 
 import { Button } from '@qwery/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@qwery/ui/dropdown-menu';
 import { cn } from '@qwery/ui/utils';
 
 interface CellDividerProps {
@@ -22,50 +16,43 @@ export function CellDivider({ onAddCell, className }: CellDividerProps) {
   return (
     <div
       className={cn(
-        'group border-border bg-background relative flex h-8 w-full items-center justify-center border-b',
+        'group relative my-1 flex h-4 w-full items-center justify-center transition-all duration-300',
         className,
       )}
     >
-      <div className="bg-border absolute inset-x-0 top-1/2 h-px" />
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size="icon"
-            variant="ghost"
-            className={cn(
-              'border-border bg-background relative z-10 h-6 w-6 rounded-full border shadow-sm',
-              'hover:bg-accent hover:text-accent-foreground',
-              'transition-colors',
-            )}
-            aria-label="Add new cell"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="center" sideOffset={8} className="w-44">
-          <DropdownMenuItem
-            onSelect={() => onAddCell('query')}
-            className="gap-2"
-          >
-            <BookText className="h-4 w-4" />
-            Code cell
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => onAddCell('text')}
-            className="gap-2"
-          >
-            <Type className="h-4 w-4" />
-            Markdown cell
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => onAddCell('prompt')}
-            className="gap-2"
-          >
-            <Sparkles className="h-4 w-4" />
-            Prompt cell
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* Background line - only visible on hover, fades out at edges */}
+      <div className="via-border absolute inset-x-0 h-px bg-gradient-to-r from-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
+      {/* Buttons container - only visible on hover of the container */}
+      <div className="relative z-10 flex translate-y-1 transform items-center gap-2 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+        <Button
+          size="sm"
+          variant="secondary"
+          className="bg-background hover:bg-accent h-7 gap-1.5 rounded-full border px-3 text-[11px] font-semibold shadow-sm transition-all duration-200 hover:shadow-md active:scale-95"
+          onClick={() => onAddCell('query')}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Code
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="bg-background hover:bg-accent h-7 gap-1.5 rounded-full border px-3 text-[11px] font-semibold shadow-sm transition-all duration-200 hover:shadow-md active:scale-95"
+          onClick={() => onAddCell('text')}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Markdown
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="bg-background hover:bg-accent h-7 gap-1.5 rounded-full border px-3 text-[11px] font-semibold shadow-sm transition-all duration-200 hover:shadow-md active:scale-95"
+          onClick={() => onAddCell('prompt')}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Prompt
+        </Button>
+      </div>
     </div>
   );
 }

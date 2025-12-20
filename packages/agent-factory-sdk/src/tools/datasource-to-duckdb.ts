@@ -3,6 +3,7 @@ import type { SimpleSchema } from '@qwery/domain/entities';
 import type { DuckDBInstance } from '@duckdb/node-api';
 import { extractSchema } from './extract-schema';
 import { gsheetToDuckdb } from './gsheet-to-duckdb';
+import { generateSemanticViewName } from './view-registry';
 
 // Connection type from DuckDB instance
 type Connection = Awaited<ReturnType<DuckDBInstance['connect']>>;
@@ -37,7 +38,6 @@ export async function datasourceToDuckdb(
 
   // For DuckDB-native providers (gsheet-csv, csv, json-online, parquet-online),
   // we use DuckDB functions directly and don't need driver loading
-  // Other DuckDB-native providers (like youtube-data-api-v3, clickhouse-node) will use driver loading
   const duckdbNativeProviders = [
     'gsheet-csv',
     'csv',
@@ -47,20 +47,17 @@ export async function datasourceToDuckdb(
     'youtube-data-api-v3',
   ];
 
-  // Generate deterministic view name with datasource ID to prevent collisions
+  // Generate a temporary name for initial creation to allow semantic renaming later
   const baseName =
     datasource.name?.trim() || datasource.datasource_provider?.trim() || 'data';
-  const tablePart = 'sheet'; // Default table part for DuckDB-native providers
-  // Include datasource ID in view name to prevent collisions
-  const viewName = sanitizeName(
-    `${datasource.id}_${baseName}_${tablePart}`.toLowerCase(),
+  const tempViewName = sanitizeName(
+    `tmp_${datasource.id}_${baseName}`.toLowerCase(),
   );
-
-  const escapedViewName = viewName.replace(/"/g, '""');
+  const escapedTempViewName = tempViewName.replace(/"/g, '""');
 
   // Handle DuckDB-native providers that don't need driver loading
   if (duckdbNativeProviders.includes(provider)) {
-    // Create view directly from source without a temp table
+    // Create view directly from source
     switch (provider) {
       case 'gsheet-csv': {
         const sharedLink =
@@ -73,7 +70,7 @@ export async function datasourceToDuckdb(
         await gsheetToDuckdb({
           connection: conn,
           sharedLink,
-          viewName: escapedViewName,
+          viewName: tempViewName,
         });
         break;
       }
@@ -86,7 +83,7 @@ export async function datasourceToDuckdb(
           throw new Error('csv datasource requires path or url in config');
         }
         await conn.run(`
-        CREATE OR REPLACE VIEW "${escapedViewName}" AS
+        CREATE OR REPLACE VIEW "${escapedTempViewName}" AS
         SELECT * FROM read_csv_auto('${path.replace(/'/g, "''")}')
       `);
         break;
@@ -102,7 +99,7 @@ export async function datasourceToDuckdb(
           );
         }
         await conn.run(`
-        CREATE OR REPLACE VIEW "${escapedViewName}" AS
+        CREATE OR REPLACE VIEW "${escapedTempViewName}" AS
         SELECT * FROM read_json_auto('${url.replace(/'/g, "''")}')
       `);
         break;
@@ -118,7 +115,7 @@ export async function datasourceToDuckdb(
           );
         }
         await conn.run(`
-        CREATE OR REPLACE VIEW "${escapedViewName}" AS
+        CREATE OR REPLACE VIEW "${escapedTempViewName}" AS
         SELECT * FROM read_parquet('${url.replace(/'/g, "''")}')
       `);
         break;
@@ -145,7 +142,7 @@ export async function datasourceToDuckdb(
         const escapedQuery = query.replace(/'/g, "''");
 
         await conn.run(`
-        CREATE OR REPLACE VIEW "${escapedViewName}" AS
+        CREATE OR REPLACE VIEW "${escapedTempViewName}" AS
         SELECT * FROM ch_scan('${escapedQuery}', '${escapedUrl}', format := 'Parquet')
       `);
         break;
@@ -154,28 +151,42 @@ export async function datasourceToDuckdb(
         break;
     }
 
-    // Verify the view was created successfully by trying to query it
+    // Verify the view was created successfully
     try {
       const verifyReader = await conn.runAndReadAll(
-        `SELECT 1 FROM "${escapedViewName}" LIMIT 1`,
+        `SELECT 1 FROM "${escapedTempViewName}" LIMIT 1`,
       );
       await verifyReader.readAll();
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       throw new Error(
-        `Failed to create or verify view "${viewName}": ${errorMsg}`,
+        `Failed to create or verify view "${tempViewName}": ${errorMsg}`,
       );
     }
 
-    // Extract schema from the created view using the same connection
+    // Extract schema from the created view
     const schema = await extractSchema({
       connection: conn,
-      viewName,
+      viewName: tempViewName,
     });
 
+    // Generate semantic name from schema
+    const semanticName = generateSemanticViewName(schema);
+    const finalViewName = sanitizeName(
+      `${datasource.id}_${semanticName}`.toLowerCase(),
+    );
+    const escapedFinalViewName = finalViewName.replace(/"/g, '""');
+
+    // Rename view to semantic name
+    if (finalViewName !== tempViewName) {
+      await conn.run(
+        `ALTER VIEW "${escapedTempViewName}" RENAME TO "${escapedFinalViewName}"`,
+      );
+    }
+
     return {
-      viewName,
-      displayName: viewName,
+      viewName: finalViewName,
+      displayName: finalViewName,
       schema,
     };
   }
@@ -277,45 +288,60 @@ export async function datasourceToDuckdb(
       throw new Error('No tables found in datasource metadata');
     }
 
-    // Generate deterministic view name with datasource ID to prevent collisions
+    // Generate deterministic temporary name
     const tablePart = firstTable.name || 'table';
-    // Include datasource ID in view name to prevent collisions
-    const viewNameWithTable = sanitizeName(
-      `${datasource.id}_${baseName}_${tablePart}`.toLowerCase(),
+    const tempViewNameWithTable = sanitizeName(
+      `tmp_${datasource.id}_${baseName}_${tablePart}`.toLowerCase(),
     );
 
-    const escapedViewNameWithTable = viewNameWithTable.replace(/"/g, '""');
+    const escapedTempViewNameWithTable = tempViewNameWithTable.replace(
+      /"/g,
+      '""',
+    );
 
-    // Fallback: select from driver-accessible table directly (no temp table)
+    // Fallback: select from driver-accessible table directly
     const tableQuery = `SELECT * FROM ${firstTable.schema}.${firstTable.name}`;
     await conn.run(`
-      CREATE OR REPLACE VIEW "${escapedViewNameWithTable}" AS
+      CREATE OR REPLACE VIEW "${escapedTempViewNameWithTable}" AS
       ${tableQuery}
     `);
 
-    // Verify the view was created successfully by trying to query it
+    // Verify the view was created successfully
     try {
       const verifyReader = await conn.runAndReadAll(
-        `SELECT 1 FROM "${escapedViewNameWithTable}" LIMIT 1`,
+        `SELECT 1 FROM "${escapedTempViewNameWithTable}" LIMIT 1`,
       );
       await verifyReader.readAll();
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       throw new Error(
-        `Failed to create or verify view "${viewNameWithTable}": ${errorMsg}`,
+        `Failed to create or verify view "${tempViewNameWithTable}": ${errorMsg}`,
       );
     }
 
-    // Extract schema from the created view using the same connection
-    // Note: extractSchema will escape the viewName internally, so we pass the unescaped version
+    // Extract schema from the created view
     const schema = await extractSchema({
       connection: conn,
-      viewName: viewNameWithTable,
+      viewName: tempViewNameWithTable,
     });
 
+    // Generate semantic name from schema
+    const semanticName = generateSemanticViewName(schema);
+    const finalViewName = sanitizeName(
+      `${datasource.id}_${semanticName}`.toLowerCase(),
+    );
+    const escapedFinalViewName = finalViewName.replace(/"/g, '""');
+
+    // Rename view to semantic name
+    if (finalViewName !== tempViewNameWithTable) {
+      await conn.run(
+        `ALTER VIEW "${escapedTempViewNameWithTable}" RENAME TO "${escapedFinalViewName}"`,
+      );
+    }
+
     return {
-      viewName: viewNameWithTable,
-      displayName: viewNameWithTable,
+      viewName: finalViewName,
+      displayName: finalViewName,
       schema,
     };
   } finally {

@@ -29,6 +29,7 @@ const truncateNotebookName = (name: string, maxLength: number): string => {
 const getNotebookRoutes = (
   notebooks: NotebookOutput[],
   onDeleteNotebook?: (notebook: NotebookOutput) => void,
+  unsavedNotebookSlugs?: string[],
 ) => {
   return notebooks.map((notebook) => {
     const deleteAction = onDeleteNotebook ? (
@@ -63,6 +64,8 @@ const getNotebookRoutes = (
       fullTitle,
       MAX_NOTEBOOK_NAME_LENGTH,
     );
+    const hasUnsavedChanges =
+      unsavedNotebookSlugs?.includes(notebook.slug) ?? false;
 
     return {
       label: truncatedTitle,
@@ -70,6 +73,7 @@ const getNotebookRoutes = (
       Icon: <Notebook className={iconClasses} />,
       renderAction: deleteAction,
       title: fullTitle, // Store full title for tooltip
+      hasUnsavedChanges, // Flag for unsaved changes indicator
     };
   });
 };
@@ -79,6 +83,7 @@ const getRoutes = (
   notebooks: NotebookOutput[],
   onDeleteNotebook?: (notebook: NotebookOutput) => void,
   notebookGroupAction?: ReactNode,
+  unsavedNotebookSlugs?: string[],
 ) =>
   [
     {
@@ -103,7 +108,11 @@ const getRoutes = (
           collapsible: true,
           collapsed: true,
           renderAction: notebookGroupAction,
-          children: getNotebookRoutes(notebooks, onDeleteNotebook),
+          children: getNotebookRoutes(
+            notebooks,
+            onDeleteNotebook,
+            unsavedNotebookSlugs,
+          ),
         },
       ],
     },
@@ -114,6 +123,7 @@ export function createNavigationConfig(
   notebooks: NotebookOutput[] | undefined,
   onDeleteNotebook?: (notebook: NotebookOutput) => void,
   notebookGroupAction?: ReactNode,
+  unsavedNotebookSlugs?: string[],
 ) {
   return NavigationConfigSchema.parse({
     routes: getRoutes(
@@ -121,6 +131,7 @@ export function createNavigationConfig(
       notebooks || [],
       onDeleteNotebook,
       notebookGroupAction,
+      unsavedNotebookSlugs,
     ),
   });
 }

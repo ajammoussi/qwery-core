@@ -298,25 +298,28 @@ export class DuckDBQueryEngine extends AbstractQueryEngine {
     // Drop views for DuckDB-native datasources
     for (const { datasource } of duckdbNative) {
       try {
-        // Generate view name (same logic as datasourceToDuckdb)
-        const baseName =
-          datasource.name?.trim() ||
-          datasource.datasource_provider?.trim() ||
-          'data';
-        const sanitizeName = (value: string): string => {
-          const cleaned = value.replace(/[^a-zA-Z0-9_]/g, '_');
-          return /^[a-zA-Z]/.test(cleaned) ? cleaned : `v_${cleaned}`;
-        };
-        const viewName = sanitizeName(
-          `${datasource.id}_${baseName}_sheet`.toLowerCase(),
-        );
-        const escapedViewName = viewName.replace(/"/g, '""');
-        await this.connection.run(`DROP VIEW IF EXISTS "${escapedViewName}"`);
+        // Find all views associated with this datasource ID
+        // The view names start with {datasource.id}_
+        const viewsReader = await this.connection.runAndReadAll(`
+          SELECT table_name 
+          FROM information_schema.views 
+          WHERE table_schema = 'main' 
+            AND table_name LIKE '${datasource.id}_%'
+        `);
+        await viewsReader.readAll();
+        const views = viewsReader.getRowObjectsJS() as Array<{
+          table_name: string;
+        }>;
+
+        for (const view of views) {
+          const escapedViewName = view.table_name.replace(/"/g, '""');
+          await this.connection.run(`DROP VIEW IF EXISTS "${escapedViewName}"`);
+        }
         this.attachedDatasources.delete(datasource.id);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         console.warn(
-          `Failed to drop view for datasource ${datasource.id}: ${errorMsg}`,
+          `Failed to drop views for datasource ${datasource.id}: ${errorMsg}`,
         );
         // Continue with other datasources
       }

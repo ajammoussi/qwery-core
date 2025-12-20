@@ -17,6 +17,7 @@ const RouteChildElement = z.object({
   end: RouteMatchingEnd,
   renderAction: z.custom<React.ReactNode>().optional(),
   title: z.string().optional(),
+  hasUnsavedChanges: z.boolean().optional(),
 });
 
 const RouteSubChild = z.object({

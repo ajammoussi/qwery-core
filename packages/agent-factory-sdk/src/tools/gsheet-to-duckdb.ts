@@ -22,6 +22,12 @@ export interface GSheetAttachOptions {
   workspace: string; // Required for persistent database file path
 }
 
+export interface GSheetTab {
+  gid: number;
+  csvUrl: string;
+  name?: string;
+}
+
 export interface GSheetAttachResult {
   attachedDatabaseName: string;
   tables: Array<{
@@ -40,6 +46,40 @@ function extractSpreadsheetId(url: string): string | null {
     /https:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/,
   );
   return match?.[1] ?? null;
+}
+
+/**
+ * Fetch spreadsheet metadata (tab names and GIDs) for a public Google Sheet
+ * by parsing the HTML page.
+ */
+async function fetchSpreadsheetMetadata(
+  spreadsheetId: string,
+): Promise<Array<{ gid: number; name: string }>> {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+
+    const html = await response.text();
+
+    const tabs: Array<{ gid: number; name: string }> = [];
+
+    // Look for "sheetId":(\d+),"title":"([^"]+)" which is common in bootstrapData
+    const regex = /"sheetId":(\d+),"title":"([^"]+)"/g;
+    let m;
+    while ((m = regex.exec(html)) !== null) {
+      const gid = parseInt(m[1]!, 10);
+      const name = m[2]!;
+      if (!tabs.some((t) => t.gid === gid)) {
+        tabs.push({ gid, name });
+      }
+    }
+
+    return tabs;
+  } catch (error) {
+    console.warn(`[GSheetAttach] Failed to fetch spreadsheet metadata:`, error);
+    return [];
+  }
 }
 
 /**
@@ -112,70 +152,78 @@ function extractGidsFromUrl(url: string): number[] {
 }
 
 /**
- * Discover tabs by extracting gids from the URL
+ * Discover tabs by extracting gids from the URL and fetching metadata
  * User provides links with gid parameters, we extract and use those
- * Always tries gid=0 (first/default tab) as well
+ * We also attempt to discover all tabs if the sheet is public
  */
 async function discoverTabs(
   conn: Connection,
   spreadsheetId: string,
   originalUrl?: string,
-): Promise<Array<{ gid: number; csvUrl: string }>> {
-  const tabs: Array<{ gid: number; csvUrl: string }> = [];
+): Promise<GSheetTab[]> {
+  const tabs: GSheetTab[] = [];
   const triedGids = new Set<number>();
 
-  // Helper to try a specific gid
-  const tryGid = async (gid: number): Promise<boolean> => {
-    if (triedGids.has(gid)) {
-      return false; // Already tried
-    }
-    triedGids.add(gid);
-
-    const csvUrl = getCsvUrlForTab(spreadsheetId, gid);
-    try {
-      const testReader = await conn.runAndReadAll(
-        `SELECT * FROM read_csv_auto('${csvUrl.replace(/'/g, "''")}') LIMIT 1`,
-      );
-      await testReader.readAll();
-      // If successful, tab exists
-      tabs.push({ gid, csvUrl });
+  // Helper to add a tab and mark gid as tried
+  const addTab = (gid: number, csvUrl: string, name?: string) => {
+    if (!triedGids.has(gid)) {
+      tabs.push({ gid, csvUrl, name });
+      triedGids.add(gid);
       return true;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      // If 400/404, tab doesn't exist
-      if (
-        errorMsg.includes('400') ||
-        errorMsg.includes('404') ||
-        errorMsg.includes('Bad Request') ||
-        errorMsg.includes('Not Found')
-      ) {
-        return false; // Tab doesn't exist
-      }
-      // For other errors, log and return false (might be network issue)
-      console.warn(`[GSheetAttach] Error checking tab gid=${gid}:`, errorMsg);
-      return false;
     }
+    // If already tried but we now have a name, update it
+    const existing = tabs.find((t) => t.gid === gid);
+    if (existing && name && !existing.name) {
+      existing.name = name;
+    }
+    return false;
   };
 
-  // 1. Always try gid=0 (first/default tab)
-  await tryGid(0);
+  // 1. Try to discover all tabs via metadata (most reliable for naming)
+  console.log(
+    `[GSheetAttach] Fetching metadata for spreadsheet ${spreadsheetId}`,
+  );
+  const metadata = await fetchSpreadsheetMetadata(spreadsheetId);
+  for (const meta of metadata) {
+    addTab(meta.gid, getCsvUrlForTab(spreadsheetId, meta.gid), meta.name);
+  }
 
   // 2. Try gids extracted from URL (user provides links with gid parameters)
   if (originalUrl) {
     const urlGids = extractGidsFromUrl(originalUrl);
     for (const gid of urlGids) {
-      if (gid !== 0) {
-        // Already tried 0
-        await tryGid(gid);
-      }
+      addTab(gid, getCsvUrlForTab(spreadsheetId, gid));
+    }
+  }
+
+  // 3. Always ensure gid=0 is tried
+  addTab(0, getCsvUrlForTab(spreadsheetId, 0));
+
+  // 4. Validate accessibility for tabs that were found but not verified
+  const validatedTabs: GSheetTab[] = [];
+  for (const tab of tabs) {
+    try {
+      const csvUrl = tab.csvUrl;
+      const testReader = await conn.runAndReadAll(
+        `SELECT * FROM read_csv_auto('${csvUrl.replace(/'/g, "''")}') LIMIT 1`,
+      );
+      await testReader.readAll();
+      validatedTabs.push(tab);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      // If 400/404, tab doesn't exist or isn't accessible
+      console.warn(
+        `[GSheetAttach] Tab gid=${tab.gid} (${tab.name || 'unnamed'}) is not accessible:`,
+        errorMsg,
+      );
     }
   }
 
   console.log(
-    `[GSheetAttach] Tab discovery complete: found ${tabs.length} tab(s)`,
+    `[GSheetAttach] Tab discovery complete: found ${validatedTabs.length} accessible tab(s)`,
   );
 
-  return tabs;
+  return validatedTabs;
 }
 
 /**
@@ -282,7 +330,7 @@ export async function attachGSheetDatasource(
   const tables: GSheetAttachResult['tables'] = [];
   const existingTableNames: string[] = []; // For uniqueness in semantic naming
 
-  for (const { gid, csvUrl } of tabs) {
+  for (const { gid, csvUrl, name: tabName } of tabs) {
     try {
       // Create a temporary table first to extract schema
       const tempTableName = `temp_tab_${gid}`;
@@ -327,7 +375,7 @@ export async function attachGSheetDatasource(
             schemaName: attachedDatabaseName,
             tables: [
               {
-                tableName: tempTableName,
+                tableName: tabName || tempTableName,
                 columns,
               },
             ],
@@ -342,7 +390,18 @@ export async function attachGSheetDatasource(
 
       // Generate semantic table name
       let tableName: string;
-      if (schema) {
+      if (tabName) {
+        // Use tab name if available, sanitized and unique
+        tableName = tabName.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+        if (/^\d/.test(tableName)) tableName = `v_${tableName}`;
+
+        let counter = 1;
+        const baseName = tableName;
+        while (existingTableNames.includes(tableName)) {
+          tableName = `${baseName}_${counter}`;
+          counter++;
+        }
+      } else if (schema) {
         tableName = generateSemanticViewName(schema, existingTableNames);
       } else {
         // Fallback to generic name

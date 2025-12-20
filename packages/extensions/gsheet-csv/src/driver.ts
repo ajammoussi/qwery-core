@@ -15,27 +15,48 @@ const ConfigSchema = z.object({
 
 type DriverConfig = z.infer<typeof ConfigSchema>;
 
-const convertToCsvLink = (sharedLink: string): string => {
-  const match = sharedLink.match(
-    /https:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/,
-  );
-  if (!match) {
-    throw new Error(
-      `Invalid Google Sheets link format: ${sharedLink}. Expected format: https://docs.google.com/spreadsheets/d/{spreadsheetId}`,
-    );
-  }
-  const spreadsheetId = match[1];
-  return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`;
+const convertToCsvLink = (spreadsheetId: string, gid: number = 0): string => {
+  return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
 };
 
-const VIEW_NAME = 'sheet';
+async function fetchSpreadsheetMetadata(
+  spreadsheetId: string,
+): Promise<Array<{ gid: number; name: string }>> {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+
+    const html = await response.text();
+    const tabs: Array<{ gid: number; name: string }> = [];
+
+    const regex = /"sheetId":(\d+),"title":"([^"]+)"/g;
+    let m;
+    while ((m = regex.exec(html)) !== null) {
+      const gid = parseInt(m[1]!, 10);
+      const name = m[2]!;
+      if (!tabs.some((t) => t.gid === gid)) {
+        tabs.push({ gid, name });
+      }
+    }
+
+    return tabs;
+  } catch (error) {
+    return [];
+  }
+}
 
 export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
-  const instanceMap = new Map<string, Awaited<ReturnType<typeof createDuckDbInstance>>>();
+  const instanceMap = new Map<
+    string,
+    {
+      instance: Awaited<ReturnType<typeof createDuckDbInstance>>;
+      tabs: Array<{ gid: number; name: string }>;
+    }
+  >();
 
   const createDuckDbInstance = async () => {
     const { DuckDBInstance } = await import('@duckdb/node-api');
-    // Use in-memory database
     const instance = await DuckDBInstance.create(':memory:');
     return instance;
   };
@@ -43,24 +64,39 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
   const getInstance = async (config: DriverConfig) => {
     const key = config.sharedLink;
     if (!instanceMap.has(key)) {
+      const match = key.match(
+        /https:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/,
+      );
+      if (!match) {
+        throw new Error(`Invalid Google Sheets link format: ${key}`);
+      }
+      const spreadsheetId = match[1]!;
+
+      const discoveredTabs = await fetchSpreadsheetMetadata(spreadsheetId);
+      // Always ensure at least gid 0 if nothing discovered
+      if (discoveredTabs.length === 0) {
+        discoveredTabs.push({ gid: 0, name: 'sheet' });
+      }
+
       const instance = await createDuckDbInstance();
       const conn = await instance.connect();
 
       try {
-        const csvLink = convertToCsvLink(config.sharedLink);
-        const escapedUrl = csvLink.replace(/'/g, "''");
-        const escapedViewName = VIEW_NAME.replace(/"/g, '""');
+        for (const tab of discoveredTabs) {
+          const csvUrl = convertToCsvLink(spreadsheetId, tab.gid);
+          const escapedUrl = csvUrl.replace(/'/g, "''");
+          const escapedViewName = tab.name.replace(/"/g, '""');
 
-        // Create view from CSV URL
-        await conn.run(`
-          CREATE OR REPLACE VIEW "${escapedViewName}" AS
-          SELECT * FROM read_csv_auto('${escapedUrl}')
-        `);
+          await conn.run(`
+            CREATE OR REPLACE VIEW "${escapedViewName}" AS
+            SELECT * FROM read_csv_auto('${escapedUrl}')
+          `);
+        }
       } finally {
         conn.closeSync();
       }
 
-      instanceMap.set(key, instance);
+      instanceMap.set(key, { instance, tabs: discoveredTabs });
     }
     return instanceMap.get(key)!;
   };
@@ -68,13 +104,13 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
   return {
     async testConnection(config: unknown): Promise<void> {
       const parsed = ConfigSchema.parse(config);
-      const instance = await getInstance(parsed);
+      const { instance, tabs } = await getInstance(parsed);
       const conn = await instance.connect();
 
       try {
-        // Test by querying the view
+        const firstTab = tabs[0]!;
         const resultReader = await conn.runAndReadAll(
-          `SELECT 1 as test FROM "${VIEW_NAME}" LIMIT 1`,
+          `SELECT 1 as test FROM "${firstTab.name.replace(/"/g, '""')}" LIMIT 1`,
         );
         await resultReader.readAll();
         context.logger?.info?.('gsheet-csv: testConnection ok');
@@ -89,35 +125,44 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
 
     async metadata(config: unknown): Promise<DatasourceMetadata> {
       const parsed = ConfigSchema.parse(config);
-      const instance = await getInstance(parsed);
+      const { instance, tabs: discoveredTabs } = await getInstance(parsed);
       const conn = await instance.connect();
 
       try {
-        // Get column information from the view using DESCRIBE
-        const describeReader = await conn.runAndReadAll(`DESCRIBE "${VIEW_NAME}"`);
-        await describeReader.readAll();
-        const describeRows = describeReader.getRowObjectsJS() as Array<{
-          column_name: string;
-          column_type: string;
-          null: string;
-        }>;
-
-        // Get row count for table size estimate
-        const countReader = await conn.runAndReadAll(
-          `SELECT COUNT(*) as count FROM "${VIEW_NAME}"`,
-        );
-        await countReader.readAll();
-        const countRows = countReader.getRowObjectsJS() as Array<{ count: bigint }>;
-        const rowCount = countRows[0]?.count ?? BigInt(0);
-
-        const tableId = 1;
+        const tables = [];
+        const columnMetadata = [];
         const schemaName = 'main';
 
-        const tables = [
-          {
+        for (let i = 0; i < discoveredTabs.length; i++) {
+          const tab = discoveredTabs[i]!;
+          const tableId = i + 1;
+          const escapedViewName = tab.name.replace(/"/g, '""');
+
+          // Get column information
+          const describeReader = await conn.runAndReadAll(
+            `DESCRIBE "${escapedViewName}"`,
+          );
+          await describeReader.readAll();
+          const describeRows = describeReader.getRowObjectsJS() as Array<{
+            column_name: string;
+            column_type: string;
+            null: string;
+          }>;
+
+          // Get row count
+          const countReader = await conn.runAndReadAll(
+            `SELECT COUNT(*) as count FROM "${escapedViewName}"`,
+          );
+          await countReader.readAll();
+          const countRows = countReader.getRowObjectsJS() as Array<{
+            count: bigint;
+          }>;
+          const rowCount = countRows[0]?.count ?? BigInt(0);
+
+          tables.push({
             id: tableId,
             schema: schemaName,
-            name: VIEW_NAME,
+            name: tab.name,
             rls_enabled: false,
             rls_forced: false,
             bytes: 0,
@@ -127,29 +172,32 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
             comment: null,
             primary_keys: [],
             relationships: [],
-          },
-        ];
+          });
 
-        const columnMetadata = describeRows.map((col, idx) => ({
-          id: `${schemaName}.${VIEW_NAME}.${col.column_name}`,
-          table_id: tableId,
-          schema: schemaName,
-          table: VIEW_NAME,
-          name: col.column_name,
-          ordinal_position: idx + 1,
-          data_type: col.column_type,
-          format: col.column_type,
-          is_identity: false,
-          identity_generation: null,
-          is_generated: false,
-          is_nullable: col.null === 'YES',
-          is_updatable: false,
-          is_unique: false,
-          check: null,
-          default_value: null,
-          enums: [],
-          comment: null,
-        }));
+          for (let idx = 0; idx < describeRows.length; idx++) {
+            const col = describeRows[idx]!;
+            columnMetadata.push({
+              id: `${schemaName}.${tab.name}.${col.column_name}`,
+              table_id: tableId,
+              schema: schemaName,
+              table: tab.name,
+              name: col.column_name,
+              ordinal_position: idx + 1,
+              data_type: col.column_type,
+              format: col.column_type,
+              is_identity: false,
+              identity_generation: null,
+              is_generated: false,
+              is_nullable: col.null === 'YES',
+              is_updatable: false,
+              is_unique: false,
+              check: null,
+              default_value: null,
+              enums: [],
+              comment: null,
+            });
+          }
+        }
 
         const schemas = [
           {
@@ -177,7 +225,7 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
 
     async query(sql: string, config: unknown): Promise<DatasourceResultSet> {
       const parsed = ConfigSchema.parse(config);
-      const instance = await getInstance(parsed);
+      const { instance } = await getInstance(parsed);
       const conn = await instance.connect();
 
       const startTime = performance.now();
@@ -185,7 +233,9 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
       try {
         const resultReader = await conn.runAndReadAll(sql);
         await resultReader.readAll();
-        const rows = resultReader.getRowObjectsJS() as Array<Record<string, unknown>>;
+        const rows = resultReader.getRowObjectsJS() as Array<
+          Record<string, unknown>
+        >;
         const columnNames = resultReader.columnNames();
 
         const endTime = performance.now();
@@ -245,7 +295,7 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
 
     async close() {
       // Close all DuckDB instances
-      for (const instance of instanceMap.values()) {
+      for (const { instance } of instanceMap.values()) {
         instance.closeSync();
       }
       instanceMap.clear();

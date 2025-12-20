@@ -19,11 +19,25 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Loader2, Pencil, Trash2 } from 'lucide-react';
+import {
+  BookText,
+  Loader2,
+  Pencil,
+  Plus,
+  Sparkles,
+  Trash2,
+  Type,
+} from 'lucide-react';
 
 import type { DatasourceResultSet, Notebook } from '@qwery/domain/entities';
 import { WorkspaceModeEnum } from '@qwery/domain/enums';
 import { Button } from '@qwery/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@qwery/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@qwery/ui/popover';
 import {
   Dialog,
@@ -70,13 +84,12 @@ interface NotebookUIProps {
   onDeleteNotebook?: () => void;
   isDeletingNotebook?: boolean;
   workspaceMode?: WorkspaceModeEnum;
+  hasUnsavedChanges?: boolean;
 }
 
 // Sortable wrapper for cells
 const SortableCell = React.memo(function SortableCellComponent({
   cell,
-  isCollapsed,
-  onToggleCollapse,
   onQueryChange,
   onDatasourceChange,
   onRunQuery,
@@ -97,8 +110,6 @@ const SortableCell = React.memo(function SortableCellComponent({
   onCloseAiPopup,
 }: {
   cell: NotebookCellData;
-  isCollapsed: boolean;
-  onToggleCollapse: (cellId: number) => void;
   onQueryChange: (cellId: number, query: string) => void;
   onDatasourceChange: (cellId: number, datasourceId: string | null) => void;
   onRunQuery?: (cellId: number, query: string, datasourceId: string) => void;
@@ -138,10 +149,6 @@ const SortableCell = React.memo(function SortableCellComponent({
     transform: CSS.Transform.toString(transform),
     transition,
   };
-
-  const handleToggleCollapse = useCallback(() => {
-    onToggleCollapse(cell.cellId);
-  }, [cell.cellId, onToggleCollapse]);
 
   const handleQueryChange = useCallback(
     (value: string) => {
@@ -211,8 +218,6 @@ const SortableCell = React.memo(function SortableCellComponent({
       <NotebookCell
         cell={cell}
         datasources={datasources}
-        isCollapsed={isCollapsed}
-        onToggleCollapse={handleToggleCollapse}
         onQueryChange={handleQueryChange}
         onDatasourceChange={handleDatasourceChange}
         onRunQuery={handleRunQuery}
@@ -487,6 +492,7 @@ export function NotebookUI({
   onDeleteNotebook,
   isDeletingNotebook,
   workspaceMode,
+  hasUnsavedChanges = false,
 }: NotebookUIProps) {
   // Initialize cells from notebook or initialCells, default to empty array
   const [cells, setCells] = React.useState<NotebookCellData[]>(() => {
@@ -506,8 +512,6 @@ export function NotebookUI({
     // Default: empty array
     return [];
   });
-
-  const [collapsedCells, setCollapsedCells] = useState<Set<number>>(new Set());
 
   const [fullViewCellId, setFullViewCellId] = useState<number | null>(null);
 
@@ -596,28 +600,22 @@ export function NotebookUI({
     }
   };
 
-  const handleToggleCollapse = useCallback((cellId: number) => {
-    setCollapsedCells((prev) => {
-      const next = new Set(prev);
-      if (next.has(cellId)) {
-        next.delete(cellId);
-      } else {
-        next.add(cellId);
-      }
-      return next;
-    });
-  }, []);
-
   const handleAddCell = (
     afterCellId?: number,
     cellType: 'query' | 'text' | 'prompt' = 'query',
+    atBeginning = false,
   ) => {
     const maxCellId =
       cells.length > 0
         ? Math.max(...cells.map((c: NotebookCellData) => c.cellId), 0)
         : 0;
     const newCell: NotebookCellData = {
-      query: '',
+      query:
+        cellType === 'query'
+          ? '\n'.repeat(9) // 10 lines total (9 newlines + 1 empty line)
+          : cellType === 'text'
+            ? '# Markdown Cell\n\nWrite your markdown content here...\n'
+            : '', // Prompt cells start empty
       cellId: maxCellId + 1,
       cellType,
       datasources: [],
@@ -625,7 +623,11 @@ export function NotebookUI({
       runMode: 'default',
     };
 
-    if (afterCellId !== undefined) {
+    if (atBeginning) {
+      const newCells = [newCell, ...cells];
+      setCells(newCells);
+      onCellsChange?.(newCells);
+    } else if (afterCellId !== undefined) {
       const index = cells.findIndex(
         (c: NotebookCellData) => c.cellId === afterCellId,
       );
@@ -890,6 +892,13 @@ export function NotebookUI({
               ) : (
                 <div className="group flex items-center gap-2">
                   <h1 className="text-2xl font-semibold">{headerTitle}</h1>
+                  {hasUnsavedChanges && (
+                    <span
+                      className="h-3 w-3 shrink-0 rounded-full border border-[#ffcb51]/50 bg-[#ffcb51] shadow-sm"
+                      aria-label="Unsaved changes"
+                      title="Unsaved changes"
+                    />
+                  )}
                   <Button
                     size="icon"
                     variant="ghost"
@@ -914,7 +923,7 @@ export function NotebookUI({
       )}
 
       {/* Cells container */}
-      <div className="[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:hover:bg-muted-foreground/50 min-h-0 flex-1 overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+      <div className="[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:hover:bg-muted-foreground/50 min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-12 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -924,7 +933,11 @@ export function NotebookUI({
             items={cells.map((c) => c.cellId.toString())}
             strategy={verticalListSortingStrategy}
           >
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-4">
+              {/* Top divider - to add cell at the very beginning */}
+              <CellDivider
+                onAddCell={(type) => handleAddCell(undefined, type, true)}
+              />
               {cells.map((cell, index) => {
                 // Get error for this specific cell only - ensure strict isolation
                 let cellError: string | undefined = undefined;
@@ -943,8 +956,6 @@ export function NotebookUI({
                   <React.Fragment key={cell.cellId}>
                     <SortableCell
                       cell={cell}
-                      isCollapsed={collapsedCells.has(cell.cellId)}
-                      onToggleCollapse={handleToggleCollapse}
                       onQueryChange={handleQueryChange}
                       onDatasourceChange={handleDatasourceChange}
                       onRunQuery={handleRunQuery}
@@ -965,18 +976,16 @@ export function NotebookUI({
                       onCloseAiPopup={handleCloseAiPopup}
                     />
                     {/* Error Display - Between cells */}
-                    {cell.cellType === 'query' &&
-                      cellError &&
-                      !collapsedCells.has(cell.cellId) && (
-                        <div className="border-border border-b">
-                          <Alert variant="destructive" className="m-4">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription className="font-mono text-sm">
-                              {cellError}
-                            </AlertDescription>
-                          </Alert>
-                        </div>
-                      )}
+                    {cell.cellType === 'query' && cellError && (
+                      <div className="py-2">
+                        <Alert variant="destructive" className="m-4">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="font-mono text-sm">
+                            {cellError}
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                    )}
                     {index < cells.length - 1 && (
                       <CellDivider
                         onAddCell={(type) => handleAddCell(cell.cellId, type)}
@@ -985,10 +994,42 @@ export function NotebookUI({
                   </React.Fragment>
                 );
               })}
-              {/* Divider at the end */}
-              <CellDivider
-                onAddCell={(type) => handleAddCell(undefined, type)}
-              />
+              {/* Add cell button at the bottom */}
+              <div className="flex flex-col items-center gap-4 py-8">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="border-border hover:bg-accent/50 group flex h-12 w-full max-w-2xl items-center justify-center gap-2 rounded-xl border border-dashed transition-all"
+                    >
+                      <Plus className="text-muted-foreground group-hover:text-foreground h-4 w-4 transition-colors" />
+                      <span className="text-muted-foreground group-hover:text-foreground text-sm font-medium transition-colors">
+                        Add a cell
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="w-48">
+                    <DropdownMenuItem
+                      onClick={() => handleAddCell(undefined, 'query')}
+                    >
+                      <Type className="mr-2 h-4 w-4" />
+                      <span>Code Cell</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleAddCell(undefined, 'text')}
+                    >
+                      <BookText className="mr-2 h-4 w-4" />
+                      <span>Markdown Cell</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleAddCell(undefined, 'prompt')}
+                    >
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      <span>Prompt Cell</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </SortableContext>
         </DndContext>
