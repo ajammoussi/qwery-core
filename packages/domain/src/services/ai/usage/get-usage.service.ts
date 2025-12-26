@@ -5,7 +5,9 @@ import {
 import { GetUsageByConversationSlugUseCase } from '../../../usecases/ai/usage/get-usage.usecase';
 import { UsageOutput } from '../../../usecases';
 
-export class GetUsageByConversationSlugService implements GetUsageByConversationSlugUseCase {
+export class GetUsageByConversationSlugService
+  implements GetUsageByConversationSlugUseCase
+{
   constructor(
     private readonly usageRepository: IUsageRepository,
     private readonly conversationRepository: IConversationRepository,

@@ -4,7 +4,9 @@ import {
   GetDatasourcesByProjectIdUseCase,
 } from '../../usecases';
 
-export class GetDatasourcesByProjectIdService implements GetDatasourcesByProjectIdUseCase {
+export class GetDatasourcesByProjectIdService
+  implements GetDatasourcesByProjectIdUseCase
+{
   constructor(private readonly datasourceRepository: IDatasourceRepository) {}
 
   public async execute(projectId: string): Promise<DatasourceOutput[]> {

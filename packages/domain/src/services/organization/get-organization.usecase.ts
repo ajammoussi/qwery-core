@@ -25,7 +25,9 @@ export class GetOrganizationService implements GetOrganizationUseCase {
   }
 }
 
-export class GetOrganizationBySlugService implements GetOrganizationBySlugUseCase {
+export class GetOrganizationBySlugService
+  implements GetOrganizationBySlugUseCase
+{
   constructor(
     private readonly organizationRepository: IOrganizationRepository,
   ) {}

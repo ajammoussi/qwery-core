@@ -4,7 +4,9 @@ import {
   GetConversationsByProjectIdUseCase,
 } from '../../usecases';
 
-export class GetConversationsByProjectIdService implements GetConversationsByProjectIdUseCase {
+export class GetConversationsByProjectIdService
+  implements GetConversationsByProjectIdUseCase
+{
   constructor(
     private readonly conversationRepository: IConversationRepository,
   ) {}

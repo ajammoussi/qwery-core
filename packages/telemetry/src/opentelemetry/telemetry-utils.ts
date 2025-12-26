@@ -280,6 +280,16 @@ export function recordQueryMetrics(
   telemetry.recordQueryDuration(durationMs, attributes);
   telemetry.recordQueryCount(attributes);
   telemetry.recordQueryRowsReturned(rowCount, attributes);
+
+  // Send as event for dual tracking (PostHog + OTel span event)
+  telemetry.captureEvent({
+    name: 'query.execute',
+    attributes: {
+      ...attributes,
+      duration_ms: durationMs,
+      row_count: rowCount,
+    },
+  });
 }
 
 /**

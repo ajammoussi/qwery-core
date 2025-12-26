@@ -51,11 +51,15 @@ export function registerProjectListCommand(
             name: CLI_EVENTS.COMMAND_EXECUTING,
           });
 
-          const projects = await useCases.getProjects.execute();
+          const organizationId =
+            options.organizationId ??
+            container.getWorkspace()?.organizationId ??
+            '';
+          const projects = await useCases.getProjects.execute(organizationId);
 
           const filtered = options.organizationId
             ? projects.filter(
-                (project) => project.org_id === options.organizationId,
+                (project) => project.organizationId === options.organizationId,
               )
             : projects;
 
@@ -63,7 +67,7 @@ export function registerProjectListCommand(
           const rows = filtered.map((project) => ({
             id: project.id,
             name: project.name,
-            organization: project.org_id,
+            organization: project.organizationId,
             status: project.status,
             createdBy: project.createdBy,
             updatedAt: project.updatedAt.toISOString(),
@@ -115,7 +119,7 @@ export function registerProjectCreateCommand(
 
           const workspace = container.getWorkspace();
           const organizationId =
-            options.organizationId ?? workspace?.organizationId;
+            (options.organizationId as string) ?? workspace?.organizationId;
 
           if (!organizationId) {
             // Record validation error
@@ -140,9 +144,9 @@ export function registerProjectCreateCommand(
 
           const useCases = container.getUseCases();
           const project = await useCases.createProject.execute({
-            org_id: organizationId as string, // TypeScript doesn't narrow after throw, but we know it's string here
+            organizationId: organizationId as string, // TypeScript doesn't narrow after throw, but we know it's string here
             name,
-            description: options.description as string | undefined,
+            description: options.description as string,
             createdBy: workspace?.userId ?? 'cli',
           });
 

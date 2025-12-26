@@ -13,6 +13,7 @@ import { generateConversationTitle } from '@qwery/agent-factory-sdk';
 import { MessageRole } from '@qwery/domain/entities';
 import { createRepositories } from '~/lib/repositories/repositories-factory';
 import { handleDomainException } from '~/lib/utils/error-handler';
+import { getWebTelemetry } from '~/lib/telemetry-instance';
 
 const agents = new Map<string, FactoryAgent>();
 const agentLastAccess = new Map<string, number>();
@@ -70,10 +71,12 @@ async function getOrCreateAgent(
         );
       }
 
+      const telemetry = await getWebTelemetry();
       agent = await FactoryAgent.create({
         conversationSlug: conversationSlug,
         model: model,
         repositories: repositories,
+        telemetry: telemetry,
       });
 
       agents.set(conversationSlug, agent);

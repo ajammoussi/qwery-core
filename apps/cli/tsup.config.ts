@@ -25,14 +25,6 @@ export default defineConfig({
     // Externalize gRPC packages to avoid ESM bundling issues
     '@grpc/grpc-js',
   ],
-  noExternal: [
-    '@qwery/domain',
-    '@qwery/repository-in-memory',
-    '@qwery/ai-agents',
-    '@qwery/extensions-sdk',
-    '@qwery/extension-postgresql',
-    '@qwery/agent-factory-sdk',
-    '@qwery/telemetry',
-  ],
+  noExternal: [/^@qwery\/.*/],
 });
 

@@ -261,14 +261,16 @@ export class InteractiveRepl {
   private async processReadDataAgentQuery(query: string): Promise<void> {
     try {
       // Import using file path since it's not exported from package index
-      const readDataAgentModule =
-        await import('../../../../packages/agent-factory-sdk/src/agents/actors/read-data-agent.actor.js');
+      const readDataAgentModule = await import(
+        '../../../../packages/agent-factory-sdk/src/agents/actors/read-data-agent.actor.js'
+      );
       const { readDataAgent } = readDataAgentModule;
       const { nanoid } = await import('nanoid');
       const { validateUIMessages } = await import('ai');
       const { v4: uuidv4 } = await import('uuid');
-      const { GetMessagesByConversationIdService } =
-        await import('@qwery/domain/services');
+      const { GetMessagesByConversationIdService } = await import(
+        '@qwery/domain/services'
+      );
 
       // Use a persistent conversation ID for follow-up questions
       if (!this.conversationId || !this.conversationId.includes('read-data')) {

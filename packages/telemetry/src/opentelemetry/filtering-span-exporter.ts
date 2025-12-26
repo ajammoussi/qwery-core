@@ -50,7 +50,7 @@ export interface FilteringSpanExporterOptions {
 
 /**
  * A span exporter that filters spans based on their names.
- * 
+ *
  * - General spans (agent.*, agent.actor.*, agent.llm.*) are always exported
  * - App-specific spans (cli.*, web.*, desktop.*) are exported only if exportAppTelemetry is true
  * - Other spans are exported (for backward compatibility)
@@ -100,4 +100,3 @@ export class FilteringSpanExporter implements SpanExporter {
     return this.exporter.shutdown();
   }
 }
-

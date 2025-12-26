@@ -25,7 +25,9 @@ export class GetConversationService implements GetConversationUseCase {
   }
 }
 
-export class GetConversationBySlugService implements GetConversationBySlugUseCase {
+export class GetConversationBySlugService
+  implements GetConversationBySlugUseCase
+{
   constructor(
     private readonly conversationRepository: IConversationRepository,
   ) {}

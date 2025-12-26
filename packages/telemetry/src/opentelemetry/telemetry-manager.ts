@@ -26,10 +26,7 @@ import {
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import { ClientTelemetryService } from './client.telemetry.service';
-import {
-  FilteringSpanExporter,
-  type FilteringSpanExporterOptions,
-} from './filtering-span-exporter';
+import { FilteringSpanExporter } from './filtering-span-exporter';
 
 // Enable OpenTelemetry internal logging (optional)
 diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
@@ -58,6 +55,8 @@ class SafeOTLPExporter implements SpanExporter {
     this.consoleExporter = new ConsoleSpanExporter();
   }
 
+  private firstSuccess = false;
+
   export(
     spans: ReadableSpan[],
     resultCallback: (result: { code: number; error?: Error }) => void,
@@ -71,6 +70,12 @@ class SafeOTLPExporter implements SpanExporter {
         if (!hasError) {
           // Success - reset error count
           this.errorCount = 0;
+          if (!this.firstSuccess) {
+            this.firstSuccess = true;
+            console.log(
+              '[Telemetry] OTLP Trace export connection established successfully.',
+            );
+          }
           resultCallback(result);
           return;
         }
@@ -187,7 +192,7 @@ export class TelemetryManager {
     // Use ConsoleSpanExporter for local/CLI testing (prints spans to console)
     // OTLP exporter is optional and only used if OTEL_EXPORTER_OTLP_ENDPOINT is set
     //const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
-    const otlpEndpoint = 'http://10.103.227.71:4317';
+    const otlpEndpoint = 'http://104.154.215.84:4317';
 
     // Resolve exportAppTelemetry setting:
     // 1. Check environment variable (QWERY_EXPORT_APP_TELEMETRY)
@@ -237,7 +242,8 @@ export class TelemetryManager {
   }
 
   private generateSessionId(): string {
-    return `cli-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const prefix = this.serviceName.includes('cli') ? 'cli' : 'web';
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   }
 
   private initializeMetrics(): void {
@@ -452,28 +458,15 @@ export class TelemetryManager {
     attributes?: Record<string, unknown>;
   }): void {
     const activeSpan = trace.getActiveSpan();
-    if (activeSpan) {
+    if (activeSpan && activeSpan.isRecording()) {
       try {
         const serializedAttributes = this.serializeAttributes(
           options.attributes,
         );
         activeSpan.addEvent(options.name, serializedAttributes);
-      } catch (error) {
-        // Ignore errors when trying to add events to ended spans
-        // This can happen when onFinish callbacks run after spans have been ended
-        if (
-          error instanceof Error &&
-          (error.message.includes('ended Span') ||
-            error.message.includes('Operation attempted on ended') ||
-            error.message.includes('Cannot execute') ||
-            error.message.includes('isSpanEnded'))
-        ) {
-          // Silently ignore - span is already ended
-          // This is expected when async callbacks (like onFinish) run after span completion
-          return;
-        }
-        // Re-throw other errors
-        throw error;
+      } catch {
+        // Silently ignore if span ended between check and execution
+        return;
       }
     }
   }
