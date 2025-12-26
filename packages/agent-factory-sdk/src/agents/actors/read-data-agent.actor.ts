@@ -643,8 +643,6 @@ export const readDataAgent = async (
               console.log(
                 `[ReadDataAgent] [PERF] transformMetadataToSimpleSchema took ${transformTime.toFixed(2)}ms`,
               );
-              schemaDiscoveryTime =
-                performance.now() - schemaDiscoveryStartTime;
             }
 
             // Filter by requested views if provided
