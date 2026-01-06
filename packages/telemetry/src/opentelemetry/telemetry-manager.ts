@@ -192,7 +192,7 @@ export class TelemetryManager {
     // Use ConsoleSpanExporter for local/CLI testing (prints spans to console)
     // OTLP exporter is optional and only used if OTEL_EXPORTER_OTLP_ENDPOINT is set
     //const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
-    const otlpEndpoint = 'http://104.154.215.84:4317';
+    const otlpEndpoint = 'http://104.154.19.84:4317';
 
     // Resolve exportAppTelemetry setting:
     // 1. Check environment variable (QWERY_EXPORT_APP_TELEMETRY)

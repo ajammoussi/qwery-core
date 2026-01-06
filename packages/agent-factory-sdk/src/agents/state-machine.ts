@@ -78,6 +78,29 @@ export const createStateMachine = (
     return { promptTokens, completionTokens, totalTokens };
   };
 
+  // Helper to parse model string and extract provider/model name
+  // Handles formats like "azure/gpt-5-mini" or just "gpt-5-mini"
+  const parseModel = (model: string): {
+    provider: string;
+    modelName: string;
+    fullModel: string;
+  } => {
+    const parts = model.split('/');
+    if (parts.length === 2) {
+      return {
+        provider: parts[0]!,
+        modelName: parts[1]!,
+        fullModel: model,
+      };
+    }
+    // Default provider to 'azure' if not specified (for backward compatibility)
+    return {
+      provider: 'azure',
+      modelName: model,
+      fullModel: model,
+    };
+  };
+
   // Create telemetry-wrapped actors
   // All actors use startSpan for consistent nesting behavior
   // OpenTelemetry's AsyncLocalStorage should preserve context across async boundaries
@@ -98,6 +121,7 @@ export const createStateMachine = (
       }
 
       const startTime = Date.now();
+      const { provider, modelName, fullModel } = parseModel(input.model);
       // Use startSpan for proper parent-child nesting
       // OpenTelemetry's AsyncLocalStorage should preserve context across async boundaries
       // If context is preserved (message span is active), spans will nest properly
@@ -108,6 +132,9 @@ export const createStateMachine = (
           inputMessage: input.inputMessage,
         }),
         'agent.conversation.id': conversationId,
+        'agent.llm.model': fullModel,
+        'agent.llm.model.name': modelName,
+        'agent.llm.provider.id': provider,
       });
 
       telemetry.captureEvent({
@@ -162,8 +189,8 @@ export const createStateMachine = (
                   promptTokens,
                   completionTokens,
                   {
-                    'agent.llm.model.name': 'gpt-5-mini',
-                    'agent.llm.provider.id': 'azure',
+                    'agent.llm.model.name': modelName,
+                    'agent.llm.provider.id': provider,
                     'agent.actor.id': 'detectIntent',
                     'agent.conversation.id': conversationId,
                   },
@@ -227,6 +254,7 @@ export const createStateMachine = (
       }
 
       const startTime = Date.now();
+      const { provider, modelName, fullModel } = parseModel(input.model);
       // Use startSpan for proper parent-child nesting
       // OpenTelemetry's AsyncLocalStorage should preserve context across async boundaries
       // If context is preserved (message span is active), spans will nest properly
@@ -234,6 +262,9 @@ export const createStateMachine = (
         'agent.actor.id': 'summarizeIntent',
         'agent.actor.type': 'summarizeIntent',
         'agent.conversation.id': conversationId,
+        'agent.llm.model': fullModel,
+        'agent.llm.model.name': modelName,
+        'agent.llm.provider.id': provider,
       });
 
       telemetry.captureEvent({
@@ -279,8 +310,8 @@ export const createStateMachine = (
                       promptTokens,
                       completionTokens,
                       {
-                        'agent.llm.model.name': 'gpt-5-mini',
-                        'agent.llm.provider.id': 'azure',
+                        'agent.llm.model.name': modelName,
+                        'agent.llm.provider.id': provider,
                         'agent.actor.id': 'summarizeIntent',
                         'agent.conversation.id': conversationId,
                       },
@@ -346,6 +377,7 @@ export const createStateMachine = (
       }
 
       const startTime = Date.now();
+      const { provider, modelName, fullModel } = parseModel(input.model);
       // Use startSpan for proper parent-child nesting
       // OpenTelemetry's AsyncLocalStorage should preserve context across async boundaries
       // If context is preserved (message span is active), spans will nest properly
@@ -353,6 +385,9 @@ export const createStateMachine = (
         'agent.actor.id': 'greeting',
         'agent.actor.type': 'greeting',
         'agent.conversation.id': conversationId,
+        'agent.llm.model': fullModel,
+        'agent.llm.model.name': modelName,
+        'agent.llm.provider.id': provider,
       });
 
       telemetry.captureEvent({
@@ -395,8 +430,8 @@ export const createStateMachine = (
                       promptTokens,
                       completionTokens,
                       {
-                        'agent.llm.model.name': 'gpt-5-mini',
-                        'agent.llm.provider.id': 'azure',
+                        'agent.llm.model.name': modelName,
+                        'agent.llm.provider.id': provider,
                         'agent.actor.id': 'greeting',
                         'agent.conversation.id': conversationId,
                       },
@@ -472,6 +507,7 @@ export const createStateMachine = (
       }
 
       const startTime = Date.now();
+      const { provider, modelName, fullModel } = parseModel(input.model);
       // Use startSpan for proper parent-child nesting
       // OpenTelemetry's AsyncLocalStorage should preserve context across async boundaries
       // If context is preserved (message span is active), spans will nest properly
@@ -479,6 +515,9 @@ export const createStateMachine = (
         'agent.actor.id': 'readData',
         'agent.actor.type': 'readData',
         'agent.conversation.id': conversationId,
+        'agent.llm.model': fullModel,
+        'agent.llm.model.name': modelName,
+        'agent.llm.provider.id': provider,
       });
 
       telemetry.captureEvent({
@@ -526,8 +565,8 @@ export const createStateMachine = (
                       promptTokens,
                       completionTokens,
                       {
-                        'agent.llm.model.name': 'gpt-5-mini',
-                        'agent.llm.provider.id': 'azure',
+                        'agent.llm.model.name': modelName,
+                        'agent.llm.provider.id': provider,
                         'agent.actor.id': 'readData',
                         'agent.conversation.id': conversationId,
                       },
