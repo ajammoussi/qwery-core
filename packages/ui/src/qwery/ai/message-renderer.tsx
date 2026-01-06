@@ -1,5 +1,6 @@
 import { UIMessage } from 'ai';
 import { ChatStatus } from 'ai';
+import { memo } from 'react';
 import {
   TaskPart,
   TextPart,
@@ -20,7 +21,7 @@ export interface MessageRendererProps {
   >['sendMessage'];
 }
 
-export function MessageRenderer({
+function MessageRendererComponent({
   message,
   messages,
   status,
@@ -101,3 +102,46 @@ export function MessageRenderer({
     </div>
   );
 }
+
+// Memoize MessageRenderer to prevent unnecessary re-renders
+// Only re-render if message content, parts count, or status changes
+export const MessageRenderer = memo(MessageRendererComponent, (prev, next) => {
+  // Re-render if message ID changed (different message)
+  if (prev.message.id !== next.message.id) {
+    return false;
+  }
+
+  // Re-render if message parts count changed
+  if (prev.message.parts.length !== next.message.parts.length) {
+    return false;
+  }
+
+  // Re-render if status changed (affects streaming indicators)
+  if (prev.status !== next.status) {
+    return false;
+  }
+
+  // Re-render if message is the last message and status is streaming
+  // (for streaming indicators)
+  const isLastMessage = prev.message.id === prev.messages.at(-1)?.id;
+  if (isLastMessage && (prev.status === 'streaming' || next.status === 'streaming')) {
+    return false;
+  }
+
+  // Re-render if messages array reference changed (might indicate new messages)
+  // But only if this message is affected
+  if (prev.messages.length !== next.messages.length) {
+    // Check if this message is still in the array
+    const messageStillExists = next.messages.some((m) => m.id === prev.message.id);
+    if (!messageStillExists) {
+      return false;
+    }
+    // If it's the last message and array length changed, might be new message added
+    if (isLastMessage) {
+      return false;
+    }
+  }
+
+  // Don't re-render if nothing relevant changed
+  return true;
+});

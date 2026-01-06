@@ -58,6 +58,7 @@
     "react-resizable-panels": "^3.0.6",
     "react-router": "catalog:",
     "react-top-loading-bar": "3.0.2",
+    "react-virtuoso": "^4.17.0",
     "remark-gfm": "^4.0.1",
     "scroll-into-view-if-needed": "^3.1.0",
     "shiki": "^3.15.0",

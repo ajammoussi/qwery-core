@@ -1,5 +1,4 @@
 const STREAMDOWN_RENDER_DELAY = 100;
-const HOVER_HIDE_DELAY = 50;
 const SCROLL_DELAY = 100;
 
 export function generateSuggestionId(suggestionText: string): string {
@@ -83,42 +82,18 @@ export function createSuggestionButton(
   );
   button.setAttribute('title', 'Send this suggestion');
   button.style.cssText =
-    'opacity: 0; transition: opacity 0.2s ease-in-out; height: 18px; width: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; background: transparent; border: none; cursor: pointer; padding: 0; flex-shrink: 0;';
+    'transition: background-color 0.2s ease-in-out; height: 18px; width: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; background: transparent; border: none; cursor: pointer; padding: 0; flex-shrink: 0;';
 
-  let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
-
-  const showButton = () => {
-    if (hoverTimeout) {
-      clearTimeout(hoverTimeout);
-      hoverTimeout = null;
-    }
-    button.style.opacity = '1';
-    button.style.backgroundColor = 'hsl(var(--muted))';
+  const handleButtonHover = () => {
+    button.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
   };
 
-  const hideButton = () => {
-    hoverTimeout = setTimeout(() => {
-      button.style.opacity = '0';
-      button.style.backgroundColor = 'transparent';
-      hoverTimeout = null;
-    }, HOVER_HIDE_DELAY);
+  const handleButtonLeave = () => {
+    button.style.backgroundColor = 'transparent';
   };
 
-  const cancelHide = () => {
-    if (hoverTimeout) {
-      clearTimeout(hoverTimeout);
-      hoverTimeout = null;
-    }
-  };
-
-  element.addEventListener('mouseenter', showButton);
-  element.addEventListener('mouseleave', hideButton);
-  button.addEventListener('mouseenter', cancelHide);
-  button.addEventListener('mouseenter', showButton);
-  button.addEventListener('mouseleave', hideButton);
-  buttonContainer.addEventListener('mouseenter', cancelHide);
-  buttonContainer.addEventListener('mouseenter', showButton);
-  buttonContainer.addEventListener('mouseleave', hideButton);
+  button.addEventListener('mouseenter', handleButtonHover);
+  button.addEventListener('mouseleave', handleButtonLeave);
 
   const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   icon.setAttribute('width', '12');
@@ -157,17 +132,8 @@ export function createSuggestionButton(
 
   return {
     cleanup: () => {
-      element.removeEventListener('mouseenter', showButton);
-      element.removeEventListener('mouseleave', hideButton);
-      button.removeEventListener('mouseenter', cancelHide);
-      button.removeEventListener('mouseenter', showButton);
-      button.removeEventListener('mouseleave', hideButton);
-      buttonContainer.removeEventListener('mouseenter', cancelHide);
-      buttonContainer.removeEventListener('mouseenter', showButton);
-      buttonContainer.removeEventListener('mouseleave', hideButton);
-      if (hoverTimeout) {
-        clearTimeout(hoverTimeout);
-      }
+      button.removeEventListener('mouseenter', handleButtonHover);
+      button.removeEventListener('mouseleave', handleButtonLeave);
     },
   };
 }

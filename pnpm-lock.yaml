@@ -1473,6 +1473,9 @@ importers:
       '@qwery/domain':
         specifier: workspace:*
         version: link:../../domain
+      '@qwery/shared':
+        specifier: workspace:*
+        version: link:../../shared
       sqids:
         specifier: ^0.3.0
         version: 0.3.0
@@ -1516,6 +1519,9 @@ importers:
       '@qwery/domain':
         specifier: workspace:*
         version: link:../../domain
+      '@qwery/shared':
+        specifier: workspace:*
+        version: link:../../shared
       sqids:
         specifier: ^0.3.0
         version: 0.3.0
@@ -1553,6 +1559,9 @@ importers:
       '@qwery/domain':
         specifier: workspace:*
         version: link:../../domain
+      '@qwery/shared':
+        specifier: workspace:*
+        version: link:../../shared
       better-sqlite3:
         specifier: ^11.7.0
         version: 11.10.0
@@ -1826,6 +1835,9 @@ importers:
       react-top-loading-bar:
         specifier: 3.0.2
         version: 3.0.2(react@19.2.0)
+      react-virtuoso:
+        specifier: ^4.17.0
+        version: 4.17.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1
@@ -10260,6 +10272,12 @@ packages:
     peerDependencies:
       react: '>=16.6.0'
       react-dom: '>=16.6.0'
+
+  react-virtuoso@4.17.0:
+    resolution: {integrity: sha512-od3pi2v13v31uzn5zPXC2u3ouISFCVhjFVFch2VvS2Cx7pWA2F1aJa3XhNTN2F07M3lhfnMnsmGeH+7wZICr7w==}
+    peerDependencies:
+      react: '>=16 || >=17 || >= 18 || >= 19'
+      react-dom: '>=16 || >=17 || >= 18 || >=19'
 
   react@19.2.0:
     resolution: {integrity: sha512-tmbWg6W31tQLeB5cdIBOicJDJRR2KzXsV7uSK9iNfLWQ5bIZfxuPEHp7M8wiHyHnn0DD1i7w3Zmin0FtkrwoCQ==}
@@ -21759,6 +21777,11 @@ snapshots:
       dom-helpers: 5.2.1
       loose-envify: 1.4.0
       prop-types: 15.8.1
+      react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+
+  react-virtuoso@4.17.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0):
+    dependencies:
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
 

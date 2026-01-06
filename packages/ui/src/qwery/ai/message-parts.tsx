@@ -26,7 +26,9 @@ import {
 
 import { SQLQueryVisualizer } from './sql-query-visualizer';
 
+import { cn } from '../../lib/utils';
 import { SchemaVisualizer } from './schema-visualizer';
+import { TOOL_UI_CONFIG } from './tool-ui-config';
 
 import { ViewSheetVisualizer } from './sheets/view-sheet-visualizer';
 
@@ -694,15 +696,19 @@ export function ToolPart({
   return (
     <Tool
       key={`${messageId}-${index}`}
-      defaultOpen={true}
-      className="animate-in fade-in slide-in-from-bottom-2 duration-300 ease-in-out"
+      defaultOpen={TOOL_UI_CONFIG.DEFAULT_OPEN}
+      className={cn(
+        'animate-in fade-in slide-in-from-bottom-2 duration-300 ease-in-out',
+        TOOL_UI_CONFIG.MAX_WIDTH,
+        'mx-auto',
+      )}
     >
       <ToolHeader title={toolName} type={part.type} state={part.state} />
-      <ToolContent className="p-0">
+      <ToolContent className="p-0 min-w-0 max-w-full">
         {showInput ? (
           <ToolInput input={part.input} className="border-b" />
         ) : null}
-        <div className="p-4">{renderToolOutput()}</div>
+        <div className="p-4 min-w-0 max-w-full overflow-hidden">{renderToolOutput()}</div>
       </ToolContent>
     </Tool>
   );

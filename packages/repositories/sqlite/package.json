@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@qwery/domain": "workspace:*",
+    "@qwery/shared": "workspace:*",
     "better-sqlite3": "^11.7.0",
     "sqids": "^0.3.0",
     "uuid": "catalog:",

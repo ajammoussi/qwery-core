@@ -515,27 +515,6 @@ function NotebookCellComponent({
             </div>
           ) : isTextCell ? (
             <div className="relative flex h-full flex-col">
-              <Button
-                size="sm"
-                className="absolute top-3 right-3 z-10 h-7 gap-1.5 bg-[#ffcb51] px-2 text-xs font-semibold text-black opacity-0 shadow-sm transition-all group-hover:opacity-100 hover:bg-[#ffcb51]/90"
-                onClick={() =>
-                  setMarkdownView((prev) =>
-                    prev === 'preview' ? 'edit' : 'preview',
-                  )
-                }
-              >
-                {markdownView === 'preview' ? (
-                  <>
-                    <Pencil className="h-3.5 w-3.5" />
-                    <span>Edit</span>
-                  </>
-                ) : (
-                  <>
-                    <Maximize2 className="h-3.5 w-3.5" />
-                    <span>Preview</span>
-                  </>
-                )}
-              </Button>
               {markdownView === 'edit' ? (
                 <div className="flex min-h-0 flex-1 flex-col">
                   {/* Preview on top when editing */}
