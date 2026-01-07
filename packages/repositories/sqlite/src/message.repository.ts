@@ -1,7 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
 import type Database from 'better-sqlite3';
 
-import { RepositoryFindOptions } from '@qwery/domain/common';
+import {
+  RepositoryFindOptions,
+  PaginationOptions,
+  PaginatedResult,
+} from '@qwery/domain/common';
 import type { Message } from '@qwery/domain/entities';
 import { IMessageRepository } from '@qwery/domain/repositories';
 
@@ -109,6 +113,42 @@ export class MessageRepository extends IMessageRepository {
     );
     const rows = stmt.all(conversationId) as Record<string, unknown>[];
     return rows.map((row) => this.deserialize(row));
+  }
+
+  async findByConversationIdPaginated(
+    conversationId: string,
+    options: PaginationOptions,
+  ): Promise<PaginatedResult<Message>> {
+    await this.init();
+
+    let query = 'SELECT * FROM messages WHERE conversation_id = ?';
+    const params: unknown[] = [conversationId];
+
+    if (options.cursor) {
+      // Get messages older than cursor (created_at < cursor)
+      query += ' AND created_at < ?';
+      params.push(options.cursor);
+    }
+
+    // Order by created_at DESC to get newest-oldest, then reverse to oldest-first
+    query += ' ORDER BY created_at DESC LIMIT ?';
+    params.push(options.limit + 1); // Fetch one extra to check hasMore
+
+    const stmt = this.db.prepare(query);
+    const rows = stmt.all(...params) as Record<string, unknown>[];
+
+    const hasMore = rows.length > options.limit;
+    const messages = rows
+      .slice(0, options.limit)
+      .map((row) => this.deserialize(row))
+      .reverse(); // Reverse to oldest-first
+
+    // After reverse, messages[0] is the oldest (first message in chronological order)
+    // This is the cursor for the next "before" query
+    const nextCursor =
+      messages.length > 0 ? messages[0].createdAt.toISOString() : null;
+
+    return { messages, nextCursor, hasMore };
   }
 
   async create(entity: Message): Promise<Message> {

@@ -3,6 +3,7 @@ import { DomainException } from '@qwery/domain/exceptions';
 import {
   CreateMessageService,
   GetMessagesByConversationSlugService,
+  GetMessagesPaginatedService,
 } from '@qwery/domain/services';
 import { createRepositories } from '~/lib/repositories/repositories-factory';
 
@@ -35,8 +36,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   try {
     // GET /api/messages?conversationSlug=... - Get messages by conversation slug
+    // Supports pagination: ?conversationSlug=...&cursor=...&limit=20
     const url = new URL(request.url);
     const conversationSlug = url.searchParams.get('conversationSlug');
+    const cursor = url.searchParams.get('cursor');
+    const limitParam = url.searchParams.get('limit');
+    const limit = limitParam ? parseInt(limitParam, 10) : undefined;
 
     if (!conversationSlug) {
       return Response.json(
@@ -45,8 +50,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
       );
     }
 
-    // Use the service to get messages by slug
-    // The service validates the conversation and gets messages
+    // If cursor is provided (and not empty), use paginated service
+    if (cursor !== null && cursor !== '') {
+      const useCase = new GetMessagesPaginatedService(
+        messageRepository,
+        conversationRepository,
+      );
+      const result = await useCase.execute({
+        conversationSlug,
+        cursor: cursor,
+        limit,
+      });
+      return Response.json(result);
+    }
+
+    // Otherwise, use the original service for backward compatibility
     const useCase = new GetMessagesByConversationSlugService(
       messageRepository,
       conversationRepository,

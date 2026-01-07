@@ -8,6 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '../../shadcn/collapsible';
+import { TOOL_UI_CONFIG } from './tool-ui-config';
 
 export interface SchemaColumn {
   columnName: string;
@@ -83,7 +84,7 @@ export function SchemaVisualizer({
       {datasourceNames.map((dsName) => (
         <Collapsible
           key={dsName}
-          defaultOpen={true}
+          defaultOpen={TOOL_UI_CONFIG.DEFAULT_OPEN}
           className="bg-card rounded-lg border shadow-sm"
         >
           <CollapsibleTrigger className="hover:bg-muted/50 flex w-full items-center justify-between p-4 transition-colors">

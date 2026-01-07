@@ -32,7 +32,7 @@ import { TOOL_UI_CONFIG } from './tool-ui-config';
 import { ToolPart } from './message-parts';
 import { getUserFriendlyToolName } from './utils/tool-name';
 
-interface MessageItemProps {
+export interface MessageItemProps {
   message: UIMessage;
   messages: UIMessage[];
   status: ChatStatus | undefined;
@@ -145,7 +145,7 @@ function MessageItemComponent({
                   <div className="mt-1 shrink-0">
                     <BotAvatar
                       size={6}
-                      isLoading={isStreaming}
+                      isLoading={false}
                     />
                   </div>
                 )}

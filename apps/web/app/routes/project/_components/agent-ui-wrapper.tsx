@@ -626,6 +626,7 @@ export const AgentUIWrapper = forwardRef<
       onPasteToNotebook={pasteHandler || undefined}
       notebookContext={notebookContext}
       isLoading={isLoading}
+      conversationSlug={conversationSlug}
     />
   );
 });

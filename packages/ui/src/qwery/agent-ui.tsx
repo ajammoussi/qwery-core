@@ -27,7 +27,7 @@ import {
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { useAgentStatus } from './agent-status-context';
-import { CopyIcon, RefreshCcwIcon, CheckIcon, XIcon } from 'lucide-react';
+import { CopyIcon, RefreshCcwIcon, CheckIcon, XIcon, ArrowDownIcon } from 'lucide-react';
 import { Button } from '../shadcn/button';
 import { Textarea } from '../shadcn/textarea';
 import {
@@ -43,7 +43,14 @@ import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { BotAvatar } from './bot-avatar';
 import { Sparkles } from 'lucide-react';
-import { QweryPromptInput, type DatasourceItem, ToolPart } from './ai';
+import {
+  QweryPromptInput,
+  type DatasourceItem,
+  ToolPart,
+  useInfiniteMessages,
+  VirtuosoMessageList,
+  type VirtuosoMessageListRef,
+} from './ai';
 import { QweryContextProps } from './ai/context';
 import { DatasourceBadges } from './ai/datasource-badge';
 import { getUserFriendlyToolName } from './ai/utils/tool-name';
@@ -84,6 +91,8 @@ export interface QweryAgentUIProps {
     notebookCellType?: 'query' | 'prompt';
     datasourceId?: string;
   };
+  // Conversation slug for pagination
+  conversationSlug?: string;
 }
 
 export default function QweryAgentUI(props: QweryAgentUIProps) {
@@ -105,6 +114,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     isLoading = false,
     onPasteToNotebook,
     notebookContext,
+    conversationSlug,
   } = props;
 
   // Preserve notebook context in a ref so it persists across re-renders and message updates
@@ -164,12 +174,35 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
     [transport, state.model],
   );
 
-  const { messages, sendMessage, status, regenerate, stop, setMessages } =
+  const { messages: chatMessages, sendMessage, status, regenerate, stop, setMessages } =
     useChat({
       messages: initialMessages,
       experimental_throttle: 100,
       transport: transportInstance,
     });
+
+  // Infinite messages hook for pagination (only if conversationSlug is provided)
+  const {
+    messages: virtualizedMessages,
+    firstItemIndex,
+    loadOlderMessages,
+    isLoadingOlder,
+    hasMoreOlder,
+    loadError,
+    retryLoadOlder,
+    mergeMessages,
+  } = useInfiniteMessages({
+    conversationSlug: conversationSlug || '',
+    initialMessages: chatMessages,
+  });
+
+  // Sync useChat messages with Virtuoso (optimized to only sync new messages)
+  useEffect(() => {
+    mergeMessages(chatMessages);
+  }, [chatMessages, mergeMessages]);
+
+  // Use virtualized messages if conversationSlug is provided, otherwise use chatMessages
+  const messages = conversationSlug ? virtualizedMessages : chatMessages;
 
   // Notify parent when messages change (for detecting tool results)
   useEffect(() => {
@@ -507,8 +540,9 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
           ref={conversationContainerRef}
           className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overflow-x-hidden"
         >
-          <Conversation className="min-h-0 min-w-0 flex-1 overflow-x-hidden">
-            <ConversationContent className="max-w-full min-w-0 overflow-x-hidden">
+          {conversationSlug ? (
+            // Use Virtuoso for infinite scrolling - it manages its own scroll container
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overflow-x-hidden">
               {isLoading ? (
                 <div className="flex size-full flex-col items-center justify-center gap-4 p-8 text-center">
                   <BotAvatar size={12} isLoading={true} />
@@ -528,6 +562,77 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
                   icon={<Sparkles className="text-muted-foreground size-12" />}
                 />
               ) : (
+                <>
+                  <VirtuosoMessageList
+                    messages={messages}
+                    firstItemIndex={firstItemIndex}
+                    status={status}
+                    isLoadingOlder={isLoadingOlder}
+                    hasMoreOlder={hasMoreOlder}
+                    loadError={loadError}
+                    onLoadOlder={loadOlderMessages}
+                    onRetryLoadOlder={retryLoadOlder}
+                    conversationSlug={conversationSlug}
+                    scrollToBottomRef={scrollToBottomRef}
+                    lastAssistantHasText={lastAssistantHasText}
+                    lastMessageIsAssistant={lastMessageIsAssistant}
+                    lastAssistantMessage={lastAssistantMessage}
+                    editingMessageId={editingMessageId}
+                    editText={editText}
+                    copiedMessagePartId={copiedMessagePartId}
+                    datasources={datasources}
+                    selectedDatasources={selectedDatasources}
+                    pluginLogoMap={pluginLogoMap}
+                    notebookContext={currentNotebookContext}
+                    onEditSubmit={handleEditSubmit}
+                    onEditCancel={handleEditCancel}
+                    onEditTextChange={setEditText}
+                    onRegenerate={handleRegenerate}
+                    onCopyPart={setCopiedMessagePartId}
+                    sendMessage={sendMessage}
+                    onPasteToNotebook={onPasteToNotebook}
+                    renderScrollButton={(scrollToBottom, isAtBottom) =>
+                      !isAtBottom ? (
+                        <Button
+                          className="absolute bottom-4 left-[50%] translate-x-[-50%] rounded-full"
+                          onClick={scrollToBottom}
+                          size="icon"
+                          type="button"
+                          variant="outline"
+                        >
+                          <ArrowDownIcon className="size-4" />
+                        </Button>
+                      ) : null
+                    }
+                  />
+                  {/* ScrollToBottomRefSetter not needed for Virtuoso - scrollToBottomRef is set directly by VirtuosoMessageList */}
+                </>
+              )}
+            </div>
+          ) : (
+            // Fallback to old rendering when conversationSlug is not provided
+            <Conversation className="min-h-0 min-w-0 flex-1 overflow-x-hidden">
+              <ConversationContent className="max-w-full min-w-0 overflow-x-hidden">
+                {isLoading ? (
+                  <div className="flex size-full flex-col items-center justify-center gap-4 p-8 text-center">
+                    <BotAvatar size={12} isLoading={true} />
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-medium">
+                        Loading conversation...
+                      </h3>
+                      <p className="text-muted-foreground text-sm">
+                        Please wait while we load your messages
+                      </p>
+                    </div>
+                  </div>
+                ) : messages.length === 0 ? (
+                  <ConversationEmptyState
+                    title="Start a conversation"
+                    description="Ask me anything and I'll help you out. You can ask questions or get explanations."
+                    icon={<Sparkles className="text-muted-foreground size-12" />}
+                  />
+                ) : (
+                // Fallback to old rendering when conversationSlug is not provided
                 messages.map((message) => {
                   const sourceParts = message.parts.filter(
                     (part: { type: string }) => part.type === 'source-url',
@@ -1004,6 +1109,7 @@ export default function QweryAgentUI(props: QweryAgentUIProps) {
             <ConversationScrollButton />
             <ScrollToBottomRefSetter scrollRef={scrollToBottomRef} />
           </Conversation>
+          )}
         </div>
 
         <div className="shrink-0">
@@ -1036,13 +1142,24 @@ function ScrollToBottomRefSetter({
 }: {
   scrollRef: React.RefObject<(() => void) | null>;
 }) {
-  const { scrollToBottom } = useStickToBottomContext();
+  // Only use StickToBottom context if it's available (when using old Conversation component)
+  // When using Virtuoso, the scrollToBottomRef is set directly by VirtuosoMessageList
+  let scrollToBottom: (() => void) | null = null;
+  try {
+    const context = useStickToBottomContext();
+    scrollToBottom = context.scrollToBottom;
+  } catch {
+    // Context not available (using Virtuoso) - scrollRef will be set by VirtuosoMessageList
+    return null;
+  }
 
   useEffect(() => {
-    scrollRef.current = scrollToBottom;
-    return () => {
-      scrollRef.current = null;
-    };
+    if (scrollToBottom) {
+      scrollRef.current = scrollToBottom;
+      return () => {
+        scrollRef.current = null;
+      };
+    }
   }, [scrollRef, scrollToBottom]);
 
   return null;
