@@ -8441,7 +8441,8 @@ var NotebookEntity = class extends Entity {
         {
           cellId: 1,
           cellType: "query",
-          query: "",
+          query: "\n".repeat(9),
+          // 10 lines total (9 newlines + 1 empty line)
           datasources: [],
           isActive: true,
           runMode: "default"
@@ -9802,10 +9803,21 @@ var DatasourceResultSetZodSchema = external_exports.object({
 }).passthrough();
 
 // packages/extensions/clickhouse-web/dist/driver.js
-var ConfigSchema = external_exports.object({
-  connectionUrl: external_exports.string().url()
-});
-function buildClickHouseConfig(connectionUrl) {
+var ConfigSchema = external_exports.union([
+  external_exports.object({
+    connectionUrl: external_exports.string().url()
+  }),
+  external_exports.object({
+    host: external_exports.string().min(1, "Host is required"),
+    port: external_exports.number().int().positive().optional(),
+    username: external_exports.string().optional(),
+    password: external_exports.string().optional(),
+    database: external_exports.string().optional()
+  })
+]).refine((data) => {
+  return "connectionUrl" in data || "host" in data;
+}, { message: "Either connectionUrl or host must be provided" });
+function buildClickHouseConfigFromUrl(connectionUrl) {
   const url = new URL(connectionUrl);
   const protocol = url.protocol === "clickhouse:" ? "http:" : url.protocol;
   const host = `${protocol}//${url.hostname}${url.port ? `:${url.port}` : ""}`;
@@ -9816,12 +9828,43 @@ function buildClickHouseConfig(connectionUrl) {
     database: url.pathname ? url.pathname.replace(/^\//, "") || "default" : "default"
   };
 }
+function buildClickHouseConfigFromFields(config) {
+  let host = config.host;
+  if (!host.startsWith("http://") && !host.startsWith("https://")) {
+    const port = config.port ?? 8123;
+    host = `http://${host}:${port}`;
+  } else if (config.port) {
+    try {
+      const url = new URL(host);
+      if (!url.port && config.port) {
+        host = `${url.protocol}//${url.hostname}:${config.port}`;
+      }
+    } catch {
+    }
+  }
+  return {
+    host,
+    username: config.username ?? "default",
+    password: config.password ?? "",
+    database: config.database ?? "default"
+  };
+}
+function normalizeConfig(config) {
+  if ("connectionUrl" in config) {
+    return buildClickHouseConfigFromUrl(config.connectionUrl);
+  }
+  return buildClickHouseConfigFromFields(config);
+}
 function makeClickHouseDriver(context) {
   const clientMap = /* @__PURE__ */ new Map();
   const getClient = (config) => {
-    const key = config.connectionUrl;
+    const clientConfig = normalizeConfig(config);
+    const key = `${clientConfig.host}|${clientConfig.username}|${clientConfig.database}`;
     if (!clientMap.has(key)) {
-      const clientConfig = buildClickHouseConfig(config.connectionUrl);
+      context.logger?.debug?.("clickhouse: creating client", {
+        host: clientConfig.host,
+        database: clientConfig.database
+      });
       const client = (0, import_client_web.createClient)(clientConfig);
       clientMap.set(key, client);
     }
@@ -9954,13 +9997,13 @@ function makeClickHouseDriver(context) {
     async query(sql, config) {
       const parsed = ConfigSchema.parse(config);
       const client = getClient(parsed);
-      const startTime = performance.now();
+      const startTime = typeof performance !== "undefined" ? performance.now() : Date.now();
       const result = await client.query({
         query: sql,
         format: "JSON"
       });
       const data = await result.json();
-      const endTime = performance.now();
+      const endTime = typeof performance !== "undefined" ? performance.now() : Date.now();
       const columns = data.meta.map((meta) => ({
         name: meta.name,
         displayName: meta.name,

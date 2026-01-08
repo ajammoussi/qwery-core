@@ -122,9 +122,11 @@ export class TransformMetadataToSimpleSchemaService
 
         // Format table name: for attached databases, use datasourcename.schema.tablename
         // Exception: for gsheet-csv (two-part providers), use datasourcename.tablename
+        // Special case: for ClickHouse, use original schema name instead of "main"
         let formattedTableName = table.name;
         if (isAttachedDb) {
           const provider = databaseToProvider.get(databaseName);
+          
           // Check if this is a two-part path provider (e.g., gsheet-csv)
           // For SQLite attached databases (like gsheet-csv), DuckDB reports schema='main'
           // but we need to use two-part format: {datasource_name}.{table_name}
@@ -138,8 +140,23 @@ export class TransformMetadataToSimpleSchemaService
             // The table name from DuckDB metadata is already the correct base name
             formattedTableName = `${databaseName}.${table.name}`;
           } else {
-            // Three-part path: {datasource_name}.{schema}.{table_name} (e.g., postgresql)
-            formattedTableName = `${databaseName}.${schemaName}.${table.name}`;
+            // Three-part path: {datasource_name}.{schema}.{table_name} (e.g., postgresql, clickhouse)
+            // For ClickHouse, schemaName will be "main" (SQLite limitation)
+            // We need to look up the original schema name from the mapping
+            let actualSchemaName = schemaName;
+            
+            // Special handling for ClickHouse: look up original schema name
+            if (
+              (provider === 'clickhouse-node' || provider === 'clickhouse-web') &&
+              schemaName === 'main'
+            ) {
+              // Try to get original schema from mapping
+              // The mapping is stored in agent-factory-sdk, so we'll handle this in schema-cache
+              // For now, use "default" as fallback (most common ClickHouse schema)
+              actualSchemaName = 'default';
+            }
+            
+            formattedTableName = `${databaseName}.${actualSchemaName}.${table.name}`;
           }
         }
 

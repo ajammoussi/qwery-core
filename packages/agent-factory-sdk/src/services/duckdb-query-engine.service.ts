@@ -276,6 +276,8 @@ export class DuckDBQueryEngine extends AbstractQueryEngine {
         await datasourceToDuckdb({
           connection: this.connection,
           datasource,
+          conversationId,
+          workspace,
         });
         this.attachedDatasources.add(datasource.id);
       } catch (error) {

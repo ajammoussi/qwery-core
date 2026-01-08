@@ -10,12 +10,44 @@
         "properties": {
           "connectionUrl": {
             "type": "string",
-            "description": "ClickHouse connection URL (clickhouse://user:pass@host:port/database or http://host:port)",
+            "description": "ClickHouse connection URL (clickhouse://user:pass@host:port/database or http://host:port). Alternative to separate fields.",
             "format": "uri"
+          },
+          "host": {
+            "type": "string",
+            "description": "ClickHouse host (e.g., 'localhost' or 'http://localhost:8123'). Required if connectionUrl is not provided."
+          },
+          "port": {
+            "type": "integer",
+            "description": "ClickHouse port (default: 8123 for HTTP, 9000 for native). Only used if host is a hostname without protocol.",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "username": {
+            "type": "string",
+            "description": "ClickHouse username (default: 'default')"
+          },
+          "password": {
+            "type": "string",
+            "description": "ClickHouse password (default: empty)",
+            "format": "password"
+          },
+          "database": {
+            "type": "string",
+            "description": "ClickHouse database name (default: 'default')"
           }
         },
-        "required": [
-          "connectionUrl"
+        "oneOf": [
+          {
+            "required": [
+              "connectionUrl"
+            ]
+          },
+          {
+            "required": [
+              "host"
+            ]
+          }
         ]
       },
       "packageName": "@qwery/extension-clickhouse-node",
@@ -38,12 +70,44 @@
         "properties": {
           "connectionUrl": {
             "type": "string",
-            "description": "ClickHouse connection URL (clickhouse://user:pass@host:port/database or http://host:port)",
+            "description": "ClickHouse connection URL (clickhouse://user:pass@host:port/database or http://host:port). Alternative to separate fields.",
             "format": "uri"
+          },
+          "host": {
+            "type": "string",
+            "description": "ClickHouse host (e.g., 'localhost' or 'http://localhost:8123'). Required if connectionUrl is not provided."
+          },
+          "port": {
+            "type": "integer",
+            "description": "ClickHouse port (default: 8123 for HTTP). Only used if host is a hostname without protocol.",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "username": {
+            "type": "string",
+            "description": "ClickHouse username (default: 'default')"
+          },
+          "password": {
+            "type": "string",
+            "description": "ClickHouse password (default: empty)",
+            "format": "password"
+          },
+          "database": {
+            "type": "string",
+            "description": "ClickHouse database name (default: 'default')"
           }
         },
-        "required": [
-          "connectionUrl"
+        "oneOf": [
+          {
+            "required": [
+              "connectionUrl"
+            ]
+          },
+          {
+            "required": [
+              "host"
+            ]
+          }
         ]
       },
       "packageName": "@qwery/extension-clickhouse-web",
@@ -174,12 +238,52 @@
         "properties": {
           "connectionUrl": {
             "type": "string",
-            "description": "MySQL connection string (mysql://user:pass@host:port/database)",
+            "description": "MySQL connection string (mysql://user:pass@host:port/database?ssl=true). Alternative to separate fields.",
             "format": "uri"
+          },
+          "host": {
+            "type": "string",
+            "description": "MySQL host. Required if connectionUrl is not provided."
+          },
+          "port": {
+            "type": "integer",
+            "description": "MySQL port (default: 3306)",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "username": {
+            "type": "string",
+            "description": "MySQL username (can also use 'user' field)"
+          },
+          "user": {
+            "type": "string",
+            "description": "MySQL username (alternative to 'username')"
+          },
+          "password": {
+            "type": "string",
+            "description": "MySQL password",
+            "format": "password"
+          },
+          "database": {
+            "type": "string",
+            "description": "MySQL database name"
+          },
+          "ssl": {
+            "type": "boolean",
+            "description": "Enable SSL connection (default: false)"
           }
         },
-        "required": [
-          "connectionUrl"
+        "oneOf": [
+          {
+            "required": [
+              "connectionUrl"
+            ]
+          },
+          {
+            "required": [
+              "host"
+            ]
+          }
         ]
       },
       "packageName": "@qwery/extension-mysql",
@@ -256,11 +360,59 @@
         "properties": {
           "connectionUrl": {
             "type": "string",
-            "description": "PostgreSQL connection string (postgresql://user:pass@host:port/db)"
+            "description": "PostgreSQL connection string (postgresql://user:pass@host:port/db?sslmode=require). Alternative to separate fields.",
+            "format": "uri"
+          },
+          "host": {
+            "type": "string",
+            "description": "PostgreSQL host. Required if connectionUrl is not provided."
+          },
+          "port": {
+            "type": "integer",
+            "description": "PostgreSQL port (default: 5432)",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "username": {
+            "type": "string",
+            "description": "PostgreSQL username (can also use 'user' field)"
+          },
+          "user": {
+            "type": "string",
+            "description": "PostgreSQL username (alternative to 'username')"
+          },
+          "password": {
+            "type": "string",
+            "description": "PostgreSQL password",
+            "format": "password"
+          },
+          "database": {
+            "type": "string",
+            "description": "PostgreSQL database name"
+          },
+          "sslmode": {
+            "type": "string",
+            "enum": [
+              "disable",
+              "require",
+              "prefer",
+              "verify-ca",
+              "verify-full"
+            ],
+            "description": "SSL mode (default: disable)"
           }
         },
-        "required": [
-          "connectionUrl"
+        "oneOf": [
+          {
+            "required": [
+              "connectionUrl"
+            ]
+          },
+          {
+            "required": [
+              "host"
+            ]
+          }
         ]
       },
       "packageName": "@qwery/extension-postgresql",
@@ -283,11 +435,59 @@
         "properties": {
           "connectionUrl": {
             "type": "string",
-            "description": "Supabase connection string (postgresql://user:pass@host:port/db)"
+            "description": "Supabase connection string (postgresql://user:pass@host:port/db?sslmode=require). Alternative to separate fields.",
+            "format": "uri"
+          },
+          "host": {
+            "type": "string",
+            "description": "Supabase host. Required if connectionUrl is not provided."
+          },
+          "port": {
+            "type": "integer",
+            "description": "Supabase port (default: 5432)",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "username": {
+            "type": "string",
+            "description": "Supabase username (can also use 'user' field)"
+          },
+          "user": {
+            "type": "string",
+            "description": "Supabase username (alternative to 'username')"
+          },
+          "password": {
+            "type": "string",
+            "description": "Supabase password",
+            "format": "password"
+          },
+          "database": {
+            "type": "string",
+            "description": "Supabase database name"
+          },
+          "sslmode": {
+            "type": "string",
+            "enum": [
+              "disable",
+              "require",
+              "prefer",
+              "verify-ca",
+              "verify-full"
+            ],
+            "description": "SSL mode (default: require for Supabase)"
           }
         },
-        "required": [
-          "connectionUrl"
+        "oneOf": [
+          {
+            "required": [
+              "connectionUrl"
+            ]
+          },
+          {
+            "required": [
+              "host"
+            ]
+          }
         ]
       },
       "packageName": "@qwery/extension-postgresql",
@@ -310,11 +510,59 @@
         "properties": {
           "connectionUrl": {
             "type": "string",
-            "description": "Neon connection string (postgresql://user:pass@host:port/db)"
+            "description": "Neon connection string (postgresql://user:pass@host:port/db?sslmode=require). Alternative to separate fields.",
+            "format": "uri"
+          },
+          "host": {
+            "type": "string",
+            "description": "Neon host. Required if connectionUrl is not provided."
+          },
+          "port": {
+            "type": "integer",
+            "description": "Neon port (default: 5432)",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "username": {
+            "type": "string",
+            "description": "Neon username (can also use 'user' field)"
+          },
+          "user": {
+            "type": "string",
+            "description": "Neon username (alternative to 'username')"
+          },
+          "password": {
+            "type": "string",
+            "description": "Neon password",
+            "format": "password"
+          },
+          "database": {
+            "type": "string",
+            "description": "Neon database name"
+          },
+          "sslmode": {
+            "type": "string",
+            "enum": [
+              "disable",
+              "require",
+              "prefer",
+              "verify-ca",
+              "verify-full"
+            ],
+            "description": "SSL mode (default: require for Neon)"
           }
         },
-        "required": [
-          "connectionUrl"
+        "oneOf": [
+          {
+            "required": [
+              "connectionUrl"
+            ]
+          },
+          {
+            "required": [
+              "host"
+            ]
+          }
         ]
       },
       "packageName": "@qwery/extension-postgresql",

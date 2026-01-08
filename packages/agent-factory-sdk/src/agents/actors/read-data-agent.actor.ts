@@ -1278,6 +1278,8 @@ export const readDataAgent = async (
           }
 
           // Validate that all table paths in the query exist in attached datasources
+          // Note: We validate the original query paths (display format), not rewritten paths
+          // The rewriting happens after validation
           if (repositories) {
             try {
               const schemaCache = getSchemaCache(conversationId);
@@ -1287,7 +1289,8 @@ export const readDataAgent = async (
               const missingTables: string[] = [];
 
               for (const tablePath of tablePaths) {
-                // Check if table exists in cache
+                // Check if table exists in cache (handles both display and query paths)
+                // For ClickHouse, hasTablePath checks both datasource.default.table and datasource.main.table
                 if (
                   !schemaCache.hasTablePath(tablePath) &&
                   !allAvailablePaths.includes(tablePath)
@@ -1324,8 +1327,104 @@ export const readDataAgent = async (
             }
           }
 
+          // Rewrite table paths for ClickHouse (convert default -> main) before execution
+          // For ClickHouse, agent generates queries with datasource.default.table
+          // but DuckDB needs datasource.main.table (SQLite attached databases only support 'main' schema)
+          console.log(`[QueryRewrite] Starting rewrite for query: ${query.substring(0, 100)}...`);
+          let rewrittenQuery = query;
+          const schemaCache = getSchemaCache(conversationId);
+          const tablePaths = extractTablePathsFromQuery(query);
+          console.log(`[QueryRewrite] Extracted ${tablePaths.length} table path(s): ${tablePaths.join(', ')}`);
+          const replacements: Array<{ from: string; to: string }> = [];
+          
+          for (const tablePath of tablePaths) {
+            console.log(`[QueryRewrite] Processing table path: ${tablePath}`);
+            // Check if this is a three-part path (datasource.schema.table)
+            const parts = tablePath.split('.');
+            if (parts.length === 3) {
+              const [datasourceName, schemaName, tableName] = parts;
+              console.log(`[QueryRewrite] Parsed: datasource=${datasourceName}, schema=${schemaName}, table=${tableName}`);
+              
+              // For ClickHouse, if schema is not 'main', it's a display path that needs rewriting
+              if (schemaName !== 'main') {
+                console.log(`[QueryRewrite] Schema is not 'main', checking if display path exists in cache...`);
+                const hasPath = schemaCache.hasTablePath(tablePath);
+                console.log(`[QueryRewrite] hasTablePath(${tablePath}) = ${hasPath}`);
+                
+                // Try to get the query path from the mapping first
+                const queryPath = schemaCache.getQueryPathForDisplayPath(tablePath);
+                console.log(`[QueryRewrite] getQueryPathForDisplayPath(${tablePath}) = ${queryPath || 'null'}`);
+                
+                if (queryPath) {
+                  replacements.push({ from: tablePath, to: queryPath });
+                  console.log(
+                    `[QueryRewrite] ✓ Found mapping: ${tablePath} -> ${queryPath}`,
+                  );
+                } else {
+                  // Fallback: construct query path manually and verify it exists
+                  // This handles cases where mapping might not be set up correctly
+                  const constructedQueryPath = `${datasourceName}.main.${tableName}`;
+                  console.log(`[QueryRewrite] Trying fallback: constructed query path = ${constructedQueryPath}`);
+                  const allPaths = schemaCache.getAllTablePathsFromAllDatasources();
+                  console.log(`[QueryRewrite] All available paths (${allPaths.length} total): ${allPaths.slice(0, 10).join(', ')}${allPaths.length > 10 ? '...' : ''}`);
+                  const pathExists = allPaths.includes(constructedQueryPath);
+                  console.log(`[QueryRewrite] Path ${constructedQueryPath} exists in cache: ${pathExists}`);
+                  
+                  if (pathExists) {
+                    replacements.push({ from: tablePath, to: constructedQueryPath });
+                    console.log(
+                      `[QueryRewrite] ✓ Using fallback: ${tablePath} -> ${constructedQueryPath}`,
+                    );
+                  } else {
+                    console.warn(
+                      `[QueryRewrite] ✗ Could not find query path for ${tablePath}`,
+                    );
+                    console.warn(
+                      `[QueryRewrite] Available paths: ${allPaths.slice(0, 10).join(', ')}${allPaths.length > 10 ? '...' : ''}`,
+                    );
+                  }
+                }
+              } else {
+                console.log(`[QueryRewrite] Schema is 'main', no rewriting needed for ${tablePath}`);
+              }
+            } else {
+              console.log(`[QueryRewrite] Path has ${parts.length} parts, skipping (not three-part)`);
+            }
+          }
+          
+          // Apply all replacements
+          if (replacements.length > 0) {
+            for (const { from, to } of replacements) {
+              // Replace with word boundaries to avoid partial matches
+              // Handle both quoted and unquoted identifiers
+              const escapedFrom = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const patterns = [
+                new RegExp(`\\b${escapedFrom}\\b`, 'g'), // Unquoted
+                new RegExp(`"${escapedFrom}"`, 'g'), // Double-quoted
+                new RegExp(`'${escapedFrom}'`, 'g'), // Single-quoted
+              ];
+              
+              for (const pattern of patterns) {
+                rewrittenQuery = rewrittenQuery.replace(pattern, (match) => {
+                  // Preserve quote style
+                  if (match.startsWith('"') && match.endsWith('"')) {
+                    return `"${to}"`;
+                  }
+                  if (match.startsWith("'") && match.endsWith("'")) {
+                    return `'${to}'`;
+                  }
+                  return to;
+                });
+              }
+            }
+            console.log(
+              `[QueryRewrite] Rewrote ${replacements.length} table path(s) for ClickHouse:`,
+              replacements.map((r) => `${r.from} -> ${r.to}`).join(', '),
+            );
+          }
+
           const queryStartTime = performance.now();
-          const result = await queryEngine.query(query);
+          const result = await queryEngine.query(rewrittenQuery);
           const queryTime = performance.now() - queryStartTime;
           const totalTime = performance.now() - startTime;
           console.log(
@@ -1336,6 +1435,7 @@ export const readDataAgent = async (
           const columnNames = result.columns.map((col) =>
             typeof col === 'string' ? col : col.name || String(col),
           );
+          // Store original query (not rewritten) for display
           const queryId = storeQueryResult(
             conversationId,
             query,

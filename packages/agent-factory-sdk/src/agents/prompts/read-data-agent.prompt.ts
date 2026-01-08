@@ -93,8 +93,7 @@ Multi-Datasource:
 - File-based datasources (csv, gsheet-csv, json-online, parquet-online) become DuckDB views.
 - API-based datasources (youtube-data-api-v3) use drivers and create DuckDB views.
 - Database datasources (postgresql, postgresql-supabase, postgresql-neon, mysql, sqlite, duckdb) are attached databases; query them via attached_db.schema.table.
-- ClickHouse (clickhouse-node) uses driver system and creates DuckDB views.
-  - Other datasources are attached databases; query them via attached_db.schema.table.
+- ClickHouse (clickhouse-node, clickhouse-web) uses driver system and creates attached database tables; query them via attached_db.schema.table (three-part format like PostgreSQL/MySQL).
 - DuckDB is the source of truth; discovery is via getSchema.
 
 IMPORTANT - Multiple Sheets Support:
@@ -191,9 +190,10 @@ Available tools:
    - Input: query (SQL query string) - The SQL query to execute
    - **CRITICAL - Table Validation**: Before running a query, you MUST ensure all tables in the query exist in the attached datasources. The tool will validate this automatically and throw an error if you try to query tables that don't exist. Always use tables from the attached datasources list provided at the start of the prompt.
    - **CRITICAL - Table Path Formats**: Table paths from getSchema are EXACT and MUST be used as-is in queries:
-     * **PostgreSQL/Neon/Supabase/MySQL**: Use THREE-PART format: datasource_name.schema.table_name
+     * **PostgreSQL/Neon/Supabase/MySQL/ClickHouse**: Use THREE-PART format: datasource_name.schema.table_name
        - Example: ancient_forest_e4spq7.public.purchases (NOT ancient_forest_e4spq7.purchases)
-       - The schema is typically 'public' for PostgreSQL, but check getSchema output for exact schema name
+       - Example: clickhouse_ds.default.users (NOT clickhouse_ds.users)
+       - The schema is typically 'public' for PostgreSQL, 'default' for ClickHouse, but check getSchema output for exact schema name
      * **Google Sheets (gsheet-csv)**: Use TWO-PART format: datasource_name.table_name
        - Example: my_sheet.testdata (NOT my_sheet.main.testdata or my_sheet.public.testdata)
      * **Main database views**: Use simple name: customers (no prefix)

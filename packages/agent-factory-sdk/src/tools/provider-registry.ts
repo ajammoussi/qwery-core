@@ -8,6 +8,8 @@
  * 4. Uses extension discovery to dynamically determine mappings
  */
 
+import { extractConnectionUrl } from './connection-string-utils';
+
 export type DuckDBForeignType = 'POSTGRES' | 'MYSQL' | 'SQLITE';
 
 export interface ProviderMapping {
@@ -111,72 +113,25 @@ function getConnectionStringForType(
   switch (type) {
     case 'POSTGRES': {
       return (config) => {
-        const connectionUrl = config.connectionUrl as string;
-        if (!connectionUrl) {
-          throw new Error(
-            'PostgreSQL datasource requires connectionUrl in config',
-          );
-        }
-        // Remove channel_binding parameter as DuckDB's PostgreSQL extension doesn't support it
-        // Keep sslmode as-is (both prefer and require work, tested with actual connections)
-        try {
-          const url = new URL(connectionUrl);
-          url.searchParams.delete('channel_binding');
-
-          return url.toString();
-        } catch {
-          // Fallback: simple string replacement if URL parsing fails
-          // This handles edge cases where URL might not parse correctly
-          let cleaned = connectionUrl;
-          // Remove channel_binding parameter using regex
-          cleaned = cleaned.replace(/[&?]channel_binding=[^&]*/g, '');
-          cleaned = cleaned.replace(/channel_binding=[^&]*&?/g, '');
-          // Change sslmode=disable to prefer (servers require SSL)
-          cleaned = cleaned.replace(/sslmode=disable/g, 'sslmode=prefer');
-          // Ensure sslmode is present if it was removed
-          if (!cleaned.includes('sslmode=')) {
-            if (cleaned.includes('?')) {
-              cleaned += '&sslmode=prefer';
-            } else {
-              cleaned += '?sslmode=prefer';
-            }
-          }
-          return cleaned;
-        }
+        // Use connection-string-utils to extract connection URL
+        // This handles both connectionUrl and separate fields
+        return extractConnectionUrl(config, 'postgresql');
       };
     }
 
     case 'MYSQL': {
       return (config) => {
-        const connectionUrl = config.connectionUrl as string;
-        if (connectionUrl) {
-          return connectionUrl;
-        }
-
-        // Build connection string from individual fields
-        const host = (config.host as string) || 'localhost';
-        const port = (config.port as number) || 3306;
-        const user = (config.user as string) || 'root';
-        const password = (config.password as string) || '';
-        const database = (config.database as string) || '';
-
-        return `host=${host} port=${port} user=${user} password=${password} database=${database}`;
+        // Use connection-string-utils to extract connection URL
+        // This handles both connectionUrl and separate fields
+        return extractConnectionUrl(config, 'mysql');
       };
     }
 
     case 'SQLITE': {
       return (config) => {
-        // For SQLite and DuckDB, we can use path, database, or connectionUrl
-        const path =
-          (config.path as string) ||
-          (config.database as string) ||
-          (config.connectionUrl as string);
-        if (!path) {
-          throw new Error(
-            'SQLite/DuckDB datasource requires path, database, or connectionUrl in config',
-          );
-        }
-        return path;
+        // Use connection-string-utils to extract path
+        // This handles path, database, or connectionUrl
+        return extractConnectionUrl(config, 'sqlite');
       };
     }
   }

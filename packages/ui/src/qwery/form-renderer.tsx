@@ -29,7 +29,9 @@ import {
 } from '@qwery/ui/select';
 import { Switch } from '@qwery/ui/switch';
 import { Textarea } from '@qwery/ui/textarea';
-import { useEffect } from 'react';
+import { RadioGroup, RadioGroupItem } from '@qwery/ui/radio-group';
+import { Label } from '@qwery/ui/label';
+import { useEffect, useState } from 'react';
 
 type ZodSchemaType = z.ZodTypeAny;
 
@@ -630,6 +632,36 @@ export function FormRenderer<T extends ZodSchemaType>({
     await onSubmit(values);
   });
 
+  // Detect oneOf schema (connectionUrl OR separate fields)
+  const hasConnectionUrl = React.useMemo(() => {
+    try {
+      const shape = (schema as { _def?: { shape?: () => Record<string, z.ZodTypeAny> } })._def?.shape?.();
+      return shape && 'connectionUrl' in shape;
+    } catch {
+      return false;
+    }
+  }, [schema]);
+
+  const hasSeparateFields = React.useMemo(() => {
+    try {
+      const shape = (schema as { _def?: { shape?: () => Record<string, z.ZodTypeAny> } })._def?.shape?.();
+      if (!shape) return false;
+      const connectionFieldNames = ['host', 'port', 'database', 'user', 'username', 'password'];
+      return connectionFieldNames.some((name) => name in shape);
+    } catch {
+      return false;
+    }
+  }, [schema]);
+
+  const hasOneOf = hasConnectionUrl && hasSeparateFields;
+
+  // State for connection mode (connectionUrl vs separate fields)
+  const [connectionMode, setConnectionMode] = useState<'url' | 'fields'>(() => {
+    // Default to 'url' if connectionUrl is provided, otherwise 'fields'
+    const currentValues = form.getValues();
+    return currentValues?.connectionUrl ? 'url' : 'fields';
+  });
+
   // Extract fields from schema
   const fields: React.ReactNode[] = [];
 
@@ -677,19 +709,23 @@ export function FormRenderer<T extends ZodSchemaType>({
             'database',
             'user',
             'password',
+            'connectionUrl',
           ].some((key) =>
             shapeEntries.some(([k]) => k.toLowerCase() === key.toLowerCase()),
           );
 
           if (isDatasourceForm && shapeEntries.length > 0) {
             // Group fields for datasource layout
+            const connectionUrlField: Array<[string, z.ZodTypeAny]> = [];
             const connectionFields: Array<[string, z.ZodTypeAny]> = [];
             const otherFields: Array<[string, z.ZodTypeAny]> = [];
 
             shapeEntries.forEach(([key, value]) => {
               const lowerKey = key.toLowerCase();
-              if (
-                ['host', 'port', 'database', 'user', 'password'].includes(
+              if (lowerKey === 'connectionurl') {
+                connectionUrlField.push([key, value]);
+              } else if (
+                ['host', 'port', 'database', 'user', 'username', 'password'].includes(
                   lowerKey,
                 )
               ) {
@@ -699,8 +735,51 @@ export function FormRenderer<T extends ZodSchemaType>({
               }
             });
 
-            // Render connection fields in grid layout
-            if (connectionFields.length > 0) {
+            // Render oneOf toggle if both connectionUrl and separate fields exist
+            if (hasOneOf && connectionUrlField.length > 0 && connectionFields.length > 0) {
+              fields.push(
+                <div key="connection-mode-toggle" className="space-y-2">
+                  <Label>Connection Method</Label>
+                  <RadioGroup
+                    value={connectionMode}
+                    onValueChange={(value) => {
+                      setConnectionMode(value as 'url' | 'fields');
+                      // Clear fields when switching modes
+                      if (value === 'url') {
+                        // Clear separate fields
+                        connectionFields.forEach(([key]) => {
+                          form.setValue(key as FieldPath<FieldValues>, undefined);
+                        });
+                      } else {
+                        // Clear connectionUrl
+                        connectionUrlField.forEach(([key]) => {
+                          form.setValue(key as FieldPath<FieldValues>, undefined);
+                        });
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <RadioGroupItem value="url" id="connection-url" />
+                      <Label htmlFor="connection-url">Connection URL</Label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <RadioGroupItem value="fields" id="connection-fields" />
+                      <Label htmlFor="connection-fields">Separate Fields</Label>
+                    </div>
+                  </RadioGroup>
+                </div>,
+              );
+            }
+
+            // Render connection URL field if mode is 'url' or if no oneOf
+            if ((connectionMode === 'url' || !hasOneOf) && connectionUrlField.length > 0) {
+              connectionUrlField.forEach(([key, value]) => {
+                fields.push(renderField(value, key, key));
+              });
+            }
+
+            // Render connection fields in grid layout if mode is 'fields' or if no oneOf
+            if ((connectionMode === 'fields' || !hasOneOf) && connectionFields.length > 0) {
               const findField = (fieldName: string) =>
                 connectionFields.find(
                   ([k]) => k.toLowerCase() === fieldName.toLowerCase(),

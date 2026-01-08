@@ -9,12 +9,35 @@ import type {
   DatasourceMetadata,
 } from '@qwery/extensions-sdk';
 import { DatasourceMetadataZodSchema } from '@qwery/extensions-sdk';
+import { extractConnectionUrl } from '@qwery/agent-factory-sdk/tools/connection-string-utils';
 
-const ConfigSchema = z.object({
-  connectionUrl: z.string().url(),
-});
+const ConfigSchema = z
+  .object({
+    connectionUrl: z.string().url().optional(),
+    host: z.string().optional(),
+    port: z.number().int().min(1).max(65535).optional(),
+    username: z.string().optional(),
+    user: z.string().optional(),
+    password: z.string().optional(),
+    database: z.string().optional(),
+  })
+  .refine(
+    (data) => data.connectionUrl || data.host,
+    {
+      message: 'Either connectionUrl or host must be provided',
+    },
+  );
 
 type DriverConfig = z.infer<typeof ConfigSchema>;
+
+export function buildClickHouseConfigFromFields(fields: DriverConfig) {
+  // Extract connection URL (either from connectionUrl or build from fields)
+  const connectionUrl = extractConnectionUrl(
+    fields as Record<string, unknown>,
+    'clickhouse-node',
+  );
+  return buildClickHouseConfig(connectionUrl);
+}
 
 function buildClickHouseConfig(connectionUrl: string) {
   const url = new URL(connectionUrl);
@@ -39,9 +62,14 @@ export function makeClickHouseDriver(context: DriverContext): IDataSourceDriver 
   const clientMap = new Map<string, ClickHouseClient>();
 
   const getClient = (config: DriverConfig): ClickHouseClient => {
-    const key = config.connectionUrl;
+    // Extract connection URL (either from connectionUrl or build from fields)
+    const connectionUrl = extractConnectionUrl(
+      config as Record<string, unknown>,
+      'clickhouse-node',
+    );
+    const key = connectionUrl;
     if (!clientMap.has(key)) {
-      const clientConfig = buildClickHouseConfig(config.connectionUrl);
+      const clientConfig = buildClickHouseConfig(connectionUrl);
       console.log('clientConfig', clientConfig);
       const client = createClient(clientConfig);
       clientMap.set(key, client);
@@ -63,7 +91,11 @@ export function makeClickHouseDriver(context: DriverContext): IDataSourceDriver 
     async metadata(config: unknown): Promise<DatasourceMetadata> {
       const parsed = ConfigSchema.parse(config);
       const client = getClient(parsed);
-      const clientConfig = buildClickHouseConfig(parsed.connectionUrl);
+      const connectionUrl = extractConnectionUrl(
+        parsed as Record<string, unknown>,
+        'clickhouse-node',
+      );
+      const clientConfig = buildClickHouseConfig(connectionUrl);
 
       // Get databases (schemas)
       const databasesResult = await client.query({

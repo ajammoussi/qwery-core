@@ -35,12 +35,57 @@ export const extractSchema = async (
       );
     }
 
-    // Check if view exists by trying to describe it
-    try {
-      const escapedViewName = opts.viewName.replace(/"/g, '""');
-      await conn.run(`DESCRIBE "${escapedViewName}"`);
-    } catch {
-      throw new Error(`View '${opts.viewName}' does not exist in database`);
+    // Check if view/table exists
+    // For attached databases (format: database.schema.table), use information_schema
+    // For main database views, use DESCRIBE
+    const viewNameParts = opts.viewName.split('.');
+    const isAttachedDatabase = viewNameParts.length >= 3;
+    
+    if (isAttachedDatabase) {
+      // For attached databases, check via information_schema
+      try {
+        const database = viewNameParts[0];
+        const schema = viewNameParts[1];
+        const table = viewNameParts[2];
+        if (!database || !schema || !table) {
+          throw new Error(`Invalid table path format: ${opts.viewName}`);
+        }
+        const escapedDatabase = database.replace(/"/g, '""');
+        const escapedSchema = schema.replace(/"/g, '""');
+        const escapedTable = table.replace(/"/g, '""');
+        const checkReader = await conn.runAndReadAll(`
+          SELECT 1 
+          FROM information_schema.tables 
+          WHERE table_catalog = '${escapedDatabase}' 
+            AND table_schema = '${escapedSchema}' 
+            AND table_name = '${escapedTable}'
+          LIMIT 1
+        `);
+        await checkReader.readAll();
+        const exists = checkReader.getRowObjectsJS().length > 0;
+        if (!exists) {
+          throw new Error(`View or table '${opts.viewName}' does not exist in database`);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('does not exist')) {
+          throw error;
+        }
+        // Fallback to DESCRIBE if information_schema check fails
+        try {
+          const escapedViewName = opts.viewName.replace(/"/g, '""');
+          await conn.run(`DESCRIBE "${escapedViewName}"`);
+        } catch {
+          throw new Error(`View or table '${opts.viewName}' does not exist in database`);
+        }
+      }
+    } else {
+      // For main database views, use DESCRIBE
+      try {
+        const escapedViewName = opts.viewName.replace(/"/g, '""');
+        await conn.run(`DESCRIBE "${escapedViewName}"`);
+      } catch {
+        throw new Error(`View or table '${opts.viewName}' does not exist in database`);
+      }
     }
   }
   // If no viewName specified, get all views
@@ -129,14 +174,46 @@ export const extractSchema = async (
     };
   }
 
-  // Get schema information using DESCRIBE on the specific view
+  // Get schema information using DESCRIBE or information_schema
   const viewName = opts.viewName.replace(/"/g, '""');
-  const schemaReader = await conn.runAndReadAll(`DESCRIBE "${viewName}"`);
-  await schemaReader.readAll();
-  const schemaRows = schemaReader.getRowObjectsJS() as Array<{
-    column_name: string;
-    column_type: string;
-  }>;
+  const viewNameParts = opts.viewName.split('.');
+  const isAttachedDatabase = viewNameParts.length >= 3;
+  
+  let schemaRows: Array<{ column_name: string; column_type: string }>;
+  
+  if (isAttachedDatabase) {
+    // For attached databases, use information_schema.columns
+    const database = viewNameParts[0];
+    const schema = viewNameParts[1];
+    const table = viewNameParts[2];
+    if (!database || !schema || !table) {
+      throw new Error(`Invalid table path format: ${opts.viewName}`);
+    }
+    const escapedDatabase = database.replace(/"/g, '""');
+    const escapedSchema = schema.replace(/"/g, '""');
+    const escapedTable = table.replace(/"/g, '""');
+    const schemaReader = await conn.runAndReadAll(`
+      SELECT column_name, data_type as column_type
+      FROM information_schema.columns
+      WHERE table_catalog = '${escapedDatabase}'
+        AND table_schema = '${escapedSchema}'
+        AND table_name = '${escapedTable}'
+      ORDER BY ordinal_position
+    `);
+    await schemaReader.readAll();
+    schemaRows = schemaReader.getRowObjectsJS() as Array<{
+      column_name: string;
+      column_type: string;
+    }>;
+  } else {
+    // For main database views, use DESCRIBE
+    const schemaReader = await conn.runAndReadAll(`DESCRIBE "${viewName}"`);
+    await schemaReader.readAll();
+    schemaRows = schemaReader.getRowObjectsJS() as Array<{
+      column_name: string;
+      column_type: string;
+    }>;
+  }
 
   // Convert to SimpleSchema format
   const columns: SimpleColumn[] = schemaRows.map((row) => ({

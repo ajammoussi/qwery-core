@@ -4,6 +4,11 @@ import type { DuckDBInstance } from '@duckdb/node-api';
 import { extractSchema } from './extract-schema';
 import { gsheetToDuckdb } from './gsheet-to-duckdb';
 import { generateSemanticViewName } from './view-registry';
+import { getDatasourceDatabaseName } from './datasource-name-utils';
+import { extractConnectionUrl } from './connection-string-utils';
+import {
+  setClickHouseSchemaMappings,
+} from './clickhouse-schema-mapping';
 
 // Connection type from DuckDB instance
 type Connection = Awaited<ReturnType<DuckDBInstance['connect']>>;
@@ -16,6 +21,8 @@ const sanitizeName = (value: string): string => {
 export interface DatasourceToDuckDbOptions {
   connection: Connection; // Changed from dbPath
   datasource: Datasource;
+  conversationId?: string; // For persistent DB files
+  workspace?: string; // For persistent DB files
 }
 
 export interface CreateViewResult {
@@ -38,12 +45,13 @@ export async function datasourceToDuckdb(
 
   // For DuckDB-native providers (gsheet-csv, csv, json-online, parquet-online),
   // we use DuckDB functions directly and don't need driver loading
+  // Note: ClickHouse (clickhouse-node, clickhouse-web) goes through driver loading path
+  // to create attached database tables, not views
   const duckdbNativeProviders = [
     'gsheet-csv',
     'csv',
     'json-online',
     'parquet-online',
-    'clickhouse-node',
     'youtube-data-api-v3',
   ];
 
@@ -117,33 +125,6 @@ export async function datasourceToDuckdb(
         await conn.run(`
         CREATE OR REPLACE VIEW "${escapedTempViewName}" AS
         SELECT * FROM read_parquet('${url.replace(/'/g, "''")}')
-      `);
-        break;
-      }
-      case 'clickhouse-node': {
-        const url =
-          (config.url as string) ||
-          (config.path as string) ||
-          (config.connectionUrl as string);
-        const query =
-          (config.query as string) || (config.sql as string) || 'SELECT 1';
-        if (!url) {
-          throw new Error(
-            'clickhouse-node datasource requires url or path in config',
-          );
-        }
-
-        // Ensure ClickHouse SQL extension is available
-        await conn.run(`SET allow_community_extensions = true;`);
-        await conn.run(`INSTALL chsql FROM community;`);
-        await conn.run(`LOAD chsql;`);
-
-        const escapedUrl = url.replace(/'/g, "''");
-        const escapedQuery = query.replace(/'/g, "''");
-
-        await conn.run(`
-        CREATE OR REPLACE VIEW "${escapedTempViewName}" AS
-        SELECT * FROM ch_scan('${escapedQuery}', '${escapedUrl}', format := 'Parquet')
       `);
         break;
       }
@@ -282,6 +263,163 @@ export async function datasourceToDuckdb(
     // Get metadata to understand the schema
     const metadata = await driver.metadata(datasource.config);
 
+    // Special handling for ClickHouse: create attached database with all tables
+    if (provider === 'clickhouse-node' || provider === 'clickhouse-web') {
+      if (!opts.conversationId || !opts.workspace) {
+        throw new Error(
+          'ClickHouse datasource requires conversationId and workspace for persistent database attachment',
+        );
+      }
+
+      // Get connection URL for ClickHouse HTTP interface
+      const connectionUrl = extractConnectionUrl(
+        datasource.config as Record<string, unknown>,
+        provider,
+      );
+
+      // Parse connection URL to extract host and port
+      let clickhouseHost = 'localhost';
+      let clickhousePort = 8123;
+      try {
+        const url = new URL(connectionUrl);
+        clickhouseHost = url.hostname;
+        clickhousePort = url.port ? parseInt(url.port, 10) : 8123;
+      } catch {
+        // If URL parsing fails, try to extract from connectionUrl string
+        const match = connectionUrl.match(/http:\/\/([^:]+):(\d+)/);
+        if (match) {
+          clickhouseHost = match[1]!;
+          clickhousePort = parseInt(match[2]!, 10);
+        }
+      }
+
+      // Use datasource name directly as database name (sanitized)
+      const attachedDatabaseName = getDatasourceDatabaseName(datasource);
+      const escapedDbName = attachedDatabaseName.replace(/"/g, '""');
+
+      // Create persistent attached database using SQLite file
+      // Store in conversation directory: workspace/conversationId/datasource_name.db
+      try {
+        // Check if database is already attached
+        const escapedDbNameForQuery = attachedDatabaseName.replace(/'/g, "''");
+        const dbListReader = await conn.runAndReadAll(
+          `SELECT name FROM pragma_database_list WHERE name = '${escapedDbNameForQuery}'`,
+        );
+        await dbListReader.readAll();
+        const existingDbs = dbListReader.getRowObjectsJS() as Array<{
+          name: string;
+        }>;
+
+        if (existingDbs.length === 0) {
+          // Construct persistent database file path
+          const { join } = await import('node:path');
+          const { mkdir } = await import('node:fs/promises');
+          const conversationDir = join(opts.workspace, opts.conversationId);
+          await mkdir(conversationDir, { recursive: true });
+          const dbFilePath = join(conversationDir, `${attachedDatabaseName}.db`);
+
+          // Escape single quotes in file path for SQL injection protection
+          const escapedPath = dbFilePath.replace(/'/g, "''");
+
+          // Attach persistent SQLite database file
+          await conn.run(`ATTACH '${escapedPath}' AS "${escapedDbName}"`);
+
+          console.log(
+            `[ClickHouseAttach] Attached persistent database: ${attachedDatabaseName} at ${dbFilePath}`,
+          );
+        }
+      } catch (error) {
+        // If attach fails, try to continue (might already be attached)
+        console.warn(
+          `[ClickHouseAttach] Could not attach database ${attachedDatabaseName}, continuing:`,
+          error,
+        );
+      }
+
+      // Store schema mapping: table_name -> original_schema_name
+      const schemaMapping = new Map<string, string>();
+
+      // Get unique schemas from metadata
+      const uniqueSchemas = new Set(
+        metadata.tables.map((t) => t.schema || 'default'),
+      );
+
+      // Loop through ALL schemas
+      for (const schemaName of uniqueSchemas) {
+        // Filter tables for this schema
+        const schemaTables = metadata.tables.filter(
+          (t) => (t.schema || 'default') === schemaName,
+        );
+
+        // Loop through ALL tables in this schema
+        for (const table of schemaTables) {
+          try {
+            const tableName = table.name;
+            const originalSchema = table.schema || 'default';
+
+            // Store schema mapping
+            schemaMapping.set(tableName, originalSchema);
+
+            // Build HTTP URL for ClickHouse JSONEachRow format
+            const query = `SELECT * FROM ${originalSchema}.${tableName} LIMIT 1000 FORMAT JSONEachRow`;
+            const encodedQuery = encodeURIComponent(query);
+            const httpUrl = `http://${clickhouseHost}:${clickhousePort}/?query=${encodedQuery}`;
+
+            // Escape table name for SQL
+            const escapedTableName = tableName.replace(/"/g, '""');
+
+            // Create table in attached database using HTTP JSONEachRow format
+            // SQLite only supports "main" schema, so we create in main
+            const escapedHttpUrl = httpUrl.replace(/'/g, "''");
+            await conn.run(`
+              CREATE TABLE IF NOT EXISTS "${escapedDbName}"."main"."${escapedTableName}" AS
+              SELECT * FROM read_json_auto('${escapedHttpUrl}')
+            `);
+
+            console.log(
+              `[ClickHouseAttach] Created table ${attachedDatabaseName}.main.${tableName} from schema ${originalSchema}`,
+            );
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            console.error(
+              `[ClickHouseAttach] Failed to create table ${table.name} from schema ${schemaName}:`,
+              errorMsg,
+            );
+            // Continue with other tables even if one fails
+          }
+        }
+      }
+
+      if (schemaMapping.size === 0) {
+        throw new Error('No tables were successfully created from ClickHouse metadata');
+      }
+
+      // Store schema mapping for later use in transform service
+      setClickHouseSchemaMappings(datasource.id, schemaMapping);
+
+      // Get the first table for return value (agent will discover all via metadata)
+      const firstTable = metadata.tables[0];
+      if (!firstTable) {
+        throw new Error('No tables found in datasource metadata');
+      }
+
+      // Extract schema from the first table
+      const firstTableName = firstTable.name;
+      const escapedFirstTableName = firstTableName.replace(/"/g, '""');
+      const schema = await extractSchema({
+        connection: conn,
+        viewName: `${attachedDatabaseName}.main.${firstTableName}`,
+      });
+
+      // Return first table info (agent will discover all via metadata)
+      return {
+        viewName: `${attachedDatabaseName}.main.${firstTableName}`,
+        displayName: firstTableName,
+        schema,
+      };
+    }
+
+    // For other providers, use the original logic
     // Get the first table from metadata
     const firstTable = metadata.tables[0];
     if (!firstTable) {

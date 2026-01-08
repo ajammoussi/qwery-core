@@ -8,12 +8,36 @@ import type {
   DatasourceMetadata,
 } from '@qwery/extensions-sdk';
 import { DatasourceMetadataZodSchema } from '@qwery/extensions-sdk';
+import { extractConnectionUrl } from '@qwery/agent-factory-sdk/tools/connection-string-utils';
 
-const ConfigSchema = z.object({
-  connectionUrl: z.string().url(),
-});
+const ConfigSchema = z
+  .object({
+    connectionUrl: z.string().url().optional(),
+    host: z.string().optional(),
+    port: z.number().int().min(1).max(65535).optional(),
+    username: z.string().optional(),
+    user: z.string().optional(),
+    password: z.string().optional(),
+    database: z.string().optional(),
+    ssl: z.boolean().optional(),
+  })
+  .refine(
+    (data) => data.connectionUrl || data.host,
+    {
+      message: 'Either connectionUrl or host must be provided',
+    },
+  );
 
 type DriverConfig = z.infer<typeof ConfigSchema>;
+
+export function buildMysqlConfigFromFields(fields: DriverConfig) {
+  // Extract connection URL (either from connectionUrl or build from fields)
+  const connectionUrl = extractConnectionUrl(
+    fields as Record<string, unknown>,
+    'mysql',
+  );
+  return buildMysqlConfig(connectionUrl);
+}
 
 function buildMysqlConfig(connectionUrl: string) {
   const url = new URL(connectionUrl);
@@ -35,7 +59,7 @@ function buildMysqlConfig(connectionUrl: string) {
 
 export function makeMysqlDriver(context: DriverContext): IDataSourceDriver {
   const withConnection = async <T>(
-    config: DriverConfig,
+    config: { connectionUrl: string },
     callback: (connection: Connection) => Promise<T>,
   ): Promise<T> => {
     const connection = await createConnection(buildMysqlConfig(config.connectionUrl));
@@ -63,7 +87,11 @@ export function makeMysqlDriver(context: DriverContext): IDataSourceDriver {
   return {
     async testConnection(config: unknown): Promise<void> {
       const parsed = ConfigSchema.parse(config);
-      await withConnection(parsed, async (connection) => {
+      const connectionUrl = extractConnectionUrl(
+        parsed as Record<string, unknown>,
+        'mysql',
+      );
+      await withConnection({ connectionUrl }, async (connection) => {
         await connection.query('SELECT 1');
       });
       context.logger?.info?.('mysql: testConnection ok');
@@ -71,7 +99,11 @@ export function makeMysqlDriver(context: DriverContext): IDataSourceDriver {
 
     async metadata(config: unknown): Promise<DatasourceMetadata> {
       const parsed = ConfigSchema.parse(config);
-      const rows = await withConnection(parsed, async (connection) => {
+      const connectionUrl = extractConnectionUrl(
+        parsed as Record<string, unknown>,
+        'mysql',
+      );
+      const rows = await withConnection({ connectionUrl }, async (connection) => {
         const [results] = await connection.query(`
           SELECT table_schema,
                  table_name,
@@ -198,8 +230,12 @@ export function makeMysqlDriver(context: DriverContext): IDataSourceDriver {
 
     async query(sql: string, config: unknown): Promise<DatasourceResultSet> {
       const parsed = ConfigSchema.parse(config);
+      const connectionUrl = extractConnectionUrl(
+        parsed as Record<string, unknown>,
+        'mysql',
+      );
       const startTime = Date.now();
-      const result = await withConnection(parsed, (connection) =>
+      const result = await withConnection({ connectionUrl }, (connection) =>
         connection.query(sql),
       );
       const endTime = Date.now();
