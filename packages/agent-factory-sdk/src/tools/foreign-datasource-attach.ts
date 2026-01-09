@@ -40,7 +40,7 @@ export interface AttachToConnectionOptions {
  * Attach a foreign datasource to an existing DuckDB connection
  * This is used when you already have a connection and need to attach datasources
  * (since DuckDB attachments are session-scoped)
- * 
+ *
  * @deprecated This function is kept for backward compatibility.
  * It delegates to the unified datasource attachment service.
  */
@@ -117,7 +117,7 @@ export async function attachAllForeignDatasourcesToConnection(opts: {
 /**
  * Attach a foreign database to DuckDB and create views
  * Supports PostgreSQL, MySQL, SQLite, etc. via DuckDB foreign data wrappers
- * 
+ *
  * @deprecated This function is kept for backward compatibility but is no longer used.
  * Use the unified datasource attachment service instead.
  */
@@ -147,5 +147,7 @@ export async function attachForeignDatasource(
     };
   }
 
-  throw new Error('attachForeignDatasource: Unexpected result format from attachment strategy');
+  throw new Error(
+    'attachForeignDatasource: Unexpected result format from attachment strategy',
+  );
 }

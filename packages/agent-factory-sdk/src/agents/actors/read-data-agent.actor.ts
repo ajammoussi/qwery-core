@@ -36,10 +36,7 @@ import {
   getQueryResult,
 } from '../../tools/query-result-cache';
 import { extractTablePathsFromQuery } from '../../tools/validate-table-paths';
-import {
-  datasourceOrchestrationService,
-  prioritizeDatasources,
-} from '../../tools/datasource-orchestration-service';
+import { datasourceOrchestrationService } from '../../tools/datasource-orchestration-service';
 
 /**
  * Extract datasource IDs from message metadata
@@ -107,9 +104,9 @@ export const readDataAgent = async (
 
   // Initialize engine and attach datasources if repositories are provided
   const agentInitStartTime = performance.now();
-  let orchestrationResult:
-    | Awaited<ReturnType<typeof datasourceOrchestrationService.orchestrate>>
-    | null = null;
+  let orchestrationResult: Awaited<
+    ReturnType<typeof datasourceOrchestrationService.orchestrate>
+  > | null = null;
 
   if (repositories && queryEngine) {
     try {
@@ -197,15 +194,16 @@ export const readDataAgent = async (
 
           // Use orchestration service to ensure datasources are attached and cached
           const syncStartTime = performance.now();
-          const orchestration = await datasourceOrchestrationService.ensureAttachedAndCached(
-            {
-              conversationId,
-              repositories,
-              queryEngine,
-              metadataDatasources,
-            },
-            orchestrationResult || undefined,
-          );
+          const orchestration =
+            await datasourceOrchestrationService.ensureAttachedAndCached(
+              {
+                conversationId,
+                repositories,
+                queryEngine,
+                metadataDatasources,
+              },
+              orchestrationResult || undefined,
+            );
           const syncTime = performance.now() - syncStartTime;
 
           const workspace = orchestration.workspace;
@@ -226,7 +224,6 @@ export const readDataAgent = async (
           let collectedSchemas: Map<string, SimpleSchema> = new Map();
 
           try {
-
             // Check if we can use cache
             const allCached =
               allDatasources.length > 0 &&
@@ -713,15 +710,16 @@ export const readDataAgent = async (
           }
 
           // Use orchestration service to ensure datasources are attached and cached
-          const orchestration = await datasourceOrchestrationService.ensureAttachedAndCached(
-            {
-              conversationId,
-              repositories,
-              queryEngine,
-              metadataDatasources,
-            },
-            orchestrationResult || undefined,
-          );
+          const orchestration =
+            await datasourceOrchestrationService.ensureAttachedAndCached(
+              {
+                conversationId,
+                repositories,
+                queryEngine,
+                metadataDatasources,
+              },
+              orchestrationResult || undefined,
+            );
 
           // Validate that query only references attached datasources
           if (orchestration.datasources.length > 0) {
@@ -809,9 +807,7 @@ export const readDataAgent = async (
             }
 
             if (missingTables.length > 0) {
-              const availablePaths = allAvailablePaths
-                .slice(0, 20)
-                .join(', ');
+              const availablePaths = allAvailablePaths.slice(0, 20).join(', ');
               throw new Error(
                 `The following tables are not available in attached datasources: ${missingTables.join(', ')}. Available tables: ${availablePaths}${allAvailablePaths.length > 20 ? '...' : ''}. Please check the attached datasources list and use only tables that exist.`,
               );
@@ -834,31 +830,44 @@ export const readDataAgent = async (
           // Rewrite table paths for ClickHouse (convert default -> main) before execution
           // For ClickHouse, agent generates queries with datasource.default.table
           // but DuckDB needs datasource.main.table (SQLite attached databases only support 'main' schema)
-          console.log(`[QueryRewrite] Starting rewrite for query: ${query.substring(0, 100)}...`);
+          console.log(
+            `[QueryRewrite] Starting rewrite for query: ${query.substring(0, 100)}...`,
+          );
           let rewrittenQuery = query;
           const schemaCache = orchestration.schemaCache;
           const tablePaths = extractTablePathsFromQuery(query);
-          console.log(`[QueryRewrite] Extracted ${tablePaths.length} table path(s): ${tablePaths.join(', ')}`);
+          console.log(
+            `[QueryRewrite] Extracted ${tablePaths.length} table path(s): ${tablePaths.join(', ')}`,
+          );
           const replacements: Array<{ from: string; to: string }> = [];
-          
+
           for (const tablePath of tablePaths) {
             console.log(`[QueryRewrite] Processing table path: ${tablePath}`);
             // Check if this is a three-part path (datasource.schema.table)
             const parts = tablePath.split('.');
             if (parts.length === 3) {
               const [datasourceName, schemaName, tableName] = parts;
-              console.log(`[QueryRewrite] Parsed: datasource=${datasourceName}, schema=${schemaName}, table=${tableName}`);
-              
+              console.log(
+                `[QueryRewrite] Parsed: datasource=${datasourceName}, schema=${schemaName}, table=${tableName}`,
+              );
+
               // For ClickHouse, if schema is not 'main', it's a display path that needs rewriting
               if (schemaName !== 'main') {
-                console.log(`[QueryRewrite] Schema is not 'main', checking if display path exists in cache...`);
+                console.log(
+                  `[QueryRewrite] Schema is not 'main', checking if display path exists in cache...`,
+                );
                 const hasPath = schemaCache.hasTablePath(tablePath);
-                console.log(`[QueryRewrite] hasTablePath(${tablePath}) = ${hasPath}`);
-                
+                console.log(
+                  `[QueryRewrite] hasTablePath(${tablePath}) = ${hasPath}`,
+                );
+
                 // Try to get the query path from the mapping first
-                const queryPath = schemaCache.getQueryPathForDisplayPath(tablePath);
-                console.log(`[QueryRewrite] getQueryPathForDisplayPath(${tablePath}) = ${queryPath || 'null'}`);
-                
+                const queryPath =
+                  schemaCache.getQueryPathForDisplayPath(tablePath);
+                console.log(
+                  `[QueryRewrite] getQueryPathForDisplayPath(${tablePath}) = ${queryPath || 'null'}`,
+                );
+
                 if (queryPath) {
                   replacements.push({ from: tablePath, to: queryPath });
                   console.log(
@@ -868,14 +877,24 @@ export const readDataAgent = async (
                   // Fallback: construct query path manually and verify it exists
                   // This handles cases where mapping might not be set up correctly
                   const constructedQueryPath = `${datasourceName}.main.${tableName}`;
-                  console.log(`[QueryRewrite] Trying fallback: constructed query path = ${constructedQueryPath}`);
-                  const allPaths = schemaCache.getAllTablePathsFromAllDatasources();
-                  console.log(`[QueryRewrite] All available paths (${allPaths.length} total): ${allPaths.slice(0, 10).join(', ')}${allPaths.length > 10 ? '...' : ''}`);
+                  console.log(
+                    `[QueryRewrite] Trying fallback: constructed query path = ${constructedQueryPath}`,
+                  );
+                  const allPaths =
+                    schemaCache.getAllTablePathsFromAllDatasources();
+                  console.log(
+                    `[QueryRewrite] All available paths (${allPaths.length} total): ${allPaths.slice(0, 10).join(', ')}${allPaths.length > 10 ? '...' : ''}`,
+                  );
                   const pathExists = allPaths.includes(constructedQueryPath);
-                  console.log(`[QueryRewrite] Path ${constructedQueryPath} exists in cache: ${pathExists}`);
-                  
+                  console.log(
+                    `[QueryRewrite] Path ${constructedQueryPath} exists in cache: ${pathExists}`,
+                  );
+
                   if (pathExists) {
-                    replacements.push({ from: tablePath, to: constructedQueryPath });
+                    replacements.push({
+                      from: tablePath,
+                      to: constructedQueryPath,
+                    });
                     console.log(
                       `[QueryRewrite] ✓ Using fallback: ${tablePath} -> ${constructedQueryPath}`,
                     );
@@ -889,13 +908,17 @@ export const readDataAgent = async (
                   }
                 }
               } else {
-                console.log(`[QueryRewrite] Schema is 'main', no rewriting needed for ${tablePath}`);
+                console.log(
+                  `[QueryRewrite] Schema is 'main', no rewriting needed for ${tablePath}`,
+                );
               }
             } else {
-              console.log(`[QueryRewrite] Path has ${parts.length} parts, skipping (not three-part)`);
+              console.log(
+                `[QueryRewrite] Path has ${parts.length} parts, skipping (not three-part)`,
+              );
             }
           }
-          
+
           // Apply all replacements
           if (replacements.length > 0) {
             for (const { from, to } of replacements) {
@@ -907,7 +930,7 @@ export const readDataAgent = async (
                 new RegExp(`"${escapedFrom}"`, 'g'), // Double-quoted
                 new RegExp(`'${escapedFrom}'`, 'g'), // Single-quoted
               ];
-              
+
               for (const pattern of patterns) {
                 rewrittenQuery = rewrittenQuery.replace(pattern, (match) => {
                   // Preserve quote style
@@ -988,7 +1011,10 @@ export const readDataAgent = async (
           if (!(queryEngine instanceof DuckDBQueryEngine)) {
             throw new Error('renameTable requires DuckDBQueryEngine');
           }
-          const result = await queryEngine.renameTable(oldTableName, newTableName);
+          const result = await queryEngine.renameTable(
+            oldTableName,
+            newTableName,
+          );
           return result;
         },
       }),

@@ -89,9 +89,7 @@ export function buildMysqlConnectionUrl(fields: ConnectionFields): string {
 /**
  * Build ClickHouse HTTP URL from separate fields
  */
-export function buildClickHouseConnectionUrl(
-  fields: ConnectionFields,
-): string {
+export function buildClickHouseConnectionUrl(fields: ConnectionFields): string {
   const host = fields.host || 'localhost';
   const port = fields.port || 8123;
   const username = fields.username || fields.user || 'default';
@@ -195,7 +193,9 @@ export function extractConnectionUrl(
 
     case 'mysql':
       if (!fields.host) {
-        throw new Error('MySQL datasource requires connectionUrl or host in config');
+        throw new Error(
+          'MySQL datasource requires connectionUrl or host in config',
+        );
       }
       return buildMysqlConnectionUrl(fields);
 
@@ -210,7 +210,7 @@ export function extractConnectionUrl(
       return buildClickHouseConnectionUrl(fields);
 
     case 'sqlite':
-    case 'duckdb':
+    case 'duckdb': {
       const path = extractPath(config, ['path', 'database', 'connectionUrl']);
       if (!path) {
         throw new Error(
@@ -218,6 +218,7 @@ export function extractConnectionUrl(
         );
       }
       return path;
+    }
 
     default:
       throw new Error(

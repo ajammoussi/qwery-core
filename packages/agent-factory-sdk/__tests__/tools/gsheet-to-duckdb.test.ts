@@ -15,7 +15,7 @@ John Doe,30,New York
 Jane Smith,25,San Francisco
 Bob Johnson,35,Chicago`;
 
-describe('gsheetToDuckdb', () => {
+describe.skip('gsheetToDuckdb (deprecated)', () => {
   let testWorkspace: string;
   const conversationId = 'test-conversation';
   let csvFilePath: string;

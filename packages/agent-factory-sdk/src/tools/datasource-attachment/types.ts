@@ -50,14 +50,13 @@ export interface AttachmentStrategy {
 /**
  * Options specific to DuckDB-native attachment (creates views)
  */
-export interface DuckDBNativeAttachmentOptions extends BaseAttachmentOptions {
-  // No additional options needed
-}
+export type DuckDBNativeAttachmentOptions = BaseAttachmentOptions;
 
 /**
  * Options specific to foreign database attachment
  */
-export interface ForeignDatabaseAttachmentOptions extends BaseAttachmentOptions {
+export interface ForeignDatabaseAttachmentOptions
+  extends BaseAttachmentOptions {
   extractSchema?: boolean; // Default: true
 }
 

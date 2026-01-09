@@ -38,7 +38,9 @@ export class DuckDBNativeAttachmentStrategy implements AttachmentStrategy {
 
     // Generate a temporary name for initial creation to allow semantic renaming later
     const baseName =
-      datasource.name?.trim() || datasource.datasource_provider?.trim() || 'data';
+      datasource.name?.trim() ||
+      datasource.datasource_provider?.trim() ||
+      'data';
     const tempViewName = sanitizeName(
       `tmp_${datasource.id}_${baseName}`.toLowerCase(),
     );

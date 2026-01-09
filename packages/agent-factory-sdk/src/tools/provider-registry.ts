@@ -255,12 +255,12 @@ export function getDriverBasedProviders(): readonly string[] {
  * Check if a provider is DuckDB-native
  */
 export function isDuckDBNativeProvider(provider: string): boolean {
-  return getDuckDBNativeProviders().includes(provider as any);
+  return (getDuckDBNativeProviders() as readonly string[]).includes(provider);
 }
 
 /**
  * Check if a provider uses driver-based attachment
  */
 export function isDriverBasedProvider(provider: string): boolean {
-  return getDriverBasedProviders().includes(provider as any);
+  return (getDriverBasedProviders() as readonly string[]).includes(provider);
 }

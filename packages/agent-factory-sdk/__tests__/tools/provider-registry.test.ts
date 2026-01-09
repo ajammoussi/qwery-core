@@ -77,7 +77,9 @@ describe('Provider Registry', () => {
       const config = { connectionUrl: 'postgresql://user:pass@host:5432/db' };
       const connectionString = mapping!.getConnectionString(config);
       // Connection string should have sslmode=prefer added by default
-      expect(connectionString).toBe('postgresql://user:pass@host:5432/db');
+      expect(connectionString).toBe(
+        'postgresql://user:pass@host:5432/db?sslmode=prefer',
+      );
     });
 
     it('should throw error if connectionUrl missing for PostgreSQL', async () => {
@@ -86,7 +88,7 @@ describe('Provider Registry', () => {
 
       const config = {};
       expect(() => mapping!.getConnectionString(config)).toThrow(
-        'PostgreSQL datasource requires connectionUrl in config',
+        'PostgreSQL datasource requires connectionUrl or host in config',
       );
     });
 

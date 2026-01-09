@@ -43,7 +43,7 @@ export interface GSheetAttachResult {
  * This function is kept as a stub for backward compatibility but will throw an error.
  */
 export const gsheetToDuckdb = async (
-  opts: GSheetToDuckDbOptions,
+  _opts: GSheetToDuckDbOptions,
 ): Promise<string> => {
   throw new Error(
     'gsheetToDuckdb is deprecated. Use attachGSheetDatasource instead for multi-tab support.',
@@ -59,7 +59,7 @@ export const gsheetToDuckdb = async (
  *
  * This ensures tables persist across connections, unlike in-memory databases.
  * Each tab in the Google Sheet becomes a separate table in the attached database.
- * 
+ *
  * @deprecated This function is kept for backward compatibility.
  * It delegates to the unified datasource attachment service.
  */
@@ -80,14 +80,23 @@ export async function attachGSheetDatasource(
   if (result.attachedDatabaseName && result.tables) {
     return {
       attachedDatabaseName: result.attachedDatabaseName,
-      tables: result.tables.map((t: { schema: string; table: string; csvUrl?: string; schemaDefinition?: SimpleSchema }) => ({
-        schema: t.schema,
-        table: t.table,
-        csvUrl: t.csvUrl || '',
-        schemaDefinition: t.schemaDefinition,
-      })),
+      tables: result.tables.map(
+        (t: {
+          schema: string;
+          table: string;
+          csvUrl?: string;
+          schemaDefinition?: SimpleSchema;
+        }) => ({
+          schema: t.schema,
+          table: t.table,
+          csvUrl: t.csvUrl || '',
+          schemaDefinition: t.schemaDefinition,
+        }),
+      ),
     };
   }
 
-  throw new Error('attachGSheetDatasource: Unexpected result format from attachment strategy');
+  throw new Error(
+    'attachGSheetDatasource: Unexpected result format from attachment strategy',
+  );
 }

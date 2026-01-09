@@ -144,8 +144,13 @@ export default function ProjectDatasourceViewPage() {
       }
 
       // Provider-specific validation
-      const provider = extension.data.id;
-      
+      const provider = extension.data?.id;
+      if (!provider) {
+        toast.error('Extension provider not found');
+        setIsSubmitting(false);
+        return;
+      }
+
       // Google Sheets only needs sharedLink or url
       if (provider === 'gsheet-csv') {
         const hasSharedLink = Boolean(config.sharedLink || config.url);
@@ -160,7 +165,9 @@ export default function ProjectDatasourceViewPage() {
         const hasHost = Boolean(config.host);
 
         if (!hasConnectionUrl && !hasHost) {
-          toast.error('Please provide either a connection URL or connection details (host is required)');
+          toast.error(
+            'Please provide either a connection URL or connection details (host is required)',
+          );
           setIsSubmitting(false);
           return;
         }
@@ -241,7 +248,7 @@ export default function ProjectDatasourceViewPage() {
 
     // Provider-specific validation
     const provider = extension.data.id;
-    
+
     // Google Sheets only needs sharedLink or url
     if (provider === 'gsheet-csv') {
       const hasSharedLink = Boolean(formValues.sharedLink || formValues.url);
@@ -255,7 +262,9 @@ export default function ProjectDatasourceViewPage() {
       const hasHost = Boolean(formValues.host);
 
       if (!hasConnectionUrl && !hasHost) {
-        toast.error('Please provide either a connection URL or connection details (host is required)');
+        toast.error(
+          'Please provide either a connection URL or connection details (host is required)',
+        );
         return;
       }
     }
@@ -282,7 +291,8 @@ export default function ProjectDatasourceViewPage() {
         Object.keys(normalizedConfig).forEach((key) => {
           if (
             key !== 'password' &&
-            (normalizedConfig[key] === '' || normalizedConfig[key] === undefined)
+            (normalizedConfig[key] === '' ||
+              normalizedConfig[key] === undefined)
           ) {
             delete normalizedConfig[key];
           }

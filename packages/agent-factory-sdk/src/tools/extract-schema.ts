@@ -40,7 +40,7 @@ export const extractSchema = async (
     // For main database views, use DESCRIBE
     const viewNameParts = opts.viewName.split('.');
     const isAttachedDatabase = viewNameParts.length >= 3;
-    
+
     if (isAttachedDatabase) {
       // For attached databases, check via information_schema
       try {
@@ -64,10 +64,15 @@ export const extractSchema = async (
         await checkReader.readAll();
         const exists = checkReader.getRowObjectsJS().length > 0;
         if (!exists) {
-          throw new Error(`View or table '${opts.viewName}' does not exist in database`);
+          throw new Error(
+            `View or table '${opts.viewName}' does not exist in database`,
+          );
         }
       } catch (error) {
-        if (error instanceof Error && error.message.includes('does not exist')) {
+        if (
+          error instanceof Error &&
+          error.message.includes('does not exist')
+        ) {
           throw error;
         }
         // Fallback to DESCRIBE if information_schema check fails
@@ -75,7 +80,9 @@ export const extractSchema = async (
           const escapedViewName = opts.viewName.replace(/"/g, '""');
           await conn.run(`DESCRIBE "${escapedViewName}"`);
         } catch {
-          throw new Error(`View or table '${opts.viewName}' does not exist in database`);
+          throw new Error(
+            `View or table '${opts.viewName}' does not exist in database`,
+          );
         }
       }
     } else {
@@ -84,7 +91,9 @@ export const extractSchema = async (
         const escapedViewName = opts.viewName.replace(/"/g, '""');
         await conn.run(`DESCRIBE "${escapedViewName}"`);
       } catch {
-        throw new Error(`View or table '${opts.viewName}' does not exist in database`);
+        throw new Error(
+          `View or table '${opts.viewName}' does not exist in database`,
+        );
       }
     }
   }
@@ -178,9 +187,9 @@ export const extractSchema = async (
   const viewName = opts.viewName.replace(/"/g, '""');
   const viewNameParts = opts.viewName.split('.');
   const isAttachedDatabase = viewNameParts.length >= 3;
-  
+
   let schemaRows: Array<{ column_name: string; column_type: string }>;
-  
+
   if (isAttachedDatabase) {
     // For attached databases, use information_schema.columns
     const database = viewNameParts[0];

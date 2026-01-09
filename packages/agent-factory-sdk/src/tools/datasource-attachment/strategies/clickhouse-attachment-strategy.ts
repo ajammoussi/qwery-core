@@ -13,7 +13,9 @@ export class ClickHouseAttachmentStrategy implements AttachmentStrategy {
     return provider === 'clickhouse-node' || provider === 'clickhouse-web';
   }
 
-  async attach(options: ClickHouseAttachmentOptions): Promise<AttachmentResult> {
+  async attach(
+    options: ClickHouseAttachmentOptions,
+  ): Promise<AttachmentResult> {
     const { connection: conn, datasource, conversationId, workspace } = options;
 
     if (!conversationId || !workspace) {
@@ -23,7 +25,6 @@ export class ClickHouseAttachmentStrategy implements AttachmentStrategy {
     }
 
     const provider = datasource.datasource_provider;
-    const config = datasource.config as Record<string, unknown>;
 
     // Dynamically import extensions-sdk and extensions-loader
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -36,7 +37,9 @@ export class ClickHouseAttachmentStrategy implements AttachmentStrategy {
     const { getDriverInstance } = extensionsLoader;
 
     // Get extension metadata to find the driver
-    const dsMeta = await getDiscoveredDatasource(datasource.datasource_provider);
+    const dsMeta = await getDiscoveredDatasource(
+      datasource.datasource_provider,
+    );
     if (!dsMeta) {
       throw new Error(
         `Extension metadata not found for provider: ${datasource.datasource_provider}`,
@@ -152,7 +155,10 @@ export class ClickHouseAttachmentStrategy implements AttachmentStrategy {
           const { mkdir } = await import('node:fs/promises');
           const conversationDir = join(workspace, conversationId);
           await mkdir(conversationDir, { recursive: true });
-          const dbFilePath = join(conversationDir, `${attachedDatabaseName}.db`);
+          const dbFilePath = join(
+            conversationDir,
+            `${attachedDatabaseName}.db`,
+          );
 
           // Escape single quotes in file path for SQL injection protection
           const escapedPath = dbFilePath.replace(/'/g, "''");
@@ -215,7 +221,8 @@ export class ClickHouseAttachmentStrategy implements AttachmentStrategy {
               `[ClickHouseAttach] Created table ${attachedDatabaseName}.main.${tableName} from schema ${originalSchema}`,
             );
           } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : String(error);
+            const errorMsg =
+              error instanceof Error ? error.message : String(error);
             console.error(
               `[ClickHouseAttach] Failed to create table ${table.name} from schema ${schemaName}:`,
               errorMsg,
@@ -226,7 +233,9 @@ export class ClickHouseAttachmentStrategy implements AttachmentStrategy {
       }
 
       if (schemaMapping.size === 0) {
-        throw new Error('No tables were successfully created from ClickHouse metadata');
+        throw new Error(
+          'No tables were successfully created from ClickHouse metadata',
+        );
       }
 
       // Store schema mapping for later use in transform service
@@ -240,7 +249,6 @@ export class ClickHouseAttachmentStrategy implements AttachmentStrategy {
 
       // Extract schema from the first table
       const firstTableName = firstTable.name;
-      const escapedFirstTableName = firstTableName.replace(/"/g, '""');
       const schema = await extractSchema({
         connection: conn,
         viewName: `${attachedDatabaseName}.main.${firstTableName}`,

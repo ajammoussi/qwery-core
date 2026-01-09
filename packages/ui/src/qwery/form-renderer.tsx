@@ -620,7 +620,8 @@ export function FormRenderer<T extends ZodSchemaType>({
           Object.keys(normalizedValues).forEach((key) => {
             if (
               key !== 'password' &&
-              (normalizedValues[key] === '' || normalizedValues[key] === undefined)
+              (normalizedValues[key] === '' ||
+                normalizedValues[key] === undefined)
             ) {
               delete normalizedValues[key];
             }
@@ -678,7 +679,14 @@ export function FormRenderer<T extends ZodSchemaType>({
     // Find the option that has separate fields (host, port, etc.)
     for (const option of unionOptions) {
       try {
-        const optionDef = (option as { _def?: { typeName?: string; shape?: () => Record<string, z.ZodTypeAny> } })._def;
+        const optionDef = (
+          option as {
+            _def?: {
+              typeName?: string;
+              shape?: () => Record<string, z.ZodTypeAny>;
+            };
+          }
+        )._def;
         if (optionDef?.typeName === 'ZodObject') {
           const shape = optionDef.shape?.();
           if (shape && ('host' in shape || 'port' in shape)) {
@@ -697,7 +705,14 @@ export function FormRenderer<T extends ZodSchemaType>({
     // Find the option that has connectionUrl
     for (const option of unionOptions) {
       try {
-        const optionDef = (option as { _def?: { typeName?: string; shape?: () => Record<string, z.ZodTypeAny> } })._def;
+        const optionDef = (
+          option as {
+            _def?: {
+              typeName?: string;
+              shape?: () => Record<string, z.ZodTypeAny>;
+            };
+          }
+        )._def;
         if (optionDef?.typeName === 'ZodObject') {
           const shape = optionDef.shape?.();
           if (shape && 'connectionUrl' in shape) {
@@ -718,7 +733,9 @@ export function FormRenderer<T extends ZodSchemaType>({
     if (!isOneOfSchema || !hasOneOf) return null;
 
     const values = form.getValues();
-    const hasConnectionUrl = Boolean(values.connectionUrl?.trim?.() || values.connectionUrl);
+    const hasConnectionUrl = Boolean(
+      values.connectionUrl?.trim?.() || values.connectionUrl,
+    );
     const hasHost = Boolean(values.host?.trim?.() || values.host);
 
     // For oneOf: either connectionUrl OR host must be present
@@ -762,7 +779,14 @@ export function FormRenderer<T extends ZodSchemaType>({
     const isValid =
       form.formState.isValid && Object.keys(form.formState.errors).length === 0;
     onValidityChangeRef.current(isValid);
-  }, [form.formState.isValid, form.formState.errors, isOneOfSchema, hasOneOf, validateOneOfForm, watchedValues]);
+  }, [
+    form.formState.isValid,
+    form.formState.errors,
+    isOneOfSchema,
+    hasOneOf,
+    validateOneOfForm,
+    watchedValues,
+  ]);
 
   // Extract fields from schema
   const fields: React.ReactNode[] = [];
@@ -807,11 +831,19 @@ export function FormRenderer<T extends ZodSchemaType>({
     if (hasOneOf && separateFieldsSchema && connectionUrlSchema) {
       try {
         // Extract shape from separate fields schema
-        const separateDef = (separateFieldsSchema as { _def?: { shape?: () => Record<string, z.ZodTypeAny> } })._def;
+        const separateDef = (
+          separateFieldsSchema as {
+            _def?: { shape?: () => Record<string, z.ZodTypeAny> };
+          }
+        )._def;
         const separateShape = separateDef?.shape?.();
-        
+
         // Extract shape from connection URL schema
-        const urlDef = (connectionUrlSchema as { _def?: { shape?: () => Record<string, z.ZodTypeAny> } })._def;
+        const urlDef = (
+          connectionUrlSchema as {
+            _def?: { shape?: () => Record<string, z.ZodTypeAny> };
+          }
+        )._def;
         const urlShape = urlDef?.shape?.();
 
         console.log('[FormRenderer] Extracted shapes', {
@@ -820,135 +852,185 @@ export function FormRenderer<T extends ZodSchemaType>({
         });
 
         if (separateShape && urlShape) {
-        // Merge all fields into a single shape for rendering
-        const mergedShape = { ...separateShape, ...urlShape };
-        const shapeEntries = Object.entries(mergedShape);
+          // Merge all fields into a single shape for rendering
+          const mergedShape = { ...separateShape, ...urlShape };
+          const shapeEntries = Object.entries(mergedShape);
 
-        // Group fields
-        const connectionUrlField: Array<[string, z.ZodTypeAny]> = [];
-        const connectionFields: Array<[string, z.ZodTypeAny]> = [];
-        const otherFields: Array<[string, z.ZodTypeAny]> = [];
+          // Group fields
+          const connectionUrlField: Array<[string, z.ZodTypeAny]> = [];
+          const connectionFields: Array<[string, z.ZodTypeAny]> = [];
+          const otherFields: Array<[string, z.ZodTypeAny]> = [];
 
-        shapeEntries.forEach(([key, value]) => {
-          const lowerKey = key.toLowerCase();
-          if (lowerKey === 'connectionurl') {
-            connectionUrlField.push([key, value]);
-          } else if (
-            ['host', 'port', 'database', 'user', 'username', 'password', 'sslmode', 'ssl'].includes(
-              lowerKey,
-            )
+          shapeEntries.forEach(([key, value]) => {
+            const lowerKey = key.toLowerCase();
+            if (lowerKey === 'connectionurl') {
+              connectionUrlField.push([key, value]);
+            } else if (
+              [
+                'host',
+                'port',
+                'database',
+                'user',
+                'username',
+                'password',
+                'sslmode',
+                'ssl',
+              ].includes(lowerKey)
+            ) {
+              connectionFields.push([key, value]);
+            } else {
+              otherFields.push([key, value]);
+            }
+          });
+
+          // Render connection fields FIRST (compact, stacked vertically)
+          if (connectionFields.length > 0) {
+            const findField = (fieldName: string) =>
+              connectionFields.find(
+                ([k]) => k.toLowerCase() === fieldName.toLowerCase(),
+              );
+
+            // Render fields in a compact grid layout
+            const hostField = findField('host');
+            const portField = findField('port');
+            const databaseField = findField('database');
+            const usernameField = findField('username') || findField('user');
+            const passwordField = findField('password');
+            const sslmodeField = findField('sslmode');
+            const sslField = findField('ssl');
+
+            // First row: host and port side by side
+            if (hostField || portField) {
+              fields.push(
+                <div key="connection-row-1" className="grid grid-cols-2 gap-4">
+                  {hostField &&
+                    renderField(hostField[1], hostField[0], hostField[0])}
+                  {portField &&
+                    renderField(portField[1], portField[0], portField[0])}
+                </div>,
+              );
+            }
+
+            // Second row: database (full width)
+            if (databaseField) {
+              fields.push(
+                <div key="connection-row-2">
+                  {renderField(
+                    databaseField[1],
+                    databaseField[0],
+                    databaseField[0],
+                  )}
+                </div>,
+              );
+            }
+
+            // Third row: username and password side by side
+            if (usernameField || passwordField) {
+              fields.push(
+                <div key="connection-row-3" className="grid grid-cols-2 gap-4">
+                  {usernameField &&
+                    renderField(
+                      usernameField[1],
+                      usernameField[0],
+                      usernameField[0],
+                    )}
+                  {passwordField &&
+                    renderField(
+                      passwordField[1],
+                      passwordField[0],
+                      passwordField[0],
+                    )}
+                </div>,
+              );
+            }
+
+            // Fourth row: sslmode and ssl side by side (if present)
+            if (sslmodeField || sslField) {
+              fields.push(
+                <div key="connection-row-4" className="grid grid-cols-2 gap-4">
+                  {sslmodeField &&
+                    renderField(
+                      sslmodeField[1],
+                      sslmodeField[0],
+                      sslmodeField[0],
+                    )}
+                  {sslField &&
+                    renderField(sslField[1], sslField[0], sslField[0])}
+                </div>,
+              );
+            }
+          }
+
+          // Render "--or--" divider between separate fields and connection URL
+          if (
+            hasOneOf &&
+            connectionFields.length > 0 &&
+            connectionUrlField.length > 0
           ) {
-            connectionFields.push([key, value]);
-          } else {
-            otherFields.push([key, value]);
-          }
-        });
-
-        // Render connection fields FIRST (compact, stacked vertically)
-        if (connectionFields.length > 0) {
-          const findField = (fieldName: string) =>
-            connectionFields.find(
-              ([k]) => k.toLowerCase() === fieldName.toLowerCase(),
-            );
-
-          // Render fields in a compact grid layout
-          const hostField = findField('host');
-          const portField = findField('port');
-          const databaseField = findField('database');
-          const usernameField = findField('username') || findField('user');
-          const passwordField = findField('password');
-          const sslmodeField = findField('sslmode');
-          const sslField = findField('ssl');
-
-          // First row: host and port side by side
-          if (hostField || portField) {
             fields.push(
-              <div key="connection-row-1" className="grid grid-cols-2 gap-4">
-                {hostField && renderField(hostField[1], hostField[0], hostField[0])}
-                {portField && renderField(portField[1], portField[0], portField[0])}
+              <div key="connection-divider" className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="border-border w-full border-t"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background text-muted-foreground px-2">
+                    or
+                  </span>
+                </div>
               </div>,
             );
           }
 
-          // Second row: database (full width)
-          if (databaseField) {
-            fields.push(
-              <div key="connection-row-2">
-                {renderField(databaseField[1], databaseField[0], databaseField[0])}
-              </div>,
-            );
+          // Render connection URL field BELOW the divider
+          if (connectionUrlField.length > 0) {
+            connectionUrlField.forEach(([key, value]) => {
+              fields.push(
+                <div key={`connection-url-${key}`}>
+                  {renderField(value, key, key)}
+                </div>,
+              );
+            });
           }
 
-          // Third row: username and password side by side
-          if (usernameField || passwordField) {
-            fields.push(
-              <div key="connection-row-3" className="grid grid-cols-2 gap-4">
-                {usernameField && renderField(usernameField[1], usernameField[0], usernameField[0])}
-                {passwordField && renderField(passwordField[1], passwordField[0], passwordField[0])}
-              </div>,
-            );
-          }
-
-          // Fourth row: sslmode and ssl side by side (if present)
-          if (sslmodeField || sslField) {
-            fields.push(
-              <div key="connection-row-4" className="grid grid-cols-2 gap-4">
-                {sslmodeField && renderField(sslmodeField[1], sslmodeField[0], sslmodeField[0])}
-                {sslField && renderField(sslField[1], sslField[0], sslField[0])}
-              </div>,
-            );
-          }
-        }
-
-        // Render "--or--" divider between separate fields and connection URL
-        if (hasOneOf && connectionFields.length > 0 && connectionUrlField.length > 0) {
-          fields.push(
-            <div key="connection-divider" className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border"></div>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">or</span>
-              </div>
-            </div>,
+          // Render other fields
+          otherFields.forEach(([key, value]) => {
+            fields.push(renderField(value, key, key));
+          });
+        } else {
+          console.error(
+            '[FormRenderer] Could not extract shapes from ZodUnion options',
+            {
+              separateShape,
+              urlShape,
+              separateDef,
+              urlDef,
+            },
           );
         }
-
-        // Render connection URL field BELOW the divider
-        if (connectionUrlField.length > 0) {
-          connectionUrlField.forEach(([key, value]) => {
-            fields.push(
-              <div key={`connection-url-${key}`}>
-                {renderField(value, key, key)}
-              </div>,
-            );
-          });
-        }
-
-        // Render other fields
-        otherFields.forEach(([key, value]) => {
-          fields.push(renderField(value, key, key));
-        });
-      } else {
-        console.error('[FormRenderer] Could not extract shapes from ZodUnion options', {
-          separateShape,
-          urlShape,
-          separateDef,
-          urlDef,
-        });
+      } catch (error) {
+        console.error(
+          '[FormRenderer] Error handling ZodUnion (oneOf) schema:',
+          error,
+        );
       }
-    } catch (error) {
-      console.error('[FormRenderer] Error handling ZodUnion (oneOf) schema:', error);
-    }
     } else {
       // Fallback: if union is detected but we can't extract fields, try to render all union options
-      console.warn('[FormRenderer] ZodUnion detected but could not extract fields, trying fallback');
+      console.warn(
+        '[FormRenderer] ZodUnion detected but could not extract fields, trying fallback',
+      );
       if (unionOptions && unionOptions.length > 0) {
         // Try to merge all union options
         const allShapes: Record<string, z.ZodTypeAny> = {};
         for (const option of unionOptions) {
           try {
-            const optionDef = (option as { _def?: { typeName?: string; shape?: () => Record<string, z.ZodTypeAny> } })._def;
+            const optionDef = (
+              option as {
+                _def?: {
+                  typeName?: string;
+                  shape?: () => Record<string, z.ZodTypeAny>;
+                };
+              }
+            )._def;
             if (optionDef?.typeName === 'ZodObject') {
               const shape = optionDef.shape?.();
               if (shape) {
@@ -956,10 +1038,13 @@ export function FormRenderer<T extends ZodSchemaType>({
               }
             }
           } catch (e) {
-            console.error('[FormRenderer] Error extracting shape from union option:', e);
+            console.error(
+              '[FormRenderer] Error extracting shape from union option:',
+              e,
+            );
           }
         }
-        
+
         // Render all fields from merged shapes
         const shapeEntries = Object.entries(allShapes);
         shapeEntries.forEach(([key, value]) => {
@@ -1000,9 +1085,16 @@ export function FormRenderer<T extends ZodSchemaType>({
               if (lowerKey === 'connectionurl') {
                 connectionUrlField.push([key, value]);
               } else if (
-                ['host', 'port', 'database', 'user', 'username', 'password', 'sslmode', 'ssl'].includes(
-                  lowerKey,
-                )
+                [
+                  'host',
+                  'port',
+                  'database',
+                  'user',
+                  'username',
+                  'password',
+                  'sslmode',
+                  'ssl',
+                ].includes(lowerKey)
               ) {
                 connectionFields.push([key, value]);
               } else {
@@ -1014,7 +1106,11 @@ export function FormRenderer<T extends ZodSchemaType>({
             if (hasOneOf && separateFieldsSchema && connectionUrlSchema) {
               try {
                 // Extract fields from separate fields schema
-                const separateDef = (separateFieldsSchema as { _def?: { shape?: () => Record<string, z.ZodTypeAny> } })._def;
+                const separateDef = (
+                  separateFieldsSchema as {
+                    _def?: { shape?: () => Record<string, z.ZodTypeAny> };
+                  }
+                )._def;
                 const separateShape = separateDef?.shape?.();
                 if (separateShape) {
                   connectionFields.length = 0; // Clear existing
@@ -1027,14 +1123,24 @@ export function FormRenderer<T extends ZodSchemaType>({
                 }
 
                 // Extract connectionUrl from connection URL schema
-                const urlDef = (connectionUrlSchema as { _def?: { shape?: () => Record<string, z.ZodTypeAny> } })._def;
+                const urlDef = (
+                  connectionUrlSchema as {
+                    _def?: { shape?: () => Record<string, z.ZodTypeAny> };
+                  }
+                )._def;
                 const urlShape = urlDef?.shape?.();
                 if (urlShape && 'connectionUrl' in urlShape) {
                   connectionUrlField.length = 0; // Clear existing
-                  connectionUrlField.push(['connectionUrl', urlShape.connectionUrl]);
+                  connectionUrlField.push([
+                    'connectionUrl',
+                    urlShape.connectionUrl,
+                  ]);
                 }
               } catch (error) {
-                console.error('Error extracting fields from oneOf schema:', error);
+                console.error(
+                  'Error extracting fields from oneOf schema:',
+                  error,
+                );
               }
             }
 
@@ -1057,9 +1163,14 @@ export function FormRenderer<T extends ZodSchemaType>({
               // First row: host and port side by side
               if (hostField || portField) {
                 fields.push(
-                  <div key="connection-row-1" className="grid grid-cols-2 gap-4">
-                    {hostField && renderField(hostField[1], hostField[0], hostField[0])}
-                    {portField && renderField(portField[1], portField[0], portField[0])}
+                  <div
+                    key="connection-row-1"
+                    className="grid grid-cols-2 gap-4"
+                  >
+                    {hostField &&
+                      renderField(hostField[1], hostField[0], hostField[0])}
+                    {portField &&
+                      renderField(portField[1], portField[0], portField[0])}
                   </div>,
                 );
               }
@@ -1068,7 +1179,11 @@ export function FormRenderer<T extends ZodSchemaType>({
               if (databaseField) {
                 fields.push(
                   <div key="connection-row-2">
-                    {renderField(databaseField[1], databaseField[0], databaseField[0])}
+                    {renderField(
+                      databaseField[1],
+                      databaseField[0],
+                      databaseField[0],
+                    )}
                   </div>,
                 );
               }
@@ -1076,9 +1191,18 @@ export function FormRenderer<T extends ZodSchemaType>({
               // Third row: username and password side by side
               if (userField || passwordField) {
                 fields.push(
-                  <div key="connection-row-3" className="grid grid-cols-2 gap-4">
-                    {userField && renderField(userField[1], userField[0], userField[0])}
-                    {passwordField && renderField(passwordField[1], passwordField[0], passwordField[0])}
+                  <div
+                    key="connection-row-3"
+                    className="grid grid-cols-2 gap-4"
+                  >
+                    {userField &&
+                      renderField(userField[1], userField[0], userField[0])}
+                    {passwordField &&
+                      renderField(
+                        passwordField[1],
+                        passwordField[0],
+                        passwordField[0],
+                      )}
                   </div>,
                 );
               }
@@ -1086,23 +1210,38 @@ export function FormRenderer<T extends ZodSchemaType>({
               // Fourth row: sslmode and ssl side by side (if present)
               if (sslmodeField || sslField) {
                 fields.push(
-                  <div key="connection-row-4" className="grid grid-cols-2 gap-4">
-                    {sslmodeField && renderField(sslmodeField[1], sslmodeField[0], sslmodeField[0])}
-                    {sslField && renderField(sslField[1], sslField[0], sslField[0])}
+                  <div
+                    key="connection-row-4"
+                    className="grid grid-cols-2 gap-4"
+                  >
+                    {sslmodeField &&
+                      renderField(
+                        sslmodeField[1],
+                        sslmodeField[0],
+                        sslmodeField[0],
+                      )}
+                    {sslField &&
+                      renderField(sslField[1], sslField[0], sslField[0])}
                   </div>,
                 );
               }
             }
 
             // Render "--or--" divider between separate fields and connection URL
-            if (hasOneOf && connectionFields.length > 0 && connectionUrlField.length > 0) {
+            if (
+              hasOneOf &&
+              connectionFields.length > 0 &&
+              connectionUrlField.length > 0
+            ) {
               fields.push(
                 <div key="connection-divider" className="relative my-6">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border"></div>
+                    <div className="border-border w-full border-t"></div>
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">or</span>
+                    <span className="bg-background text-muted-foreground px-2">
+                      or
+                    </span>
                   </div>
                 </div>,
               );

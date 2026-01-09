@@ -199,8 +199,7 @@ export class DatasourceOrchestrationService {
           };
         }
       } catch (error) {
-        const errorMsg =
-          error instanceof Error ? error.message : String(error);
+        const errorMsg = error instanceof Error ? error.message : String(error);
         console.warn(
           `[DatasourceOrchestration] Failed to initialize engine or attach datasources:`,
           errorMsg,
@@ -352,4 +351,5 @@ export class DatasourceOrchestrationService {
 }
 
 // Export singleton instance
-export const datasourceOrchestrationService = new DatasourceOrchestrationService();
+export const datasourceOrchestrationService =
+  new DatasourceOrchestrationService();

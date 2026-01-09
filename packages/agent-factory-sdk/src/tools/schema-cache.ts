@@ -2,9 +2,6 @@ import type { SimpleSchema, SimpleTable } from '@qwery/domain/entities';
 import type { DatasourceMetadata } from '@qwery/domain/entities';
 import { TransformMetadataToSimpleSchemaService } from '@qwery/domain/services';
 import { getDatasourceType } from './datasource-loader';
-import {
-  getClickHouseOriginalSchema,
-} from './clickhouse-schema-mapping';
 import { getTableNamingFormat } from './table-naming-utils';
 
 export interface ColumnMetadata {
@@ -148,12 +145,12 @@ export class SchemaCacheManager {
           // Extract table name (already formatted as datasource.schema.table or datasource.table)
           // For ClickHouse, transform service returns datasource.default.table (display format)
           // But we need to store both display and query paths
-          let tableName = table.tableName;
-          
+          const tableName = table.tableName;
+
           // Special handling for ClickHouse: store both display path and query path
           let displayTableName = tableName; // For agent consumption (datasource.default.table)
           let queryTablePath: string | undefined; // For DuckDB execution (datasource.main.table)
-          
+
           if (
             (provider === 'clickhouse-node' || provider === 'clickhouse-web') &&
             schemaName === 'main'
@@ -165,19 +162,19 @@ export class SchemaCacheManager {
               const datasourceName = parts[0];
               const displaySchema = parts[1]; // This is "default" or "test_schema" (from transform service)
               const baseTableName = parts[2];
-              
+
               // For ClickHouse, the query path is always datasource.main.table (SQLite limitation)
               // The display path is datasource.{originalSchema}.table (from transform service)
               // Since transform service already converted main -> default, we need to convert back
               queryTablePath = `${datasourceName}.main.${baseTableName}`;
               displayTableName = tableName; // Keep the display format from transform service
-              
+
               console.log(
                 `[SchemaCache] ClickHouse table: display="${displayTableName}", query="${queryTablePath}" (display schema: ${displaySchema})`,
               );
             }
           }
-          
+
           const columns = table.columns.map((col) => ({
             columnName: col.columnName,
             columnType: col.columnType,
@@ -185,7 +182,7 @@ export class SchemaCacheManager {
 
           // Store with display name as key, but also store query path in metadata
           schemaCache.set(displayTableName, columns);
-          
+
           // Store query path mapping if different from display path
           if (queryTablePath && queryTablePath !== displayTableName) {
             // Store mapping: display path -> query path
@@ -211,7 +208,7 @@ export class SchemaCacheManager {
         // For now, we'll cache all tables under "main" but with corrected table names
         // The table names themselves will have the correct schema (e.g., datasource.default.table)
         const cacheSchemaName = schemaName; // Keep as "main" for ClickHouse, table names have correct schema
-        
+
         if (schemaCache.size > 0) {
           datasourceCache.set(cacheSchemaName, schemaCache);
           console.log(
@@ -415,7 +412,7 @@ export class SchemaCacheManager {
               return true;
             }
             // Also check reverse: if tablePath is a query path, check if it maps to a display path
-            for (const [displayPath, qPath] of this.queryPathMap.entries()) {
+            for (const [_displayPath, qPath] of this.queryPathMap.entries()) {
               if (qPath === tablePath) {
                 return true;
               }
@@ -443,7 +440,9 @@ export class SchemaCacheManager {
    * Returns the query path if the display path has a mapping, otherwise returns the original path
    */
   getQueryPathForDisplayPath(displayPath: string): string | null {
-    console.log(`[SchemaCache] getQueryPathForDisplayPath called with: ${displayPath}`);
+    console.log(
+      `[SchemaCache] getQueryPathForDisplayPath called with: ${displayPath}`,
+    );
     console.log(`[SchemaCache] queryPathMap size: ${this.queryPathMap.size}`);
     if (this.queryPathMap.size > 0) {
       const entries = Array.from(this.queryPathMap.entries()).slice(0, 5);
@@ -451,24 +450,28 @@ export class SchemaCacheManager {
         `[SchemaCache] queryPathMap entries (first 5): ${entries.map(([k, v]) => `${k}->${v}`).join(', ')}${this.queryPathMap.size > 5 ? '...' : ''}`,
       );
     }
-    
+
     // Check if this display path has a query path mapping
     const queryPath = this.queryPathMap.get(displayPath);
     if (queryPath) {
-      console.log(`[SchemaCache] ✓ Found mapping: ${displayPath} -> ${queryPath}`);
+      console.log(
+        `[SchemaCache] ✓ Found mapping: ${displayPath} -> ${queryPath}`,
+      );
       return queryPath;
     }
-    
+
     console.log(`[SchemaCache] ✗ No mapping found for ${displayPath}`);
     // If no mapping found, check if it's already a query path or doesn't need rewriting
     // For ClickHouse, display paths have schema != 'main', query paths have schema == 'main'
     const parts = displayPath.split('.');
     if (parts.length === 3 && parts[1] !== 'main') {
       // This is a display path but no mapping found - might not be ClickHouse
-      console.log(`[SchemaCache] Path has schema '${parts[1]}' (not 'main'), but no mapping found`);
+      console.log(
+        `[SchemaCache] Path has schema '${parts[1]}' (not 'main'), but no mapping found`,
+      );
       return null;
     }
-    
+
     return null;
   }
 

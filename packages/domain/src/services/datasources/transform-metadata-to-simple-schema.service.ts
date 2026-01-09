@@ -126,7 +126,7 @@ export class TransformMetadataToSimpleSchemaService
         let formattedTableName = table.name;
         if (isAttachedDb) {
           const provider = databaseToProvider.get(databaseName);
-          
+
           // Check if this is a two-part path provider (e.g., gsheet-csv)
           // For SQLite attached databases (like gsheet-csv), DuckDB reports schema='main'
           // but we need to use two-part format: {datasource_name}.{table_name}
@@ -144,10 +144,11 @@ export class TransformMetadataToSimpleSchemaService
             // For ClickHouse, schemaName will be "main" (SQLite limitation)
             // We need to look up the original schema name from the mapping
             let actualSchemaName = schemaName;
-            
+
             // Special handling for ClickHouse: look up original schema name
             if (
-              (provider === 'clickhouse-node' || provider === 'clickhouse-web') &&
+              (provider === 'clickhouse-node' ||
+                provider === 'clickhouse-web') &&
               schemaName === 'main'
             ) {
               // Try to get original schema from mapping
@@ -155,7 +156,7 @@ export class TransformMetadataToSimpleSchemaService
               // For now, use "default" as fallback (most common ClickHouse schema)
               actualSchemaName = 'default';
             }
-            
+
             formattedTableName = `${databaseName}.${actualSchemaName}.${table.name}`;
           }
         }

@@ -93,7 +93,9 @@ interface GSheetTab {
  * Discover tabs by extracting gids from the URL and fetching metadata
  */
 async function discoverTabs(
-  conn: Awaited<ReturnType<import('@duckdb/node-api').DuckDBInstance['connect']>>,
+  conn: Awaited<
+    ReturnType<import('@duckdb/node-api').DuckDBInstance['connect']>
+  >,
   spreadsheetId: string,
   originalUrl?: string,
 ): Promise<GSheetTab[]> {

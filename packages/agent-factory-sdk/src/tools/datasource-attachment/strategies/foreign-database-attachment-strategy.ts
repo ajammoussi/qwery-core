@@ -3,11 +3,14 @@ import type {
   AttachmentResult,
   ForeignDatabaseAttachmentOptions,
 } from '../types';
-import { getProviderMapping, getSupportedProviders } from '../../provider-registry';
+import {
+  getProviderMapping,
+  getSupportedProviders,
+} from '../../provider-registry';
 import { getDatasourceDatabaseName } from '../../datasource-name-utils';
 
 export class ForeignDatabaseAttachmentStrategy implements AttachmentStrategy {
-  canHandle(provider: string): boolean {
+  canHandle(_provider: string): boolean {
     // This strategy handles providers that can be mapped via provider-registry
     // We'll check this dynamically in attach() method
     return true; // Will be filtered by service based on actual mapping
@@ -120,7 +123,9 @@ export class ForeignDatabaseAttachmentStrategy implements AttachmentStrategy {
     const { getSystemSchemas, isSystemTableName } = await import(
       '../../system-schema-filter'
     );
-    const systemSchemas = await getSystemSchemas(datasource.datasource_provider);
+    const systemSchemas = await getSystemSchemas(
+      datasource.datasource_provider,
+    );
 
     // Filter out system tables first
     const userTables = tables.filter((table) => {
