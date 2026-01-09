@@ -224,3 +224,43 @@ export async function getSupportedProviders(): Promise<string[]> {
   // Sort for consistent error messages
   return Array.from(providers).sort();
 }
+
+/**
+ * Get list of DuckDB-native providers that create views directly
+ * These providers don't need driver loading or foreign database attachment
+ */
+export function getDuckDBNativeProviders(): readonly string[] {
+  return [
+    'csv',
+    'json-online',
+    'parquet-online',
+    'youtube-data-api-v3',
+  ] as const;
+}
+
+/**
+ * Get list of providers that use driver-based attachment
+ * These providers load drivers and may create attached databases
+ */
+export function getDriverBasedProviders(): readonly string[] {
+  return [
+    'clickhouse-node',
+    'clickhouse-web',
+    'duckdb',
+    'duckdb-wasm',
+  ] as const;
+}
+
+/**
+ * Check if a provider is DuckDB-native
+ */
+export function isDuckDBNativeProvider(provider: string): boolean {
+  return getDuckDBNativeProviders().includes(provider as any);
+}
+
+/**
+ * Check if a provider uses driver-based attachment
+ */
+export function isDriverBasedProvider(provider: string): boolean {
+  return getDriverBasedProviders().includes(provider as any);
+}

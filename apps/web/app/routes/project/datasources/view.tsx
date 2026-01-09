@@ -143,34 +143,56 @@ export default function ProjectDatasourceViewPage() {
         return;
       }
 
-      // Validate and normalize config for oneOf schemas
-      const hasConnectionUrl = Boolean(config.connectionUrl);
-      const hasHost = Boolean(config.host);
+      // Provider-specific validation
+      const provider = extension.data.id;
+      
+      // Google Sheets only needs sharedLink or url
+      if (provider === 'gsheet-csv') {
+        const hasSharedLink = Boolean(config.sharedLink || config.url);
+        if (!hasSharedLink) {
+          toast.error('Please provide a Google Sheets shared link');
+          setIsSubmitting(false);
+          return;
+        }
+      } else {
+        // For other providers with oneOf schemas, validate connectionUrl or host
+        const hasConnectionUrl = Boolean(config.connectionUrl);
+        const hasHost = Boolean(config.host);
 
-      if (!hasConnectionUrl && !hasHost) {
-        toast.error('Please provide either a connection URL or connection details (host is required)');
-        setIsSubmitting(false);
-        return;
+        if (!hasConnectionUrl && !hasHost) {
+          toast.error('Please provide either a connection URL or connection details (host is required)');
+          setIsSubmitting(false);
+          return;
+        }
       }
 
-      // Normalize config: if using connectionUrl, remove separate fields; if using separate fields, remove connectionUrl
-      if (hasConnectionUrl) {
-        // Using connectionUrl - remove separate fields
+      // Normalize config based on provider type
+      if (provider === 'gsheet-csv') {
+        // For Google Sheets, keep only sharedLink or url
         config = {
-          connectionUrl: config.connectionUrl,
+          sharedLink: config.sharedLink || config.url,
         };
       } else {
-        // Using separate fields - remove connectionUrl and empty fields (but keep password even if empty)
-        config = { ...config };
-        delete config.connectionUrl;
-        Object.keys(config).forEach((key) => {
-          if (
-            key !== 'password' &&
-            (config[key] === '' || config[key] === undefined)
-          ) {
-            delete config[key];
-          }
-        });
+        // For other providers with oneOf schemas
+        const hasConnectionUrl = Boolean(config.connectionUrl);
+        if (hasConnectionUrl) {
+          // Using connectionUrl - remove separate fields
+          config = {
+            connectionUrl: config.connectionUrl,
+          };
+        } else {
+          // Using separate fields - remove connectionUrl and empty fields (but keep password even if empty)
+          config = { ...config };
+          delete config.connectionUrl;
+          Object.keys(config).forEach((key) => {
+            if (
+              key !== 'password' &&
+              (config[key] === '' || config[key] === undefined)
+            ) {
+              delete config[key];
+            }
+          });
+        }
       }
 
       // Update datasource object
@@ -217,33 +239,55 @@ export default function ProjectDatasourceViewPage() {
       return;
     }
 
-    // Validate that either connectionUrl or host is present
-    const hasConnectionUrl = Boolean(formValues.connectionUrl);
-    const hasHost = Boolean(formValues.host);
+    // Provider-specific validation
+    const provider = extension.data.id;
+    
+    // Google Sheets only needs sharedLink or url
+    if (provider === 'gsheet-csv') {
+      const hasSharedLink = Boolean(formValues.sharedLink || formValues.url);
+      if (!hasSharedLink) {
+        toast.error('Please provide a Google Sheets shared link');
+        return;
+      }
+    } else {
+      // For other providers with oneOf schemas, validate connectionUrl or host
+      const hasConnectionUrl = Boolean(formValues.connectionUrl);
+      const hasHost = Boolean(formValues.host);
 
-    if (!hasConnectionUrl && !hasHost) {
-      toast.error('Please provide either a connection URL or connection details (host is required)');
-      return;
+      if (!hasConnectionUrl && !hasHost) {
+        toast.error('Please provide either a connection URL or connection details (host is required)');
+        return;
+      }
     }
 
-    // Normalize config: if using connectionUrl, remove separate fields; if using separate fields, remove connectionUrl
-    let normalizedConfig = { ...formValues };
-    if (hasConnectionUrl) {
-      // Using connectionUrl - remove separate fields
+    // Normalize config based on provider type
+    let normalizedConfig: Record<string, unknown>;
+    if (provider === 'gsheet-csv') {
+      // For Google Sheets, keep only sharedLink or url
       normalizedConfig = {
-        connectionUrl: formValues.connectionUrl,
+        sharedLink: formValues.sharedLink || formValues.url,
       };
     } else {
-      // Using separate fields - remove connectionUrl and empty fields (but keep password even if empty)
-      delete normalizedConfig.connectionUrl;
-      Object.keys(normalizedConfig).forEach((key) => {
-        if (
-          key !== 'password' &&
-          (normalizedConfig[key] === '' || normalizedConfig[key] === undefined)
-        ) {
-          delete normalizedConfig[key];
-        }
-      });
+      // For other providers with oneOf schemas
+      const hasConnectionUrl = Boolean(formValues.connectionUrl);
+      normalizedConfig = { ...formValues };
+      if (hasConnectionUrl) {
+        // Using connectionUrl - remove separate fields
+        normalizedConfig = {
+          connectionUrl: formValues.connectionUrl,
+        };
+      } else {
+        // Using separate fields - remove connectionUrl and empty fields (but keep password even if empty)
+        delete normalizedConfig.connectionUrl;
+        Object.keys(normalizedConfig).forEach((key) => {
+          if (
+            key !== 'password' &&
+            (normalizedConfig[key] === '' || normalizedConfig[key] === undefined)
+          ) {
+            delete normalizedConfig[key];
+          }
+        });
+      }
     }
 
     testConnectionMutation.mutate({
@@ -379,7 +423,10 @@ export default function ProjectDatasourceViewPage() {
                 disabled={
                   testConnectionMutation.isPending ||
                   isSubmitting ||
-                  !formValues
+                  !formValues ||
+                  (extension?.data.id === 'gsheet-csv'
+                    ? !formValues.sharedLink && !formValues.url
+                    : !formValues.connectionUrl && !formValues.host)
                 }
               >
                 {testConnectionMutation.isPending
@@ -413,7 +460,9 @@ export default function ProjectDatasourceViewPage() {
                   testConnectionMutation.isPending ||
                   isDeleting ||
                   !formValues ||
-                  (!formValues.connectionUrl && !formValues.host)
+                  (extension?.data.id === 'gsheet-csv'
+                    ? !formValues.sharedLink && !formValues.url
+                    : !formValues.connectionUrl && !formValues.host)
                 }
               >
                 {isSubmitting ? 'Updating...' : 'Update'}

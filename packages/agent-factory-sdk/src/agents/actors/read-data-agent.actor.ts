@@ -16,8 +16,7 @@ import type {
   Datasource,
 } from '@qwery/domain/entities';
 import { selectChartType, generateChart } from '../tools/generate-chart';
-import { renameTable } from '../../tools/rename-table';
-import { deleteTable } from '../../tools/delete-table';
+// deleteTable and renameTable are now methods on DuckDBQueryEngine
 import { loadBusinessContext } from '../../tools/utils/business-context.storage';
 import { buildReadDataAgentPrompt } from '../prompts/read-data-agent.prompt';
 import type { BusinessContext } from '../../tools/types/business-context.types';
@@ -28,6 +27,7 @@ import { enhanceBusinessContextInBackground } from './enhance-business-context.a
 import type { Repositories } from '@qwery/domain/repositories';
 import { GetConversationBySlugService } from '@qwery/domain/services';
 import { AbstractQueryEngine } from '@qwery/domain/ports';
+import { DuckDBQueryEngine } from '../../services/duckdb-query-engine.service';
 import { loadDatasources } from '../../tools/datasource-loader';
 import { getDatasourceDatabaseName } from '../../tools/datasource-name-utils';
 import { TransformMetadataToSimpleSchemaService } from '@qwery/domain/services';
@@ -1480,11 +1480,11 @@ export const readDataAgent = async (
           if (!queryEngine) {
             throw new Error('Query engine not available');
           }
-          const result = await renameTable({
-            oldTableName,
-            newTableName,
-            queryEngine,
-          });
+          // Use queryEngine method directly
+          if (!(queryEngine instanceof DuckDBQueryEngine)) {
+            throw new Error('renameTable requires DuckDBQueryEngine');
+          }
+          const result = await queryEngine.renameTable(oldTableName, newTableName);
           return result;
         },
       }),
@@ -1498,10 +1498,11 @@ export const readDataAgent = async (
           if (!queryEngine) {
             throw new Error('Query engine not available');
           }
-          const result = await deleteTable({
-            tableNames,
-            queryEngine,
-          });
+          // Use queryEngine method directly
+          if (!(queryEngine instanceof DuckDBQueryEngine)) {
+            throw new Error('deleteTable requires DuckDBQueryEngine');
+          }
+          const result = await queryEngine.deleteTable(tableNames);
           return result;
         },
       }),

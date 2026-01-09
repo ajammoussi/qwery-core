@@ -8,6 +8,11 @@ export interface LoadedDatasource {
   type: DatasourceType;
 }
 
+import {
+  getDuckDBNativeProviders,
+  getDriverBasedProviders,
+} from './provider-registry';
+
 /**
  * DuckDB-native datasources are extensions that use DuckDB internally
  * These can create views directly in the conversation's DuckDB instance
@@ -16,14 +21,8 @@ export interface LoadedDatasource {
  * to support multiple tabs with datasourcename.tablename format and semantic naming
  */
 const DUCKDB_NATIVE_PROVIDERS = [
-  'csv',
-  'json-online',
-  'parquet-online',
-  'youtube-data-api-v3',
-  'clickhouse-node', // Uses driver system, not foreign database attachment
-  'clickhouse-web', // Uses driver system, not foreign database attachment
-  'duckdb', // DuckDB file datasource
-  'duckdb-wasm', // DuckDB WASM datasource
+  ...getDuckDBNativeProviders(),
+  ...getDriverBasedProviders(), // Driver-based providers are also treated as DuckDB-native for type classification
 ] as const;
 
 /**
