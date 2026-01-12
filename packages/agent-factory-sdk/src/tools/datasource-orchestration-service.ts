@@ -122,6 +122,8 @@ export class DatasourceOrchestrationService {
         );
 
         if (loaded.length > 0) {
+          // Attach all datasources (will continue on individual failures)
+          // attach() now processes all datasources and logs errors without throwing
           await queryEngine.attach(
             loaded.map((d) => d.datasource),
             {
@@ -132,7 +134,7 @@ export class DatasourceOrchestrationService {
           await queryEngine.connect();
           attached = true;
           console.log(
-            `[DatasourceOrchestration] Initialized engine and attached ${loaded.length} datasource(s)`,
+            `[DatasourceOrchestration] Initialized engine and processed ${loaded.length} datasource(s) (some may have failed - check logs)`,
           );
 
           console.log(
@@ -153,7 +155,7 @@ export class DatasourceOrchestrationService {
             );
 
             console.log(
-              `[DatasourceOrchestration] [CACHE] Metadata retrieved: ${metadata.tables.length} table(s), ${              metadata.columns.length} column(s)`,
+              `[DatasourceOrchestration] [CACHE] Metadata retrieved: ${metadata.tables.length} table(s), ${metadata.columns.length} column(s)`,
             );
 
             for (const { datasource } of uncachedDatasources) {

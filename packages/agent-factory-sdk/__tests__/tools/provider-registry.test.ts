@@ -114,7 +114,7 @@ describe('Provider Registry', () => {
       };
       const connectionString = mapping!.getConnectionString(config);
       expect(connectionString).toBe(
-        'host=localhost port=3306 user=root password=secret database=testdb',
+        'mysql://root:secret@localhost:3306/testdb',
       );
     });
 
@@ -199,8 +199,8 @@ describe('Provider Registry', () => {
 
     it('should return false for unsupported providers', async () => {
       expect(await isProviderSupported('clickhouse-node')).toBe(false);
-      expect(await isProviderSupported('pglite')).toBe(false);
       expect(await isProviderSupported('duckdb-wasm')).toBe(false);
+      expect(await isProviderSupported('unknown-provider')).toBe(false);
     });
 
     it('should return true for duckdb provider', async () => {

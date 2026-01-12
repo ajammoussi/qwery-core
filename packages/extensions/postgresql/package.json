@@ -57,12 +57,20 @@
                 },
                 "sslmode": {
                   "type": "string",
-                  "enum": ["disable", "require", "prefer", "verify-ca", "verify-full"],
+                  "enum": [
+                    "disable",
+                    "require",
+                    "prefer",
+                    "verify-ca",
+                    "verify-full"
+                  ],
                   "description": "SSL mode",
                   "default": "prefer"
                 }
               },
-              "required": ["host"]
+              "required": [
+                "host"
+              ]
             },
             {
               "type": "object",
@@ -72,7 +80,9 @@
                   "description": "PostgreSQL connection string (postgresql://user:pass@host:port/db)"
                 }
               },
-              "required": ["connectionUrl"]
+              "required": [
+                "connectionUrl"
+              ]
             }
           ]
         },
@@ -119,12 +129,20 @@
                 },
                 "sslmode": {
                   "type": "string",
-                  "enum": ["disable", "require", "prefer", "verify-ca", "verify-full"],
+                  "enum": [
+                    "disable",
+                    "require",
+                    "prefer",
+                    "verify-ca",
+                    "verify-full"
+                  ],
                   "description": "SSL mode",
                   "default": "prefer"
                 }
               },
-              "required": ["host"]
+              "required": [
+                "host"
+              ]
             },
             {
               "type": "object",
@@ -134,7 +152,9 @@
                   "description": "Supabase connection string (postgresql://user:pass@host:port/db)"
                 }
               },
-              "required": ["connectionUrl"]
+              "required": [
+                "connectionUrl"
+              ]
             }
           ]
         },
@@ -181,12 +201,20 @@
                 },
                 "sslmode": {
                   "type": "string",
-                  "enum": ["disable", "require", "prefer", "verify-ca", "verify-full"],
+                  "enum": [
+                    "disable",
+                    "require",
+                    "prefer",
+                    "verify-ca",
+                    "verify-full"
+                  ],
                   "description": "SSL mode",
                   "default": "prefer"
                 }
               },
-              "required": ["host"]
+              "required": [
+                "host"
+              ]
             },
             {
               "type": "object",
@@ -196,7 +224,9 @@
                   "description": "Neon connection string (postgresql://user:pass@host:port/db)"
                 }
               },
-              "required": ["connectionUrl"]
+              "required": [
+                "connectionUrl"
+              ]
             }
           ]
         },

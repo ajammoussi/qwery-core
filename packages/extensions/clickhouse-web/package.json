@@ -59,7 +59,9 @@
                   "default": "default"
                 }
               },
-              "required": ["host"]
+              "required": [
+                "host"
+              ]
             },
             {
               "type": "object",
@@ -70,7 +72,9 @@
                   "format": "uri"
                 }
               },
-              "required": ["connectionUrl"]
+              "required": [
+                "connectionUrl"
+              ]
             }
           ]
         },

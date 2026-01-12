@@ -47,11 +47,7 @@ describe('connection-string-utils', () => {
         database: 'mydb',
       };
       const result = extractConnectionUrl(config, 'mysql');
-      expect(result).toContain('host=localhost');
-      expect(result).toContain('port=3306');
-      expect(result).toContain('user=user');
-      expect(result).toContain('password=pass');
-      expect(result).toContain('database=mydb');
+      expect(result).toBe('mysql://user:pass@localhost:3306/mydb');
     });
 
     it('should extract connectionUrl for ClickHouse', () => {
@@ -126,7 +122,7 @@ describe('connection-string-utils', () => {
   });
 
   describe('buildMysqlConnectionUrl', () => {
-    it('should build space-separated format for DuckDB', () => {
+    it('should build mysql:// URL format', () => {
       const result = buildMysqlConnectionUrl({
         host: 'localhost',
         port: 3306,
@@ -134,9 +130,7 @@ describe('connection-string-utils', () => {
         password: 'pass',
         database: 'mydb',
       });
-      expect(result).toBe(
-        'host=localhost port=3306 user=root password=pass database=mydb',
-      );
+      expect(result).toBe('mysql://root:pass@localhost:3306/mydb');
     });
   });
 

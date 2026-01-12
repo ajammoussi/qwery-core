@@ -7,7 +7,11 @@ import type {
   DatasourceResultSet,
   DatasourceMetadata,
 } from '@qwery/extensions-sdk';
-import { DatasourceMetadataZodSchema } from '@qwery/extensions-sdk';
+import {
+  DatasourceMetadataZodSchema,
+  withTimeout,
+  DEFAULT_CONNECTION_TEST_TIMEOUT_MS,
+} from '@qwery/extensions-sdk';
 
 const ConfigSchema = z.object({
   database: z.string().default('playground').describe('Database name'),
@@ -53,9 +57,15 @@ export function makeDuckDBWasmDriver(context: DriverContext): IDataSourceDriver 
   return {
     async testConnection(config: unknown): Promise<void> {
       const parsed = ConfigSchema.parse(config);
-      const instance = await getInstance(parsed);
-      await instance.connection.query('SELECT 1');
-      context.logger?.info?.('duckdb-wasm: testConnection ok');
+      await withTimeout(
+        (async () => {
+          const instance = await getInstance(parsed);
+          await instance.connection.query('SELECT 1');
+          context.logger?.info?.('duckdb-wasm: testConnection ok');
+        })(),
+        DEFAULT_CONNECTION_TEST_TIMEOUT_MS,
+        'DuckDB WASM connection test timed out',
+      );
     },
 
     async metadata(config: unknown): Promise<DatasourceMetadata> {

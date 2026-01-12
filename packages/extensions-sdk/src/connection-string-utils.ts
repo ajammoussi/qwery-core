@@ -72,8 +72,8 @@ export function buildPostgresConnectionUrl(fields: ConnectionFields): string {
 }
 
 /**
- * Build MySQL connection string from separate fields
- * Returns space-separated format for DuckDB compatibility
+ * Build MySQL connection URL from separate fields
+ * Returns mysql:// URL format for mysql2 driver compatibility
  */
 export function buildMysqlConnectionUrl(fields: ConnectionFields): string {
   const host = fields.host || 'localhost';
@@ -82,8 +82,19 @@ export function buildMysqlConnectionUrl(fields: ConnectionFields): string {
   const password = fields.password || '';
   const database = fields.database || '';
 
-  // DuckDB MySQL extension uses space-separated format
-  return `host=${host} port=${port} user=${user} password=${password} database=${database}`;
+  // Build mysql:// URL format
+  let url = `mysql://`;
+  if (user || password) {
+    const encodedUser = user ? encodeURIComponent(user) : '';
+    const encodedPass = password ? encodeURIComponent(password) : '';
+    url += `${encodedUser}${encodedPass ? `:${encodedPass}` : ''}@`;
+  }
+  url += `${host}:${port}`;
+  if (database) {
+    url += `/${database}`;
+  }
+
+  return url;
 }
 
 /**

@@ -229,6 +229,7 @@ export class DuckDBQueryEngine extends AbstractQueryEngine {
     const { duckdbNative, foreignDatabases } = groupDatasourcesByType(loaded);
 
     // Attach foreign databases (PostgreSQL, MySQL, Google Sheets, etc.)
+    const attachmentErrors: Array<{ datasourceId: string; error: string }> = [];
     for (const { datasource } of foreignDatabases) {
       // Skip if already attached (optimization)
       if (this.attachedDatasources.has(datasource.id)) {
@@ -246,6 +247,9 @@ export class DuckDBQueryEngine extends AbstractQueryEngine {
           workspace,
         });
         this.attachedDatasources.add(datasource.id);
+        console.log(
+          `[DuckDBQueryEngine] Successfully attached datasource ${datasource.id}`,
+        );
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         // If already attached error, mark as attached and continue
@@ -256,9 +260,10 @@ export class DuckDBQueryEngine extends AbstractQueryEngine {
           this.attachedDatasources.add(datasource.id);
           continue;
         }
-        throw new Error(
-          `Failed to attach datasource ${datasource.id}: ${errorMsg}`,
-        );
+        // Log error but continue with other datasources
+        const errorMessage = `Failed to attach datasource ${datasource.id}: ${errorMsg}`;
+        console.error(`[DuckDBQueryEngine] ${errorMessage}`);
+        attachmentErrors.push({ datasourceId: datasource.id, error: errorMsg });
       }
     }
 
@@ -280,12 +285,24 @@ export class DuckDBQueryEngine extends AbstractQueryEngine {
           workspace,
         });
         this.attachedDatasources.add(datasource.id);
+        console.log(
+          `[DuckDBQueryEngine] Successfully created view for datasource ${datasource.id}`,
+        );
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        throw new Error(
-          `Failed to create view for datasource ${datasource.id}: ${errorMsg}`,
-        );
+        // Log error but continue with other datasources
+        const errorMessage = `Failed to create view for datasource ${datasource.id}: ${errorMsg}`;
+        console.error(`[DuckDBQueryEngine] ${errorMessage}`);
+        attachmentErrors.push({ datasourceId: datasource.id, error: errorMsg });
       }
+    }
+
+    // Log summary of attachment results
+    if (attachmentErrors.length > 0) {
+      console.warn(
+        `[DuckDBQueryEngine] ${attachmentErrors.length} datasource(s) failed to attach:`,
+        attachmentErrors.map((e) => `${e.datasourceId}: ${e.error}`).join(', '),
+      );
     }
   }
 

@@ -9843,7 +9843,17 @@ function buildMysqlConnectionUrl(fields) {
   const user = fields.username || fields.user || "root";
   const password = fields.password || "";
   const database = fields.database || "";
-  return `host=${host} port=${port} user=${user} password=${password} database=${database}`;
+  let url = `mysql://`;
+  if (user || password) {
+    const encodedUser = user ? encodeURIComponent(user) : "";
+    const encodedPass = password ? encodeURIComponent(password) : "";
+    url += `${encodedUser}${encodedPass ? `:${encodedPass}` : ""}@`;
+  }
+  url += `${host}:${port}`;
+  if (database) {
+    url += `/${database}`;
+  }
+  return url;
 }
 function buildClickHouseConnectionUrl(fields) {
   const host = fields.host || "localhost";
@@ -9920,7 +9930,9 @@ function extractConnectionUrl(config, providerId) {
       return buildPostgresConnectionUrl(fields);
     case "mysql":
       if (!fields.host) {
-        throw new Error("MySQL datasource requires connectionUrl or host in config");
+        throw new Error(
+          "MySQL datasource requires connectionUrl or host in config"
+        );
       }
       return buildMysqlConnectionUrl(fields);
     case "clickhouse-node":
@@ -9933,7 +9945,7 @@ function extractConnectionUrl(config, providerId) {
       }
       return buildClickHouseConnectionUrl(fields);
     case "sqlite":
-    case "duckdb":
+    case "duckdb": {
       const path = extractPath(config, ["path", "database", "connectionUrl"]);
       if (!path) {
         throw new Error(
@@ -9941,6 +9953,7 @@ function extractConnectionUrl(config, providerId) {
         );
       }
       return path;
+    }
     default:
       throw new Error(
         `Unsupported provider for connection string extraction: ${providerId}`

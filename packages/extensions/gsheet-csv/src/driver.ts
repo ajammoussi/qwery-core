@@ -7,7 +7,11 @@ import type {
   DatasourceResultSet,
   DatasourceMetadata,
 } from '@qwery/extensions-sdk';
-import { DatasourceMetadataZodSchema } from '@qwery/extensions-sdk';
+import {
+  DatasourceMetadataZodSchema,
+  withTimeout,
+  DEFAULT_CONNECTION_TEST_TIMEOUT_MS,
+} from '@qwery/extensions-sdk';
 
 const ConfigSchema = z.object({
   sharedLink: z.string().url().describe('Public Google Sheets shared link'),
@@ -24,25 +28,79 @@ async function fetchSpreadsheetMetadata(
 ): Promise<Array<{ gid: number; name: string }>> {
   try {
     const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
-    const response = await fetch(url);
-    if (!response.ok) return [];
-
-    const html = await response.text();
-    const tabs: Array<{ gid: number; name: string }> = [];
-
-    const regex = /"sheetId":(\d+),"title":"([^"]+)"/g;
-    let m;
-    while ((m = regex.exec(html)) !== null) {
-      const gid = parseInt(m[1]!, 10);
-      const name = m[2]!;
-      if (!tabs.some((t) => t.gid === gid)) {
-        tabs.push({ gid, name });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_CONNECTION_TEST_TIMEOUT_MS);
+    
+    try {
+      const response = await fetch(url, { 
+        signal: controller.signal,
+        // Add headers to help with CORS if needed
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Qwery/1.0)',
+        },
+      });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch spreadsheet metadata: HTTP ${response.status} ${response.statusText}. Make sure the sheet is publicly accessible.`,
+        );
       }
-    }
 
-    return tabs;
+      const html = await response.text();
+      
+      // Check if we got a valid HTML response
+      if (!html || html.length < 100) {
+        throw new Error(
+          'Received invalid response from Google Sheets. The sheet might not be publicly accessible or the URL is incorrect.',
+        );
+      }
+
+      const tabs: Array<{ gid: number; name: string }> = [];
+
+      // Try multiple regex patterns to find sheet metadata
+      const patterns = [
+        /"sheetId":(\d+),"title":"([^"]+)"/g,
+        /"sheetId":(\d+),.*?"title":"([^"]+)"/g,
+        /sheetId["\s]*:["\s]*(\d+).*?title["\s]*:["\s]*"([^"]+)"/g,
+      ];
+
+      for (const regex of patterns) {
+        let m;
+        while ((m = regex.exec(html)) !== null) {
+          const gid = parseInt(m[1]!, 10);
+          const name = m[2]!;
+          if (!tabs.some((t) => t.gid === gid)) {
+            tabs.push({ gid, name });
+          }
+        }
+        if (tabs.length > 0) break;
+      }
+
+      return tabs;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error(
+            `Timeout while fetching Google Sheet metadata after ${DEFAULT_CONNECTION_TEST_TIMEOUT_MS}ms. Please verify the sheet URL is correct and the sheet is publicly accessible.`,
+          );
+        }
+        if (error.message.includes('fetch')) {
+          throw new Error(
+            `Failed to fetch Google Sheet: ${error.message}. This might be due to CORS restrictions or the sheet not being publicly accessible. Please ensure the sheet is shared with "Anyone with the link" permission.`,
+          );
+        }
+        throw error;
+      }
+      throw new Error(`Unknown error while fetching Google Sheet metadata: ${String(error)}`);
+    }
   } catch (error) {
-    return [];
+    // Re-throw with better context
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(`Failed to fetch spreadsheet metadata: ${String(error)}`);
   }
 }
 
@@ -64,11 +122,17 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
   const getInstance = async (config: DriverConfig) => {
     const key = config.sharedLink;
     if (!instanceMap.has(key)) {
+      // Extract spreadsheet ID from various Google Sheets URL formats:
+      // - https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit
+      // - https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit?gid=0#gid=0
+      // - https://docs.google.com/spreadsheets/d/SPREADSHEET_ID
       const match = key.match(
         /https:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/,
       );
       if (!match) {
-        throw new Error(`Invalid Google Sheets link format: ${key}`);
+        throw new Error(
+          `Invalid Google Sheets link format: ${key}. Expected format: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/...`,
+        );
       }
       const spreadsheetId = match[1]!;
 
@@ -104,23 +168,36 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
   return {
     async testConnection(config: unknown): Promise<void> {
       const parsed = ConfigSchema.parse(config);
-      const { instance, tabs } = await getInstance(parsed);
-      const conn = await instance.connect();
+      
+      const testPromise = (async () => {
+        const { instance, tabs } = await getInstance(parsed);
+        const conn = await instance.connect();
 
-      try {
-        const firstTab = tabs[0]!;
-        const resultReader = await conn.runAndReadAll(
-          `SELECT 1 as test FROM "${firstTab.name.replace(/"/g, '""')}" LIMIT 1`,
-        );
-        await resultReader.readAll();
-        context.logger?.info?.('gsheet-csv: testConnection ok');
-      } catch (error) {
-        throw new Error(
-          `Failed to connect to Google Sheet: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      } finally {
-        conn.closeSync();
-      }
+        try {
+          if (tabs.length === 0) {
+            throw new Error('No sheets found in the Google Spreadsheet');
+          }
+          
+          const firstTab = tabs[0]!;
+          const resultReader = await conn.runAndReadAll(
+            `SELECT 1 as test FROM "${firstTab.name.replace(/"/g, '""')}" LIMIT 1`,
+          );
+          await resultReader.readAll();
+          context.logger?.info?.('gsheet-csv: testConnection ok');
+        } catch (error) {
+          throw new Error(
+            `Failed to connect to Google Sheet: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        } finally {
+          conn.closeSync();
+        }
+      })();
+
+      await withTimeout(
+        testPromise,
+        DEFAULT_CONNECTION_TEST_TIMEOUT_MS,
+        `Google Sheet connection test timed out after ${DEFAULT_CONNECTION_TEST_TIMEOUT_MS}ms. Please verify the shared link is valid and the sheet is publicly accessible.`,
+      );
     },
 
     async metadata(

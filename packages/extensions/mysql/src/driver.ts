@@ -7,8 +7,12 @@ import type {
   DatasourceResultSet,
   DatasourceMetadata,
 } from '@qwery/extensions-sdk';
-import { DatasourceMetadataZodSchema } from '@qwery/extensions-sdk';
-import { extractConnectionUrl } from '@qwery/extensions-sdk';
+import {
+  DatasourceMetadataZodSchema,
+  extractConnectionUrl,
+  withTimeout,
+  DEFAULT_CONNECTION_TEST_TIMEOUT_MS,
+} from '@qwery/extensions-sdk';
 
 const ConfigSchema = z
   .object({
@@ -40,20 +44,75 @@ export function buildMysqlConfigFromFields(fields: DriverConfig) {
 }
 
 function buildMysqlConfig(connectionUrl: string) {
-  const url = new URL(connectionUrl);
-  const ssl = url.searchParams.get('ssl') === 'true';
+  // Handle mysql:// URL format
+  if (connectionUrl.startsWith('mysql://')) {
+    const url = new URL(connectionUrl);
+    const ssl = url.searchParams.get('ssl') === 'true';
+
+    return {
+      user: url.username ? decodeURIComponent(url.username) : undefined,
+      password: url.password ? decodeURIComponent(url.password) : undefined,
+      host: url.hostname,
+      port: url.port ? Number(url.port) : 3306,
+      database: url.pathname ? url.pathname.replace(/^\//, '') || undefined : undefined,
+      ssl: ssl
+        ? {
+            rejectUnauthorized: false,
+          }
+        : undefined,
+    };
+  }
+
+  // Handle space-separated format (for backward compatibility with DuckDB format)
+  // Format: "host=... port=... user=... password=... database=..."
+  const config: {
+    user?: string;
+    password?: string;
+    host?: string;
+    port?: number;
+    database?: string;
+    ssl?: { rejectUnauthorized: boolean };
+  } = {};
+
+  const parts = connectionUrl.split(/\s+/);
+  for (const part of parts) {
+    const [key, ...valueParts] = part.split('=');
+    const value = valueParts.join('=');
+    if (key && value) {
+      switch (key.toLowerCase()) {
+        case 'host':
+          config.host = value;
+          break;
+        case 'port':
+          config.port = Number(value) || 3306;
+          break;
+        case 'user':
+        case 'username':
+          config.user = value;
+          break;
+        case 'password':
+          config.password = value;
+          break;
+        case 'database':
+        case 'db':
+          config.database = value;
+          break;
+        case 'ssl':
+          if (value === 'true') {
+            config.ssl = { rejectUnauthorized: false };
+          }
+          break;
+      }
+    }
+  }
 
   return {
-    user: url.username ? decodeURIComponent(url.username) : undefined,
-    password: url.password ? decodeURIComponent(url.password) : undefined,
-    host: url.hostname,
-    port: url.port ? Number(url.port) : 3306,
-    database: url.pathname ? url.pathname.replace(/^\//, '') || undefined : undefined,
-    ssl: ssl
-      ? {
-          rejectUnauthorized: false,
-        }
-      : undefined,
+    user: config.user,
+    password: config.password,
+    host: config.host || 'localhost',
+    port: config.port || 3306,
+    database: config.database,
+    ssl: config.ssl,
   };
 }
 
@@ -61,13 +120,22 @@ export function makeMysqlDriver(context: DriverContext): IDataSourceDriver {
   const withConnection = async <T>(
     config: { connectionUrl: string },
     callback: (connection: Connection) => Promise<T>,
+    timeoutMs: number = DEFAULT_CONNECTION_TEST_TIMEOUT_MS,
   ): Promise<T> => {
-    const connection = await createConnection(buildMysqlConfig(config.connectionUrl));
-    try {
-      return await callback(connection);
-    } finally {
-      await connection.end();
-    }
+    const connectionPromise = (async () => {
+      const connection = await createConnection(buildMysqlConfig(config.connectionUrl));
+      try {
+        return await callback(connection);
+      } finally {
+        await connection.end();
+      }
+    })();
+
+    return withTimeout(
+      connectionPromise,
+      timeoutMs,
+      `MySQL connection operation timed out after ${timeoutMs}ms`,
+    );
   };
 
   const collectColumns = (fields: Array<{ name: string; type: number }>) =>
@@ -91,9 +159,13 @@ export function makeMysqlDriver(context: DriverContext): IDataSourceDriver {
         parsed as Record<string, unknown>,
         'mysql',
       );
-      await withConnection({ connectionUrl }, async (connection) => {
-        await connection.query('SELECT 1');
-      });
+      await withConnection(
+        { connectionUrl },
+        async (connection) => {
+          await connection.query('SELECT 1');
+        },
+        DEFAULT_CONNECTION_TEST_TIMEOUT_MS,
+      );
       context.logger?.info?.('mysql: testConnection ok');
     },
 
@@ -113,80 +185,55 @@ export function makeMysqlDriver(context: DriverContext): IDataSourceDriver {
                  is_nullable
           FROM information_schema.columns
           WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
+            AND table_schema IS NOT NULL
+            AND table_name IS NOT NULL
+            AND column_name IS NOT NULL
+            AND data_type IS NOT NULL
+            AND ordinal_position IS NOT NULL
           ORDER BY table_schema, table_name, ordinal_position;
         `);
-        return Array.isArray(results) 
-          ? (results as Array<{
-              table_schema: string;
-              table_name: string;
-              column_name: string;
-              data_type: string;
-              ordinal_position: number;
-              is_nullable: string;
-            }>)
-          : [];
+        return Array.isArray(results) ? results : [];
       });
 
+      const getValue = (row: Record<string, unknown>, key: string): unknown => {
+        return row[key] ?? row[key.toUpperCase()];
+      };
+
+      const tableMap = new Map<string, { id: number; schema: string; name: string; columns: Array<{ id: string; schema: string; table: string; name: string; ordinal_position: number; data_type: string; format: string; is_nullable: boolean }> }>();
       let tableId = 1;
-      const tableMap = new Map<
-        string,
-        {
-          id: number;
-          schema: string;
-          name: string;
-          columns: Array<ReturnType<typeof buildColumn>>;
+
+      for (const row of rows as Array<Record<string, unknown>>) {
+        const schema = String(getValue(row, 'table_schema') ?? '').trim();
+        const tableName = String(getValue(row, 'table_name') ?? '').trim();
+        const columnName = String(getValue(row, 'column_name') ?? '').trim();
+        const dataType = String(getValue(row, 'data_type') ?? '').trim();
+        const ordinal = Number(getValue(row, 'ordinal_position') ?? 0);
+        const isNullable = String(getValue(row, 'is_nullable') ?? 'NO').trim() === 'YES';
+
+        if (!schema || !tableName || !columnName || !dataType || ordinal <= 0) {
+          continue;
         }
-      >();
 
-      const buildColumn = (
-        schema: string,
-        table: string,
-        name: string,
-        ordinal: number,
-        dataType: string,
-        nullable: string,
-      ) => ({
-        id: `${schema}.${table}.${name}`,
-        table_id: 0,
-        schema,
-        table,
-        name,
-        ordinal_position: ordinal,
-        data_type: dataType,
-        format: dataType,
-        is_identity: false,
-        identity_generation: null,
-        is_generated: false,
-        is_nullable: nullable === 'YES',
-        is_updatable: true,
-        is_unique: false,
-        check: null,
-        default_value: null,
-        enums: [],
-        comment: null,
-      });
-
-      for (const row of rows) {
-        const key = `${row.table_schema}.${row.table_name}`;
+        const key = `${schema}.${tableName}`;
         if (!tableMap.has(key)) {
           tableMap.set(key, {
             id: tableId++,
-            schema: row.table_schema,
-            name: row.table_name,
+            schema,
+            name: tableName,
             columns: [],
           });
         }
-        const entry = tableMap.get(key)!;
-        entry.columns.push(
-          buildColumn(
-            row.table_schema,
-            row.table_name,
-            row.column_name,
-            row.ordinal_position,
-            row.data_type,
-            row.is_nullable,
-          ),
-        );
+
+        tableMap.get(key)!.columns.push({
+          id: `${schema}.${tableName}.${columnName}`,
+          schema,
+          table: tableName,
+          name: columnName,
+          ordinal_position: ordinal,
+          data_type: dataType,
+          format: dataType,
+          is_nullable: isNullable,
+        });
       }
 
       const tables = Array.from(tableMap.values()).map((table) => ({
@@ -206,18 +253,34 @@ export function makeMysqlDriver(context: DriverContext): IDataSourceDriver {
 
       const columns = Array.from(tableMap.values()).flatMap((table) =>
         table.columns.map((column) => ({
-          ...column,
+          id: column.id,
           table_id: table.id,
+          schema: column.schema,
+          table: column.table,
+          name: column.name,
+          ordinal_position: column.ordinal_position,
+          data_type: column.data_type,
+          format: column.format,
+          is_identity: false,
+          identity_generation: null,
+          is_generated: false,
+          is_nullable: column.is_nullable,
+          is_updatable: true,
+          is_unique: false,
+          check: null,
+          default_value: null,
+          enums: [],
+          comment: null,
         })),
       );
 
-      const schemas = Array.from(
-        new Set(Array.from(tableMap.values()).map((table) => table.schema)),
-      ).map((name, idx) => ({
-        id: idx + 1,
-        name,
-        owner: 'unknown',
-      }));
+      const schemas = Array.from(new Set(Array.from(tableMap.values()).map((t) => t.schema))).map(
+        (name, idx) => ({
+          id: idx + 1,
+          name,
+          owner: 'unknown',
+        }),
+      );
 
       return DatasourceMetadataZodSchema.parse({
         version: '0.0.1',

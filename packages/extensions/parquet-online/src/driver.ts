@@ -7,11 +7,26 @@ import type {
   DatasourceResultSet,
   DatasourceMetadata,
 } from '@qwery/extensions-sdk';
-import { DatasourceMetadataZodSchema } from '@qwery/extensions-sdk';
+import {
+  DatasourceMetadataZodSchema,
+  withTimeout,
+  DEFAULT_CONNECTION_TEST_TIMEOUT_MS,
+} from '@qwery/extensions-sdk';
 
-const ConfigSchema = z.object({
-  url: z.string().url().describe('Public Parquet file URL'),
-});
+const ConfigSchema = z
+  .object({
+    url: z.string().url().optional().describe('Public Parquet file URL'),
+    connectionUrl: z.string().url().optional().describe('Public Parquet file URL'),
+  })
+  .refine(
+    (data) => data.url || data.connectionUrl,
+    {
+      message: 'Either url or connectionUrl must be provided',
+    },
+  )
+  .transform((data) => ({
+    url: data.url || data.connectionUrl || '',
+  }));
 
 type DriverConfig = z.infer<typeof ConfigSchema>;
 
@@ -54,23 +69,32 @@ export function makeParquetDriver(context: DriverContext): IDataSourceDriver {
   return {
     async testConnection(config: unknown): Promise<void> {
       const parsed = ConfigSchema.parse(config);
-      const instance = await getInstance(parsed);
-      const conn = await instance.connect();
+      
+      const testPromise = (async () => {
+        const instance = await getInstance(parsed);
+        const conn = await instance.connect();
 
-      try {
-        // Test by querying the view
-        const resultReader = await conn.runAndReadAll(
-          `SELECT 1 as test FROM "${VIEW_NAME}" LIMIT 1`,
-        );
-        await resultReader.readAll();
-        context.logger?.info?.('parquet-online: testConnection ok');
-      } catch (error) {
-        throw new Error(
-          `Failed to connect to Parquet URL: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      } finally {
-        conn.closeSync();
-      }
+        try {
+          // Test by querying the view
+          const resultReader = await conn.runAndReadAll(
+            `SELECT 1 as test FROM "${VIEW_NAME}" LIMIT 1`,
+          );
+          await resultReader.readAll();
+          context.logger?.info?.('parquet-online: testConnection ok');
+        } catch (error) {
+          throw new Error(
+            `Failed to connect to Parquet URL: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        } finally {
+          conn.closeSync();
+        }
+      })();
+
+      await withTimeout(
+        testPromise,
+        DEFAULT_CONNECTION_TEST_TIMEOUT_MS,
+        `Parquet connection test timed out after ${DEFAULT_CONNECTION_TEST_TIMEOUT_MS}ms. Please verify the URL is accessible and points to a valid Parquet file.`,
+      );
     },
 
     async metadata(config: unknown): Promise<DatasourceMetadata> {

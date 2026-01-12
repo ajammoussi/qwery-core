@@ -64,12 +64,12 @@ export class DuckDBNativeAttachmentStrategy implements AttachmentStrategy {
       }
       case 'json-online': {
         const url =
+          (config.jsonUrl as string) ||
           (config.url as string) ||
-          (config.path as string) ||
           (config.connectionUrl as string);
         if (!url) {
           throw new Error(
-            'json-online datasource requires url or path in config',
+            'json-online datasource requires jsonUrl, url, or connectionUrl in config',
           );
         }
         await conn.run(`
@@ -79,13 +79,10 @@ export class DuckDBNativeAttachmentStrategy implements AttachmentStrategy {
         break;
       }
       case 'parquet-online': {
-        const url =
-          (config.url as string) ||
-          (config.path as string) ||
-          (config.connectionUrl as string);
+        const url = (config.url as string) || (config.connectionUrl as string);
         if (!url) {
           throw new Error(
-            'parquet-online datasource requires url or path in config',
+            'parquet-online datasource requires url or connectionUrl in config',
           );
         }
         await conn.run(`

@@ -110,7 +110,7 @@ export const readDataAgent = async (
   if (repositories && queryEngine) {
     try {
       orchestrationResult = await datasourceOrchestrationService.orchestrate({
-                conversationId,
+        conversationId,
         repositories,
         queryEngine,
         metadataDatasources,
@@ -148,7 +148,7 @@ export const readDataAgent = async (
           const workspace =
             orchestrationResult?.workspace ||
             (() => {
-            throw new Error('WORKSPACE environment variable is not set');
+              throw new Error('WORKSPACE environment variable is not set');
             })();
           const { join } = await import('node:path');
           const dbPath = join(workspace, conversationId, 'database.db');
@@ -194,8 +194,8 @@ export const readDataAgent = async (
           const syncStartTime = performance.now();
           const orchestration =
             await datasourceOrchestrationService.ensureAttachedAndCached(
-                    {
-                      conversationId,
+              {
+                conversationId,
                 repositories,
                 queryEngine,
                 metadataDatasources,
@@ -212,9 +212,9 @@ export const readDataAgent = async (
           const fileDir = join(workspace, conversationId);
           const dbPath = join(fileDir, 'database.duckdb');
 
-                  console.log(
+          console.log(
             `[ReadDataAgent] Workspace: ${workspace}, ConversationId: ${conversationId}, dbPath: ${dbPath}`,
-              );
+          );
 
           // Get metadata from cache or query engine
           const schemaDiscoveryStartTime = performance.now();
@@ -718,42 +718,42 @@ export const readDataAgent = async (
           // Validate that query only references attached datasources
           if (orchestration.datasources.length > 0) {
             try {
-                // Get attached datasource database names
-                const attachedDbNames = new Set(
+              // Get attached datasource database names
+              const attachedDbNames = new Set(
                 orchestration.datasources.map((d) =>
                   getDatasourceDatabaseName(d.datasource),
                 ),
-                );
+              );
 
-                // Extract table references from SQL query using proper extraction function
-                const tablePaths = extractTablePathsFromQuery(query);
-                const referencedDatasources = new Set<string>();
+              // Extract table references from SQL query using proper extraction function
+              const tablePaths = extractTablePathsFromQuery(query);
+              const referencedDatasources = new Set<string>();
 
-                for (const tablePath of tablePaths) {
-                  // Extract datasource name (first part before dot)
-                  // Handle both formats:
-                  // - datasource.schema.table (3 parts)
-                  // - datasource.table (2 parts)
-                  // - table (1 part - main database, skip validation)
-                  const parts = tablePath.split('.');
-                  if (parts.length >= 2 && parts[0]) {
-                    // Only validate if table path has at least 2 parts (datasource.table or datasource.schema.table)
-                    // Simple table names without datasource prefix are in main database and don't need validation
-                    const datasourceName = parts[0];
-                    referencedDatasources.add(datasourceName);
-                  }
-                  // Skip simple table names (no dots) - they're in main database
+              for (const tablePath of tablePaths) {
+                // Extract datasource name (first part before dot)
+                // Handle both formats:
+                // - datasource.schema.table (3 parts)
+                // - datasource.table (2 parts)
+                // - table (1 part - main database, skip validation)
+                const parts = tablePath.split('.');
+                if (parts.length >= 2 && parts[0]) {
+                  // Only validate if table path has at least 2 parts (datasource.table or datasource.schema.table)
+                  // Simple table names without datasource prefix are in main database and don't need validation
+                  const datasourceName = parts[0];
+                  referencedDatasources.add(datasourceName);
                 }
+                // Skip simple table names (no dots) - they're in main database
+              }
 
-                // Check if all referenced datasources are attached
-                const invalidDatasources = Array.from(
-                  referencedDatasources,
-                ).filter((dbName) => !attachedDbNames.has(dbName));
+              // Check if all referenced datasources are attached
+              const invalidDatasources = Array.from(
+                referencedDatasources,
+              ).filter((dbName) => !attachedDbNames.has(dbName));
 
-                if (invalidDatasources.length > 0) {
-                  throw new Error(
-                    `Query references unattached datasources: ${invalidDatasources.join(', ')}. Only these datasources are attached: ${Array.from(attachedDbNames).join(', ')}`,
-                  );
+              if (invalidDatasources.length > 0) {
+                throw new Error(
+                  `Query references unattached datasources: ${invalidDatasources.join(', ')}. Only these datasources are attached: ${Array.from(attachedDbNames).join(', ')}`,
+                );
               }
             } catch (error) {
               // If validation fails, log but don't block execution (query engine will handle errors)
@@ -776,47 +776,47 @@ export const readDataAgent = async (
           // Validate that all table paths in the query exist in attached datasources
           // Note: We validate the original query paths (display format), not rewritten paths
           // The rewriting happens after validation
-            try {
+          try {
             const schemaCache = orchestration.schemaCache;
-              const tablePaths = extractTablePathsFromQuery(query);
-              const allAvailablePaths =
-                schemaCache.getAllTablePathsFromAllDatasources();
-              const missingTables: string[] = [];
+            const tablePaths = extractTablePathsFromQuery(query);
+            const allAvailablePaths =
+              schemaCache.getAllTablePathsFromAllDatasources();
+            const missingTables: string[] = [];
 
-              for (const tablePath of tablePaths) {
-                // Check if table exists in cache (handles both display and query paths)
-                // For ClickHouse, hasTablePath checks both datasource.default.table and datasource.main.table
-                if (
-                  !schemaCache.hasTablePath(tablePath) &&
-                  !allAvailablePaths.includes(tablePath)
-                ) {
-                  // Also check if it's a simple table name that might be in main database
-                  const isSimpleName = !tablePath.includes('.');
-                  if (!isSimpleName) {
-                    missingTables.push(tablePath);
-                  }
+            for (const tablePath of tablePaths) {
+              // Check if table exists in cache (handles both display and query paths)
+              // For ClickHouse, hasTablePath checks both datasource.default.table and datasource.main.table
+              if (
+                !schemaCache.hasTablePath(tablePath) &&
+                !allAvailablePaths.includes(tablePath)
+              ) {
+                // Also check if it's a simple table name that might be in main database
+                const isSimpleName = !tablePath.includes('.');
+                if (!isSimpleName) {
+                  missingTables.push(tablePath);
                 }
               }
+            }
 
-              if (missingTables.length > 0) {
+            if (missingTables.length > 0) {
               const availablePaths = allAvailablePaths.slice(0, 20).join(', ');
-                throw new Error(
-                  `The following tables are not available in attached datasources: ${missingTables.join(', ')}. Available tables: ${availablePaths}${allAvailablePaths.length > 20 ? '...' : ''}. Please check the attached datasources list and use only tables that exist.`,
-                );
-              }
-            } catch (error) {
-              // If validation fails with our custom error, throw it
-              if (
-                error instanceof Error &&
-                error.message.includes('not available in attached datasources')
-              ) {
-                throw error;
-              }
-              // Otherwise, log warning but continue (might be a complex query we can't parse)
-              console.warn(
-                '[ReadDataAgent] Failed to validate table paths in query:',
-                error,
+              throw new Error(
+                `The following tables are not available in attached datasources: ${missingTables.join(', ')}. Available tables: ${availablePaths}${allAvailablePaths.length > 20 ? '...' : ''}. Please check the attached datasources list and use only tables that exist.`,
               );
+            }
+          } catch (error) {
+            // If validation fails with our custom error, throw it
+            if (
+              error instanceof Error &&
+              error.message.includes('not available in attached datasources')
+            ) {
+              throw error;
+            }
+            // Otherwise, log warning but continue (might be a complex query we can't parse)
+            console.warn(
+              '[ReadDataAgent] Failed to validate table paths in query:',
+              error,
+            );
           }
 
           // Rewrite table paths for ClickHouse (convert default -> main) before execution
@@ -832,7 +832,7 @@ export const readDataAgent = async (
             `[QueryRewrite] Extracted ${tablePaths.length} table path(s): ${tablePaths.join(', ')}`,
           );
           const replacements: Array<{ from: string; to: string }> = [];
-          
+
           for (const tablePath of tablePaths) {
             console.log(`[QueryRewrite] Processing table path: ${tablePath}`);
             // Check if this is a three-part path (datasource.schema.table)
@@ -842,7 +842,7 @@ export const readDataAgent = async (
               console.log(
                 `[QueryRewrite] Parsed: datasource=${datasourceName}, schema=${schemaName}, table=${tableName}`,
               );
-              
+
               // For ClickHouse, if schema is not 'main', it's a display path that needs rewriting
               if (schemaName !== 'main') {
                 console.log(
@@ -852,14 +852,14 @@ export const readDataAgent = async (
                 console.log(
                   `[QueryRewrite] hasTablePath(${tablePath}) = ${hasPath}`,
                 );
-                
+
                 // Try to get the query path from the mapping first
                 const queryPath =
                   schemaCache.getQueryPathForDisplayPath(tablePath);
                 console.log(
                   `[QueryRewrite] getQueryPathForDisplayPath(${tablePath}) = ${queryPath || 'null'}`,
                 );
-                
+
                 if (queryPath) {
                   replacements.push({ from: tablePath, to: queryPath });
                   console.log(
@@ -881,7 +881,7 @@ export const readDataAgent = async (
                   console.log(
                     `[QueryRewrite] Path ${constructedQueryPath} exists in cache: ${pathExists}`,
                   );
-                  
+
                   if (pathExists) {
                     replacements.push({
                       from: tablePath,
@@ -910,7 +910,7 @@ export const readDataAgent = async (
               );
             }
           }
-          
+
           // Apply all replacements
           if (replacements.length > 0) {
             for (const { from, to } of replacements) {
@@ -922,7 +922,7 @@ export const readDataAgent = async (
                 new RegExp(`"${escapedFrom}"`, 'g'), // Double-quoted
                 new RegExp(`'${escapedFrom}'`, 'g'), // Single-quoted
               ];
-              
+
               for (const pattern of patterns) {
                 rewrittenQuery = rewrittenQuery.replace(pattern, (match) => {
                   // Preserve quote style
@@ -1079,7 +1079,7 @@ export const readDataAgent = async (
           const workspace =
             orchestrationResult?.workspace ||
             (() => {
-            throw new Error('WORKSPACE environment variable is not set');
+              throw new Error('WORKSPACE environment variable is not set');
             })();
           const { join } = await import('node:path');
           const fileDir = join(workspace, conversationId);
@@ -1155,7 +1155,7 @@ export const readDataAgent = async (
           const workspace =
             orchestrationResult?.workspace ||
             (() => {
-            throw new Error('WORKSPACE environment variable is not set');
+              throw new Error('WORKSPACE environment variable is not set');
             })();
           const { join } = await import('node:path');
           const fileDir = join(workspace, conversationId);

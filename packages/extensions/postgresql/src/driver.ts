@@ -7,8 +7,12 @@ import type {
   IDataSourceDriver,
   DatasourceResultSet,
 } from '@qwery/extensions-sdk';
-import { DatasourceMetadataZodSchema } from '@qwery/extensions-sdk';
-import { extractConnectionUrl } from '@qwery/extensions-sdk';
+import {
+  DatasourceMetadataZodSchema,
+  extractConnectionUrl,
+  withTimeout,
+  DEFAULT_CONNECTION_TEST_TIMEOUT_MS,
+} from '@qwery/extensions-sdk';
 
 const ConfigSchema = z
   .object({
@@ -66,14 +70,23 @@ export function makePostgresDriver(context: DriverContext): IDataSourceDriver {
   const withClient = async <T>(
     config: { connectionUrl: string },
     callback: (client: Client) => Promise<T>,
+    timeoutMs: number = DEFAULT_CONNECTION_TEST_TIMEOUT_MS,
   ): Promise<T> => {
-    const client = new Client(buildPgConfig(config.connectionUrl));
-    try {
-      await client.connect();
-      return await callback(client);
-    } finally {
-      await client.end().catch(() => undefined);
-    }
+    const clientPromise = (async () => {
+      const client = new Client(buildPgConfig(config.connectionUrl));
+      try {
+        await client.connect();
+        return await callback(client);
+      } finally {
+        await client.end().catch(() => undefined);
+      }
+    })();
+
+    return withTimeout(
+      clientPromise,
+      timeoutMs,
+      `PostgreSQL connection operation timed out after ${timeoutMs}ms`,
+    );
   };
 
   const collectColumns = (fields: Array<{ name: string; dataTypeID: number }>) =>
@@ -97,9 +110,13 @@ export function makePostgresDriver(context: DriverContext): IDataSourceDriver {
         parsed as Record<string, unknown>,
         'postgresql',
       );
-      await withClient({ connectionUrl }, async (client) => {
-        await client.query('SELECT 1');
-      });
+      await withClient(
+        { connectionUrl },
+        async (client) => {
+          await client.query('SELECT 1');
+        },
+        DEFAULT_CONNECTION_TEST_TIMEOUT_MS,
+      );
       context.logger?.info?.('postgres: testConnection ok');
     },
 

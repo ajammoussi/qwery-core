@@ -169,6 +169,98 @@ export default function DatasourcesPage({ loaderData }: Route.ComponentProps) {
     );
   }
 
+  const provider = extension.data?.id;
+
+  // Helper: Validate provider config
+  const validateProviderConfig = (
+    config: Record<string, unknown>,
+  ): string | null => {
+    if (!provider) return 'Extension provider not found';
+    if (provider === 'gsheet-csv') {
+      if (!(config.sharedLink || config.url)) {
+        return 'Please provide a Google Sheets shared link';
+      }
+    } else if (provider === 'json-online') {
+      if (!(config.jsonUrl || config.url || config.connectionUrl)) {
+        return 'Please provide a JSON file URL (jsonUrl, url, or connectionUrl)';
+      }
+    } else if (provider === 'parquet-online') {
+      if (!(config.url || config.connectionUrl)) {
+        return 'Please provide a Parquet file URL (url or connectionUrl)';
+      }
+    } else if (
+      provider !== 'duckdb' &&
+      provider !== 'duckdb-wasm' &&
+      provider !== 'pglite'
+    ) {
+      if (!(config.connectionUrl || config.host)) {
+        return 'Please provide either a connection URL or connection details (host is required)';
+      }
+    }
+    return null;
+  };
+
+  // Helper: Normalize provider config
+  const normalizeProviderConfig = (
+    config: Record<string, unknown>,
+  ): Record<string, unknown> => {
+    if (!provider) return config;
+    if (provider === 'gsheet-csv') {
+      return { sharedLink: config.sharedLink || config.url };
+    }
+    if (provider === 'json-online') {
+      return { jsonUrl: config.jsonUrl || config.url || config.connectionUrl };
+    }
+    if (provider === 'parquet-online') {
+      return { url: config.url || config.connectionUrl };
+    }
+    if (
+      provider === 'duckdb' ||
+      provider === 'duckdb-wasm' ||
+      provider === 'pglite'
+    ) {
+      return config.database ? { database: config.database } : {};
+    }
+    // For other providers with oneOf schemas
+    if (config.connectionUrl) {
+      return { connectionUrl: config.connectionUrl };
+    }
+    // Using separate fields - remove connectionUrl and empty fields (but keep password even if empty)
+    const normalized = { ...config };
+    delete normalized.connectionUrl;
+    Object.keys(normalized).forEach((key) => {
+      if (
+        key !== 'password' &&
+        (normalized[key] === '' || normalized[key] === undefined)
+      ) {
+        delete normalized[key];
+      }
+    });
+    return normalized;
+  };
+
+  // Helper: Check if form is valid for provider
+  const isFormValidForProvider = (values: Record<string, unknown>): boolean => {
+    if (!provider) return false;
+    if (provider === 'gsheet-csv') {
+      return !!(values.sharedLink || values.url);
+    }
+    if (provider === 'json-online') {
+      return !!(values.jsonUrl || values.url || values.connectionUrl);
+    }
+    if (provider === 'parquet-online') {
+      return !!(values.url || values.connectionUrl);
+    }
+    if (
+      provider === 'duckdb' ||
+      provider === 'duckdb-wasm' ||
+      provider === 'pglite'
+    ) {
+      return true; // Always enabled - database field is optional with defaults
+    }
+    return !!(values.connectionUrl || values.host);
+  };
+
   const handleSubmit = async (values: unknown) => {
     if (!extension?.data) {
       toast.error(<Trans i18nKey="datasources:notFoundError" />);
@@ -201,57 +293,13 @@ export default function DatasourcesPage({ loaderData }: Route.ComponentProps) {
     let config = values as Record<string, unknown>;
     const userId = 'system'; // Default user - replace with actual user context
 
-    // Provider-specific validation
-    const provider = extension.data.id;
-
-    // Google Sheets only needs sharedLink or url
-    if (provider === 'gsheet-csv') {
-      const hasSharedLink = Boolean(config.sharedLink || config.url);
-      if (!hasSharedLink) {
-        toast.error('Please provide a Google Sheets shared link');
-        return;
-      }
-    } else {
-      // For other providers with oneOf schemas, validate connectionUrl or host
-      const hasConnectionUrl = Boolean(config.connectionUrl);
-      const hasHost = Boolean(config.host);
-
-      if (!hasConnectionUrl && !hasHost) {
-        toast.error(
-          'Please provide either a connection URL or connection details (host is required)',
-        );
-        return;
-      }
+    const validationError = validateProviderConfig(config);
+    if (validationError) {
+      toast.error(validationError);
+      return;
     }
 
-    // Normalize config based on provider type
-    if (provider === 'gsheet-csv') {
-      // For Google Sheets, keep only sharedLink or url
-      config = {
-        sharedLink: config.sharedLink || config.url,
-      };
-    } else {
-      // For other providers with oneOf schemas
-      const hasConnectionUrl = Boolean(config.connectionUrl);
-      if (hasConnectionUrl) {
-        // Using connectionUrl - remove separate fields
-        config = {
-          connectionUrl: config.connectionUrl,
-        };
-      } else {
-        // Using separate fields - remove connectionUrl and empty fields (but keep password even if empty)
-        config = { ...config };
-        delete config.connectionUrl;
-        Object.keys(config).forEach((key) => {
-          if (
-            key !== 'password' &&
-            (config[key] === '' || config[key] === undefined)
-          ) {
-            delete config[key];
-          }
-        });
-      }
-    }
+    config = normalizeProviderConfig(config);
 
     // Infer datasource_kind from extension driver runtime
     const dsMeta = await getDiscoveredDatasource(extension.data.id);
@@ -283,59 +331,13 @@ export default function DatasourcesPage({ loaderData }: Route.ComponentProps) {
       return;
     }
 
-    // Provider-specific validation
-    const provider = extension.data.id;
-
-    // Google Sheets only needs sharedLink or url
-    if (provider === 'gsheet-csv') {
-      const hasSharedLink = Boolean(formValues.sharedLink || formValues.url);
-      if (!hasSharedLink) {
-        toast.error('Please provide a Google Sheets shared link');
-        return;
-      }
-    } else {
-      // For other providers with oneOf schemas, validate connectionUrl or host
-      const hasConnectionUrl = Boolean(formValues.connectionUrl);
-      const hasHost = Boolean(formValues.host);
-
-      if (!hasConnectionUrl && !hasHost) {
-        toast.error(
-          'Please provide either a connection URL or connection details (host is required)',
-        );
-        return;
-      }
+    const validationError = validateProviderConfig(formValues);
+    if (validationError) {
+      toast.error(validationError);
+      return;
     }
 
-    // Normalize config based on provider type
-    let normalizedConfig: Record<string, unknown>;
-    if (provider === 'gsheet-csv') {
-      // For Google Sheets, keep only sharedLink or url
-      normalizedConfig = {
-        sharedLink: formValues.sharedLink || formValues.url,
-      };
-    } else {
-      // For other providers with oneOf schemas
-      const hasConnectionUrl = Boolean(formValues.connectionUrl);
-      normalizedConfig = { ...formValues };
-      if (hasConnectionUrl) {
-        // Using connectionUrl - remove separate fields
-        normalizedConfig = {
-          connectionUrl: formValues.connectionUrl,
-        };
-      } else {
-        // Using separate fields - remove connectionUrl and empty fields (but keep password even if empty)
-        delete normalizedConfig.connectionUrl;
-        Object.keys(normalizedConfig).forEach((key) => {
-          if (
-            key !== 'password' &&
-            (normalizedConfig[key] === '' ||
-              normalizedConfig[key] === undefined)
-          ) {
-            delete normalizedConfig[key];
-          }
-        });
-      }
-    }
+    const normalizedConfig = normalizeProviderConfig(formValues);
 
     const testDatasource: Partial<Datasource> = {
       datasource_provider: extension.data.id,
@@ -430,8 +432,7 @@ export default function DatasourcesPage({ loaderData }: Route.ComponentProps) {
                 testConnectionMutation.isPending ||
                 createDatasourceMutation.isPending ||
                 !formValues ||
-                !isFormValid ||
-                (!formValues.connectionUrl && !formValues.host)
+                !isFormValidForProvider(formValues)
               }
             >
               {testConnectionMutation.isPending ? (
@@ -461,7 +462,13 @@ export default function DatasourcesPage({ loaderData }: Route.ComponentProps) {
                 disabled={
                   createDatasourceMutation.isPending ||
                   testConnectionMutation.isPending ||
-                  !isFormValid
+                  (provider === 'duckdb' ||
+                  provider === 'duckdb-wasm' ||
+                  provider === 'pglite'
+                    ? false
+                    : !isFormValid ||
+                      !formValues ||
+                      !isFormValidForProvider(formValues))
                 }
               >
                 {createDatasourceMutation.isPending ? (

@@ -42,6 +42,14 @@ const PROVIDER_PATTERNS: Array<{
     },
   },
   {
+    pattern: /^pglite$/i,
+    mapping: {
+      duckdbType: 'POSTGRES',
+      requiresExtension: true,
+      extensionName: 'postgres',
+    },
+  },
+  {
     pattern: /^mysql$/i,
     mapping: {
       duckdbType: 'MYSQL',
