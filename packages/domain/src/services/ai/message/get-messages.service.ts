@@ -1,4 +1,5 @@
 import { Code } from '../../../common/code';
+import type { PaginatedResult } from '../../../common';
 import type { Message } from '../../../entities';
 import {
   IConversationRepository,
@@ -73,5 +74,45 @@ export class GetMessagesByConversationSlugService
       conversation.id,
     );
     return messages.map((message) => MessageOutput.new(message));
+  }
+}
+
+export class GetMessagesPaginatedService {
+  constructor(
+    private readonly messageRepository: IMessageRepository,
+    private readonly conversationRepository: IConversationRepository,
+  ) {}
+
+  public async execute(input: {
+    conversationSlug: string;
+    cursor?: string | null;
+    limit?: number;
+  }): Promise<PaginatedResult<MessageOutput>> {
+    // Validate conversation exists
+    const conversation = await this.conversationRepository.findBySlug(
+      input.conversationSlug,
+    );
+    if (!conversation) {
+      throw DomainException.new({
+        code: Code.CONVERSATION_NOT_FOUND_ERROR,
+        overrideMessage: `Conversation with slug '${input.conversationSlug}' not found`,
+        data: { conversationSlug: input.conversationSlug },
+      });
+    }
+
+    const result = await this.messageRepository.findByConversationIdPaginated(
+      conversation.id,
+      {
+        cursor: input.cursor || null,
+        limit: input.limit || 20,
+        direction: 'before',
+      },
+    );
+
+    return {
+      messages: result.messages.map((m) => MessageOutput.new(m)),
+      nextCursor: result.nextCursor,
+      hasMore: result.hasMore,
+    };
   }
 }

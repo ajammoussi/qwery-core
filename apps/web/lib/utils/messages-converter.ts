@@ -14,6 +14,12 @@ export function convertMessages(
   }
 
   return messages.map((message) => {
+    // Extract createdAt from MessageOutput for cursor-based pagination
+    const createdAt =
+      message.createdAt instanceof Date
+        ? message.createdAt.toISOString()
+        : new Date(message.createdAt).toISOString();
+
     // Check if content already contains a UIMessage structure (with parts and role)
     if (
       typeof message.content === 'object' &&
@@ -23,18 +29,24 @@ export function convertMessages(
       'role' in message.content
     ) {
       // Content already contains full UIMessage structure - restore all fields
+      const existingMetadata =
+        'metadata' in message.content
+          ? (message.content.metadata as Record<string, unknown>)
+          : {};
+
       return {
         id: message.id, // Use MessageEntity.id as source of truth
         role: message.content.role as 'user' | 'assistant' | 'system',
-        metadata:
-          'metadata' in message.content ? message.content.metadata : undefined,
+        metadata: {
+          ...existingMetadata,
+          createdAt,
+        },
         parts: message.content.parts as UIMessage['parts'],
       };
     }
 
     // Fallback: Legacy format - reconstruct from MessageRole and content
     // Map MessageRole enum to UIMessage role string
-    // Note: MessageRole.ASSISTANT maps to 'assistant' in UIMessage
     let role: 'user' | 'assistant' | 'system';
     if (message.role === MessageRole.USER) {
       role = 'user';
@@ -59,6 +71,9 @@ export function convertMessages(
     return {
       id: message.id,
       role,
+      metadata: {
+        createdAt,
+      },
       parts: [{ type: 'text', text }],
     };
   });

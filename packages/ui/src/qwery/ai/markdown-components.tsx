@@ -240,7 +240,7 @@ export const createAgentMarkdownComponents = (): Components => {
             <li
               {...props}
               className={cn(
-                'marker:text-muted-foreground group overflow-wrap-anywhere relative my-1 min-w-0 pr-6 text-sm leading-6 break-words',
+                'marker:text-muted-foreground overflow-wrap-anywhere relative my-1 min-w-0 pr-6 text-sm leading-6 break-words',
                 className,
               )}
             >

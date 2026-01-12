@@ -8,6 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '../../shadcn/collapsible';
+import { TOOL_UI_CONFIG } from './tool-ui-config';
 
 export interface SchemaColumn {
   columnName: string;
@@ -83,7 +84,7 @@ export function SchemaVisualizer({
       {datasourceNames.map((dsName) => (
         <Collapsible
           key={dsName}
-          defaultOpen={true}
+          defaultOpen={TOOL_UI_CONFIG.DEFAULT_OPEN}
           className="bg-card rounded-lg border shadow-sm"
         >
           <CollapsibleTrigger className="hover:bg-muted/50 flex w-full items-center justify-between p-4 transition-colors">
@@ -107,7 +108,7 @@ export function SchemaVisualizer({
               {groupedTables[dsName]?.map((table) => (
                 <div
                   key={table.tableName}
-                  className="bg-background overflow-hidden rounded-md border"
+                  className="bg-background max-w-full min-w-0 overflow-hidden rounded-md border"
                 >
                   {/* Table Header */}
                   <div className="bg-muted/30 flex items-center justify-between border-b px-3 py-2">
@@ -126,33 +127,35 @@ export function SchemaVisualizer({
                   </div>
 
                   {/* Columns Table */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="bg-muted/5 text-muted-foreground border-b text-[10px] tracking-wider uppercase">
-                          <th className="w-1/3 px-3 py-1.5 font-medium">
-                            Column
-                          </th>
-                          <th className="px-3 py-1.5 font-medium">Type</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-border/50 divide-y">
-                        {table.columns.map((col) => (
-                          <tr
-                            key={col.columnName}
-                            className="hover:bg-muted/20 transition-colors"
-                          >
-                            <td className="text-foreground/90 px-3 py-1.5 text-xs font-medium break-all">
-                              {col.columnName}
-                            </td>
-                            <td className="text-muted-foreground px-3 py-1.5 font-mono text-[10px]">
-                              {col.columnType}
-                            </td>
+                  {table.columns.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="bg-muted/5 text-muted-foreground border-b text-[10px] tracking-wider uppercase">
+                            <th className="w-1/3 px-3 py-1.5 font-medium">
+                              Column
+                            </th>
+                            <th className="px-3 py-1.5 font-medium">Type</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-border/50 divide-y">
+                          {table.columns.map((col) => (
+                            <tr
+                              key={col.columnName}
+                              className="hover:bg-muted/20 transition-colors"
+                            >
+                              <td className="text-foreground/90 px-3 py-1.5 text-xs font-medium break-all">
+                                {col.columnName}
+                              </td>
+                              <td className="text-muted-foreground px-3 py-1.5 font-mono text-[10px]">
+                                {col.columnType}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>

@@ -168,9 +168,23 @@ export function parseMessageWithContext(messageText: string): {
       .trim();
 
     // Remove suggestion workflow guidance from clean text if present
-    cleanText = cleanText
-      .replace(/\[SUGGESTION WORKFLOW GUIDANCE\][\s\S]*?(?=\n\n|$)/g, '')
-      .trim();
+    const guidanceMarker = '[SUGGESTION WORKFLOW GUIDANCE]';
+    let guidanceIndex = cleanText.indexOf(guidanceMarker);
+    while (guidanceIndex !== -1) {
+      // Find the end of this guidance block (next double newline or end of string)
+      const afterMarker = guidanceIndex + guidanceMarker.length;
+      const doubleNewlineIndex = cleanText.indexOf('\n\n', afterMarker);
+      const endIndex =
+        doubleNewlineIndex !== -1 ? doubleNewlineIndex + 2 : cleanText.length;
+
+      // Remove this guidance block
+      cleanText =
+        cleanText.substring(0, guidanceIndex) + cleanText.substring(endIndex);
+
+      // Check for next occurrence
+      guidanceIndex = cleanText.indexOf(guidanceMarker);
+    }
+    cleanText = cleanText.trim();
 
     // Clean nested markers from context values (final cleanup)
     if (parsedContext.lastUserQuestion) {
