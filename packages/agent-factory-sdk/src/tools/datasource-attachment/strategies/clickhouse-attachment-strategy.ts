@@ -96,21 +96,26 @@ export class ClickHouseAttachmentStrategy implements AttachmentStrategy {
       );
     }
 
-    const driver = await getDriverInstance({
-      id: driverId,
-      packageDir: dsMeta.packageDir,
-      entry: driverMeta.entry,
-      runtime: (driverMeta.runtime as 'node' | 'browser') || 'node',
-      name: driverMeta.name || driverId,
-    });
+    const driver = await getDriverInstance(
+      {
+        id: driverId,
+        packageDir: dsMeta.packageDir,
+        entry: driverMeta.entry,
+        runtime: (driverMeta.runtime as 'node' | 'browser') || 'node',
+        name: driverMeta.name || driverId,
+      },
+      {
+        queryEngineConnection: conn,
+      },
+    );
 
     try {
       // Test connection
       await driver.testConnection(datasource.config);
 
       // Get metadata to understand the schema
-      // Pass connection so driver can create views in main engine if supported
-      const metadata = await driver.metadata(datasource.config, conn);
+      // Connection is passed through DriverContext.queryEngineConnection
+      const metadata = await driver.metadata(datasource.config);
 
       // Get connection URL for ClickHouse HTTP interface
       const connectionUrl = extractConnectionUrl(

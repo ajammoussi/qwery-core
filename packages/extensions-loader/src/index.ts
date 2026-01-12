@@ -107,15 +107,21 @@ export function getNodeDriverIds(): string[] {
 /**
  * Get a driver instance from the registry
  * Loads and registers the driver if not already loaded
+ * @param driver The discovered driver metadata
+ * @param context Optional driver context to merge with default context
  */
 export async function getDriverInstance(
   driver: DiscoveredDriver,
+  context?: Partial<DriverContext>,
 ): Promise<ReturnType<DriverFactory>> {
   // Get factory from registry
   let factory = datasources.getDriverRegistration(driver.id)?.factory;
   if (factory) {
-    const context: DriverContext = { runtime: driver.runtime };
-    return factory(context);
+    const driverContext: DriverContext = {
+      runtime: driver.runtime,
+      ...context,
+    };
+    return factory(driverContext);
   }
 
   // Load and register if not already loaded
@@ -155,8 +161,11 @@ export async function getDriverInstance(
     throw new Error(`Driver ${driver.id} did not register a factory`);
   }
 
-  const context: DriverContext = { runtime: driver.runtime };
-  return factory(context);
+  const driverContext: DriverContext = {
+    runtime: driver.runtime,
+    ...context,
+  };
+  return factory(driverContext);
 }
 
 // Extension registry functions

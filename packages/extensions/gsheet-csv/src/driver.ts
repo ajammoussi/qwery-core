@@ -279,7 +279,7 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
         );
       } finally {
         if (shouldCloseConnection) {
-          conn.closeSync();
+        conn.closeSync();
         }
       }
     },

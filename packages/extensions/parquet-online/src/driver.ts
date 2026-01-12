@@ -73,10 +73,7 @@ export function makeParquetDriver(context: DriverContext): IDataSourceDriver {
       }
     },
 
-    async metadata(
-      config: unknown,
-      connection?: unknown,
-    ): Promise<DatasourceMetadata> {
+    async metadata(config: unknown): Promise<DatasourceMetadata> {
       const parsed = ConfigSchema.parse(config);
       let conn: Awaited<
         ReturnType<
@@ -85,26 +82,19 @@ export function makeParquetDriver(context: DriverContext): IDataSourceDriver {
       >;
       let shouldCloseConnection = false;
 
-      // Type guard to check if connection is a DuckDB connection
-      const isDuckDBConnection = (
-        c: unknown,
-      ): c is Awaited<
-        ReturnType<
-          import('@duckdb/node-api').DuckDBInstance['connect']
-        >
-      > => {
-        return (
-          c !== null &&
-          c !== undefined &&
-          typeof c === 'object' &&
-          'run' in c &&
-          typeof (c as { run: unknown }).run === 'function'
-        );
-      };
-
-      if (connection && isDuckDBConnection(connection)) {
+      if (
+        context.queryEngineConnection &&
+        typeof context.queryEngineConnection === 'object' &&
+        'run' in context.queryEngineConnection &&
+        typeof (context.queryEngineConnection as { run: unknown }).run ===
+          'function'
+      ) {
         // Use provided connection - create view in main engine
-        conn = connection;
+        conn = context.queryEngineConnection as Awaited<
+          ReturnType<
+            import('@duckdb/node-api').DuckDBInstance['connect']
+          >
+        >;
         const escapedUrl = parsed.url.replace(/'/g, "''");
         const escapedViewName = VIEW_NAME.replace(/"/g, '""');
 
@@ -200,7 +190,7 @@ export function makeParquetDriver(context: DriverContext): IDataSourceDriver {
         );
       } finally {
         if (shouldCloseConnection) {
-          conn.closeSync();
+        conn.closeSync();
         }
       }
     },
