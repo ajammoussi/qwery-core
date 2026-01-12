@@ -15,7 +15,6 @@ import { AbstractQueryEngine } from '@qwery/domain/ports';
 import type { PromptSource } from '../domain';
 import type { TelemetryManager } from '@qwery/telemetry/otel';
 import {
-  withActorTelemetry,
   createActorAttributes,
   endActorSpanWithEvent,
 } from '@qwery/telemetry/otel';
@@ -123,7 +122,11 @@ export const createStateMachine = (
       };
     }): Promise<AgentContext['intent']> => {
       const startTime = Date.now();
-      const { provider, modelName, fullModel } = parseModel(input.model);
+      const {
+        provider,
+        modelName,
+        fullModel: _fullModel,
+      } = parseModel(input.model);
 
       // Create span with actor attributes
       const span = telemetry.startSpan(
@@ -245,7 +248,11 @@ export const createStateMachine = (
       };
     }) => {
       const startTime = Date.now();
-      const { provider, modelName, fullModel } = parseModel(input.model);
+      const {
+        provider,
+        modelName,
+        fullModel: _fullModel,
+      } = parseModel(input.model);
 
       // Create span with actor attributes
       const span = telemetry.startSpan(
@@ -359,7 +366,11 @@ export const createStateMachine = (
       };
     }) => {
       const startTime = Date.now();
-      const { provider, modelName, fullModel } = parseModel(input.model);
+      const {
+        provider,
+        modelName,
+        fullModel: _fullModel,
+      } = parseModel(input.model);
 
       // Create span with actor attributes
       const span = telemetry.startSpan(
@@ -474,7 +485,11 @@ export const createStateMachine = (
       };
     }) => {
       const startTime = Date.now();
-      const { provider, modelName, fullModel } = parseModel(input.model);
+      const {
+        provider,
+        modelName,
+        fullModel: _fullModel,
+      } = parseModel(input.model);
 
       // Create span with actor attributes
       const span = telemetry.startSpan(

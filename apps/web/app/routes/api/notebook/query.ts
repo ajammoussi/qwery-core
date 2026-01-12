@@ -170,9 +170,13 @@ export async function action({ request }: ActionFunctionArgs) {
             const conversation =
               await repositories.conversation.findBySlug(conversationId);
             if (conversation) {
+              // Fetch project to get organizationId
+              const project = await repositories.project.findById(
+                conversation.projectId,
+              );
               workspace = {
                 userId: conversation.createdBy,
-                organizationId: conversation.organizationId,
+                organizationId: project?.organizationId,
                 projectId: conversation.projectId,
               };
             }

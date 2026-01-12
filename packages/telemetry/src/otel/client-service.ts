@@ -26,7 +26,6 @@ export class OtelClientService {
     this.startFlushTimer();
   }
 
-
   setTelemetryManager(telemetry: OtelTelemetryManager): void {
     this.telemetry = telemetry;
   }
@@ -35,7 +34,6 @@ export class OtelClientService {
     return this.telemetry?.getSessionId() || 'client-session';
   }
 
- 
   trackCommand(
     command: string,
     args?: Record<string, unknown>,
@@ -66,7 +64,6 @@ export class OtelClientService {
     }
   }
 
- 
   trackEvent(event: string, properties?: Record<string, unknown>): void {
     if (this.telemetry) {
       this.telemetry.captureEvent({
@@ -82,13 +79,11 @@ export class OtelClientService {
     }
   }
 
-  
   trackMetric(
     name: string,
     value: number,
     attributes?: Record<string, string | number | boolean>,
   ): void {
-    
     if (this.telemetry) {
       this.telemetry.captureEvent({
         name: 'client.metric',
@@ -101,7 +96,6 @@ export class OtelClientService {
     }
   }
 
-  
   captureEvent(event: Omit<TelemetryEvent, 'sessionId' | 'timestamp'>) {
     if (this.telemetry) {
       // Use telemetry manager directly

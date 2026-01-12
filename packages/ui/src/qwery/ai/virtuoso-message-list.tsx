@@ -224,14 +224,14 @@ export const VirtuosoMessageList = forwardRef<
             });
           }
         }}
-        followOutput={(atBottom) =>
+        followOutput={(atBottom: boolean) =>
           shouldAutoScroll && atBottom ? 'smooth' : false
         }
-        atBottomStateChange={(atBottom) => {
+        atBottomStateChange={(atBottom: boolean) => {
           setShouldFollowOutput(atBottom);
           setIsAtBottom(atBottom);
         }}
-        atTopStateChange={(_atTop) => {
+        atTopStateChange={(_atTop: boolean) => {
           setIsAtTop(_atTop);
         }}
         overscan={{

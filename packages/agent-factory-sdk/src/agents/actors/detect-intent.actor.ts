@@ -4,7 +4,7 @@ import { fromPromise } from 'xstate/actors';
 import type { UIMessage } from 'ai';
 import { INTENTS_LIST, IntentSchema } from '../types';
 import { DETECT_INTENT_PROMPT } from '../prompts/detect-intent.prompt';
-import { resolveModel, getDefaultModel } from '../../services/model-resolver';
+import { resolveModel } from '../../services/model-resolver';
 
 export const detectIntent = async (text: string, model: string) => {
   const maxAttempts = 2;

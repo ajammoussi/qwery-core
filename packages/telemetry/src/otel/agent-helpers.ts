@@ -10,7 +10,6 @@ import type {
 } from '../events/agent.events';
 import { context as otelContext, trace } from '@opentelemetry/api';
 
-
 function parseModel(model: string): {
   provider: string;
   modelName: string;
@@ -30,7 +29,6 @@ function parseModel(model: string): {
     fullModel: model,
   };
 }
-
 
 export function createConversationAttributes(
   conversationId: string,
@@ -91,7 +89,6 @@ export function createActorAttributes(
   return attributes;
 }
 
-
 export function endMessageSpanWithEvent(
   telemetry: TelemetryManager,
   span: Span | undefined,
@@ -125,7 +122,6 @@ export function endMessageSpanWithEvent(
   });
   telemetry.endSpan(span, success);
 }
-
 
 export function endConversationSpanWithEvent(
   telemetry: TelemetryManager,
@@ -193,7 +189,6 @@ export function endActorSpanWithEvent(
   telemetry.endSpan(span, success);
 }
 
-
 function extractTokenUsage(usage: unknown): {
   promptTokens: number;
   completionTokens: number;
@@ -228,7 +223,6 @@ function extractTokenUsage(usage: unknown): {
   return { promptTokens, completionTokens, totalTokens };
 }
 
-
 export async function withActorTelemetry<T>(
   telemetry: TelemetryManager,
   actorId: string,
@@ -239,7 +233,7 @@ export async function withActorTelemetry<T>(
   input?: Record<string, unknown>,
 ): Promise<T> {
   const startTime = Date.now();
-  const { provider, modelName, fullModel } = parseModel(model);
+  const { provider, modelName, fullModel: _fullModel } = parseModel(model);
 
   // Create span with actor attributes
   const spanAttributes = createActorAttributes(

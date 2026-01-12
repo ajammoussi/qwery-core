@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React, {
@@ -27,7 +25,6 @@ export interface OtelTelemetryProviderProps {
   telemetry: OtelTelemetryManager;
   initialWorkspace?: WorkspaceContext;
 }
-
 
 export function OtelTelemetryProvider({
   children,
