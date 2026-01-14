@@ -601,7 +601,7 @@ export const createStateMachine = (
 
             // Add message count to span attributes
             span.setAttributes({
-              'agent.context.message_count': messages.length,
+                'agent.context.message_count': messages.length,
             });
 
             endActorSpanWithEvent(
@@ -1020,11 +1020,11 @@ export const createStateMachine = (
                           },
                         );
                         return {
-                          inputMessage: context.inputMessage,
+                        inputMessage: context.inputMessage,
                           conversationId: context.conversationSlug, // Use slug for conversation lookups
-                          previousMessages: context.previousMessages,
-                          model: context.model,
-                          repositories: repositories,
+                        previousMessages: context.previousMessages,
+                        model: context.model,
+                        repositories: repositories,
                           queryEngine: queryEngine,
                           promptSource: context.promptSource,
                           intent: context.intent,

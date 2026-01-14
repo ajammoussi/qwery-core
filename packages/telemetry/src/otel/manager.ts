@@ -38,29 +38,26 @@ let semanticConventionsModule:
 const isNode = typeof process !== 'undefined' && process.versions?.node;
 
 function secureRandomStringBase36(length: number): string {
-  // Prefer randomUUID when available (Node + modern browsers).
-  const uuidFn = globalThis.crypto?.randomUUID;
-  if (typeof uuidFn === 'function') {
-    // randomUUID() is cryptographically secure; compact to base36-ish chars.
-    const compact = uuidFn().replaceAll('-', '');
-    // hex -> base36-ish (still plenty of entropy for a session id suffix)
-    return BigInt(`0x${compact}`).toString(36).slice(0, length);
+  try {
+
+    const webCrypto = globalThis.crypto;
+    if (webCrypto && typeof webCrypto.getRandomValues === 'function') {
+      const bytes = new Uint8Array(Math.max(8, Math.ceil(length * 0.75)));
+      webCrypto.getRandomValues(bytes);
+      return Array.from(bytes)
+        .map((b) => b.toString(36))
+        .join('')
+        .slice(0, length);
+    }
+  } catch (error) {
+    console.warn('[Telemetry] Failed to generate secure random string:', error);
   }
 
-  // Fallback: WebCrypto getRandomValues (also cryptographically secure).
-  const webCrypto = globalThis.crypto;
-  if (webCrypto && typeof webCrypto.getRandomValues === 'function') {
-    const bytes = new Uint8Array(Math.max(8, Math.ceil(length * 0.75)));
-    webCrypto.getRandomValues(bytes);
-    return Array.from(bytes)
-      .map((b) => b.toString(36))
-      .join('')
-      .slice(0, length);
-  }
-
-  // Extremely old runtimes only. Keep deterministic + low risk of collision,
-  // but avoid importing Node builtins that Vite may externalize in the browser.
-  return `${Date.now().toString(36)}${length}`;
+  // Fallback: timestamp-based (not cryptographically secure but won't hang)
+  // This should only be used in extremely old environments
+  const timestamp = Date.now().toString(36);
+  const random = Math.floor(Math.random() * 1000000).toString(36);
+  return `${timestamp}${random}`.slice(0, length);
 }
 
 async function loadNodeModules() {
@@ -726,9 +723,19 @@ export class OtelTelemetryManager {
   }
 
   private generateSessionId(): string {
-    const prefix = this.serviceName.includes('cli') ? 'cli' : 'web';
-    const randomString = secureRandomStringBase36(7);
-    return `${prefix}-${Date.now()}-${randomString}`;
+    try {
+      const prefix = this.serviceName.includes('cli') ? 'cli' : 'web';
+      const randomString = secureRandomStringBase36(7);
+      const sessionId = `${prefix}-${Date.now()}-${randomString}`;
+      console.log('[Telemetry] Generated session ID:', sessionId);
+      return sessionId;
+    } catch (error) {
+      console.error('[Telemetry] Error generating session ID:', error);
+      // Fallback session ID
+      const fallbackId = `${this.serviceName}-${Date.now()}-fallback`;
+      console.log('[Telemetry] Using fallback session ID:', fallbackId);
+      return fallbackId;
+    }
   }
 
   private initializeMetrics(): void {
