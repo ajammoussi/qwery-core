@@ -110,8 +110,7 @@ export const createStateMachine = (
   // Create telemetry-wrapped actors
   // All actors use startSpan for consistent nesting behavior
   // OpenTelemetry's AsyncLocalStorage should preserve context across async boundaries
-  // Since we wrap _executeRespond in context.with(), the message span should be active
-  // when actors are invoked, allowing proper parent-child nesting
+  // Context is set when sending USER_INPUT, allowing actors to access parent spans
   const detectIntentActor = fromPromise(
     async ({
       input,
