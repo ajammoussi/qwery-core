@@ -133,6 +133,18 @@ export class FactoryAgent {
       this.factoryActor.getSnapshot().value,
     );
 
+    const currentState = this.factoryActor.getSnapshot().value;
+    if (currentState !== 'idle') {
+      await new Promise<void>((resolve) => {
+        const subscription = this.factoryActor.subscribe((state) => {
+          if (state.value === 'idle') {
+            subscription.unsubscribe();
+            resolve();
+          }
+        });
+      });
+    }
+
     // Start conversation span
     const conversationAttrs = createConversationAttributes(
       this.conversationSlug,
@@ -245,53 +257,328 @@ export class FactoryAgent {
       attributes: messageAttrs as unknown as Record<string, unknown>,
     });
 
-    //console.log("Last user text:", JSON.stringify(opts.messages, null, 2));
-
     const conversationStartTime = Date.now();
     const messageEnded = { current: false };
 
-    // Run the promise within the conversation span's context for proper nesting
-    const runInContext = async () => {
-      if (conversationSpan) {
-        // Set conversation span as active so child spans nest properly
-        return context.with(
-          trace.setSpan(context.active(), conversationSpan),
-          async () => {
-            // Set message span as active within conversation context
-            if (messageSpan) {
-              return context.with(
-                trace.setSpan(context.active(), messageSpan),
-                async () => {
-                  return await this._executeRespond(
-                    opts,
-                    conversationSpan,
-                    messageSpan,
-                    conversationStartTime,
-                    messageEnded,
-                  );
-                },
+    return await new Promise<Response>((resolve, reject) => {
+      let resolved = false;
+      let requestStarted = false;
+      let lastState: string | undefined;
+      let stateChangeCount = 0;
+
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          subscription.unsubscribe();
+
+          if (messageSpan && messageSpan.isRecording()) {
+            messageEnded.current = true;
+            endMessageSpanWithEvent(
+              this.telemetry,
+              messageSpan,
+              this.conversationSlug,
+              conversationStartTime,
+              false,
+              'Response timeout',
+            );
+          }
+
+          if (conversationSpan && conversationSpan.isRecording()) {
+            endConversationSpanWithEvent(
+              this.telemetry,
+              conversationSpan,
+              this.conversationSlug,
+              conversationStartTime,
+              false,
+              `Response timeout: Last state: ${lastState}, state changes: ${stateChangeCount}`,
+            );
+          }
+
+          reject(
+            new Error(
+              `FactoryAgent response timeout: state machine did not produce streamResult within 60 seconds. Last state: ${lastState}, state changes: ${stateChangeCount}`,
+            ),
+          );
+        }
+      }, 60000);
+
+      let userInputSent = false;
+
+      const sendUserInput = () => {
+        if (!userInputSent) {
+          userInputSent = true;
+          if (conversationSpan && messageSpan) {
+            context.with(
+              trace.setSpan(context.active(), conversationSpan),
+              () => {
+                context.with(
+                  trace.setSpan(context.active(), messageSpan),
+                  () => {
+                    console.log(
+                      `[FactoryAgent ${this.id}] Sending USER_INPUT event with message: "${currentInputMessage}"`,
+                    );
+                    this.factoryActor.send({
+                      type: 'USER_INPUT',
+                      messages: opts.messages,
+                    });
+                    console.log(
+                      `[FactoryAgent ${this.id}] USER_INPUT sent, current state:`,
+                      this.factoryActor.getSnapshot().value,
+                    );
+                  },
+                );
+              },
+            );
+          } else {
+            console.log(
+              `[FactoryAgent ${this.id}] Sending USER_INPUT event with message: "${currentInputMessage}"`,
+            );
+            this.factoryActor.send({
+              type: 'USER_INPUT',
+              messages: opts.messages,
+            });
+            console.log(
+              `[FactoryAgent ${this.id}] USER_INPUT sent, current state:`,
+              this.factoryActor.getSnapshot().value,
+            );
+          }
+        }
+      };
+
+      const subscription = this.factoryActor.subscribe((state) => {
+        const ctx = state.context;
+        const currentState =
+          typeof state.value === 'string'
+            ? state.value
+            : JSON.stringify(state.value);
+        lastState = currentState;
+        stateChangeCount++;
+
+        if (
+          stateChangeCount <= 5 ||
+          currentState.includes('detectIntent') ||
+          currentState.includes('greeting')
+        ) {
+          console.log(
+            `[FactoryAgent ${this.id}] State: ${currentState}, Changes: ${stateChangeCount}, HasError: ${!!ctx.error}, HasStreamResult: ${!!ctx.streamResult}`,
+          );
+        }
+
+        if (currentState === 'idle' && !userInputSent) {
+          sendUserInput();
+          return;
+        }
+
+        if (ctx.error) {
+          console.error(
+            `[FactoryAgent ${this.id}] Error in context:`,
+            ctx.error,
+          );
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeout);
+            subscription.unsubscribe();
+
+            if (messageSpan && messageSpan.isRecording() && !messageEnded.current) {
+              messageEnded.current = true;
+              endMessageSpanWithEvent(
+                this.telemetry,
+                messageSpan,
+                this.conversationSlug,
+                conversationStartTime,
+                false,
+                ctx.error,
               );
             }
-            return await this._executeRespond(
-              opts,
-              conversationSpan,
-              messageSpan,
-              conversationStartTime,
-              messageEnded,
-            );
-          },
-        );
-      }
-      return await this._executeRespond(
-        opts,
-        conversationSpan,
-        messageSpan,
-        conversationStartTime,
-        messageEnded,
-      );
-    };
 
-    return await runInContext();
+            if (conversationSpan && conversationSpan.isRecording()) {
+              endConversationSpanWithEvent(
+                this.telemetry,
+                conversationSpan,
+                this.conversationSlug,
+                conversationStartTime,
+                false,
+                ctx.error,
+              );
+            }
+
+            reject(new Error(`State machine error: ${ctx.error}`));
+          }
+          return;
+        }
+
+        if (
+          currentState.includes('idle') &&
+          !ctx.streamResult &&
+          stateChangeCount > 2 &&
+          ctx.error
+        ) {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeout);
+            subscription.unsubscribe();
+
+            if (messageSpan && messageSpan.isRecording() && !messageEnded.current) {
+              messageEnded.current = true;
+              endMessageSpanWithEvent(
+                this.telemetry,
+                messageSpan,
+                this.conversationSlug,
+                conversationStartTime,
+                false,
+                ctx.error,
+              );
+            }
+
+            if (conversationSpan && conversationSpan.isRecording()) {
+              endConversationSpanWithEvent(
+                this.telemetry,
+                conversationSpan,
+                this.conversationSlug,
+                conversationStartTime,
+                false,
+                ctx.error,
+              );
+            }
+
+            reject(new Error(`State machine error: ${ctx.error}`));
+          }
+          return;
+        }
+
+        if (currentState.includes('detectIntent') && stateChangeCount > 10) {
+          console.warn(
+            `[FactoryAgent ${this.id}] Appears stuck in detectIntent after ${stateChangeCount} state changes`,
+          );
+          return;
+        }
+
+        if (state.value === 'running' || ctx.streamResult) {
+          requestStarted = true;
+        }
+
+        // When the state machine has produced the StreamTextResult, verify it's for the current request
+        if (ctx.streamResult && requestStarted) {
+          const resultInputMessage = ctx.inputMessage;
+          if (resultInputMessage === currentInputMessage) {
+            if (!resolved) {
+              resolved = true;
+              clearTimeout(timeout);
+
+              if (messageSpan && messageSpan.isRecording() && !messageEnded.current) {
+                messageEnded.current = true;
+                endMessageSpanWithEvent(
+                  this.telemetry,
+                  messageSpan,
+                  this.conversationSlug,
+                  conversationStartTime,
+                  true,
+                );
+              }
+
+              try {
+                const response = ctx.streamResult.toUIMessageStreamResponse({
+                  generateMessageId: () => uuidv4(),
+                  onFinish: async ({
+                    messages,
+                    finishReason,
+                  }: {
+                    messages: UIMessage[];
+                    finishReason?: FinishReason;
+                  }) => {
+                    if (finishReason === 'stop') {
+                      this.factoryActor.send({
+                        type: 'FINISH_STREAM',
+                      });
+
+                      const totalUsage = await ctx.streamResult.totalUsage;
+
+                      const usagePersistenceService =
+                        new UsagePersistenceService(
+                          this.repositories.usage,
+                          this.repositories.conversation,
+                          this.repositories.project,
+                          this.conversationSlug,
+                        );
+                      usagePersistenceService
+                        .persistUsage(totalUsage, ctx.model)
+                        .catch((error) => {
+                          console.error('Failed to persist usage:', error);
+                        });
+                    }
+
+                    const messagePersistenceService =
+                      new MessagePersistenceService(
+                        this.repositories.message,
+                        this.repositories.conversation,
+                        this.conversationSlug,
+                      );
+                    try {
+                      const result =
+                        await messagePersistenceService.persistMessages(
+                          messages,
+                        );
+                      if (result.errors.length > 0) {
+                        console.warn(
+                          `Failed to persist some assistant messages for conversation ${this.conversationSlug}:`,
+                          result.errors.map((e) => e.message).join(', '),
+                        );
+                      }
+                    } catch (error) {
+                      console.warn(
+                        `Failed to persist messages for conversation ${this.conversationSlug}:`,
+                        error instanceof Error ? error.message : String(error),
+                      );
+                    }
+
+                    if (conversationSpan && conversationSpan.isRecording()) {
+                      endConversationSpanWithEvent(
+                        this.telemetry,
+                        conversationSpan,
+                        this.conversationSlug,
+                        conversationStartTime,
+                        true,
+                      );
+                    }
+                  },
+                });
+                subscription.unsubscribe();
+                resolve(response);
+              } catch (err) {
+                subscription.unsubscribe();
+
+                // End spans on error
+                if (messageSpan && messageSpan.isRecording() && !messageEnded.current) {
+                  messageEnded.current = true;
+                  endMessageSpanWithEvent(
+                    this.telemetry,
+                    messageSpan,
+                    this.conversationSlug,
+                    conversationStartTime,
+                    false,
+                    err instanceof Error ? err.message : String(err),
+                  );
+                }
+
+                if (conversationSpan && conversationSpan.isRecording()) {
+                  endConversationSpanWithEvent(
+                    this.telemetry,
+                    conversationSpan,
+                    this.conversationSlug,
+                    conversationStartTime,
+                    false,
+                    err instanceof Error ? err.message : String(err),
+                  );
+                }
+
+                reject(err);
+              }
+            }
+          }
+        }
+      });
+
+      sendUserInput();
+    });
   }
 
   private async _executeRespond(
@@ -494,27 +781,15 @@ export class FactoryAgent {
         if (ctx.streamResult && requestStarted) {
           // Verify this result is for the current request by checking inputMessage matches
           const resultInputMessage = ctx.inputMessage;
+          const lastMsg = opts.messages[opts.messages.length - 1];
+          const textPart = lastMsg?.parts.find((p) => p.type === 'text');
           const currentInputMessage =
-            (opts.messages[opts.messages.length - 1]?.parts.find(
-              (p) => p.type === 'text' && 'text' in p,
-            )?.text as string) || '';
+            (textPart && 'text' in textPart ? (textPart.text as string) : '') ||
+            '';
           if (resultInputMessage === currentInputMessage) {
             if (!resolved) {
               resolved = true;
               clearTimeout(timeout);
-
-              // End message span on success
-              if (messageSpan && !messageEnded.current) {
-                messageEnded.current = true;
-                endMessageSpanWithEvent(
-                  this.telemetry,
-                  messageSpan,
-                  this.conversationSlug,
-                  conversationStartTime,
-                  true,
-                );
-              }
-
               try {
                 const response = ctx.streamResult.toUIMessageStreamResponse({
                   // Generate server-side UUIDs for message persistence
@@ -632,7 +907,6 @@ export class FactoryAgent {
               }
             }
           }
-          // If inputMessage doesn't match, it's a stale result - wait for the correct one
         }
       });
 
@@ -652,7 +926,6 @@ export class FactoryAgent {
               : JSON.stringify(stateValue);
           if (stateStr.includes('idle') || stateStr.includes('running')) {
             loadContextSubscription.unsubscribe();
-            // Now send USER_INPUT within the message span context
             if (messageSpan) {
               context.with(trace.setSpan(context.active(), messageSpan), () => {
                 sendUserInput();
@@ -663,7 +936,6 @@ export class FactoryAgent {
           }
         });
       } else {
-        // State machine is ready, send USER_INPUT immediately within message span context
         if (messageSpan) {
           context.with(trace.setSpan(context.active(), messageSpan), () => {
             sendUserInput();
