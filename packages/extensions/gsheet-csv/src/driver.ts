@@ -22,13 +22,38 @@ const ConfigSchema = z.object({
 
 type DriverConfig = z.infer<typeof ConfigSchema>;
 
-const convertToCsvLink = (spreadsheetId: string, gid: number = 0): string => {
+const convertToCsvLink = (spreadsheetId: string, gid: number): string => {
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
 };
 
-async function fetchSpreadsheetMetadata(
-  spreadsheetId: string,
-): Promise<Array<{ gid: number; name: string }>> {
+/**
+ * Extracts the gid (sheet ID) from a Google Sheets URL if present.
+ * Supports both query parameter (?gid=) and hash fragment (#gid=) formats.
+ * @param url - The Google Sheets URL
+ * @returns The gid as a number, or null if not found
+ */
+const extractGidFromUrl = (url: string): number | null => {
+  // Try to extract from query parameter: ?gid=1822465437
+  const queryMatch = url.match(/[?&]gid=(\d+)/);
+  if (queryMatch) {
+    return parseInt(queryMatch[1]!, 10);
+  }
+  
+  // Try to extract from hash fragment: #gid=1822465437
+  const hashMatch = url.match(/#gid=(\d+)/);
+  if (hashMatch) {
+    return parseInt(hashMatch[1]!, 10);
+  }
+  
+  return null;
+};
+
+/**
+ * Discovers the first available gid from a Google Sheets spreadsheet.
+ * @param spreadsheetId - The spreadsheet ID
+ * @returns The first gid found, or null if none found
+ */
+const discoverFirstGid = async (spreadsheetId: string): Promise<number | null> => {
   try {
     const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
     const controller = new AbortController();
@@ -37,7 +62,6 @@ async function fetchSpreadsheetMetadata(
     try {
       const response = await fetch(url, { 
         signal: controller.signal,
-        // Add headers to help with CORS if needed
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; Qwery/1.0)',
         },
@@ -45,74 +69,58 @@ async function fetchSpreadsheetMetadata(
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        throw new Error(
-          `Failed to fetch spreadsheet metadata: HTTP ${response.status} ${response.statusText}. Make sure the sheet is publicly accessible.`,
-        );
+        return null;
       }
 
       const html = await response.text();
       
-      // Check if we got a valid HTML response
       if (!html || html.length < 100) {
-        throw new Error(
-          'Received invalid response from Google Sheets. The sheet might not be publicly accessible or the URL is incorrect.',
-        );
+        return null;
       }
 
-      const tabs: Array<{ gid: number; name: string }> = [];
+      // Try to find gid from grid-container div ID (most reliable)
+      // Pattern: id="1822465437-grid-container"
+      const gridContainerMatch = html.match(/id="(\d+)-grid-container"/);
+      if (gridContainerMatch) {
+        const gid = parseInt(gridContainerMatch[1]!, 10);
+        if (!isNaN(gid)) {
+          return gid;
+        }
+      }
 
-      // Try multiple regex patterns to find sheet metadata
+      // Fallback: Try to find sheetId in JSON format
       const patterns = [
-        /"sheetId":(\d+),"title":"([^"]+)"/g,
-        /"sheetId":(\d+),.*?"title":"([^"]+)"/g,
-        /sheetId["\s]*:["\s]*(\d+).*?title["\s]*:["\s]*"([^"]+)"/g,
+        /"sheetId":(\d+)/,
+        /'sheetId':(\d+)/,
+        /sheetId["\s]*:["\s]*(\d+)/,
       ];
 
-      for (const regex of patterns) {
-        let m;
-        while ((m = regex.exec(html)) !== null) {
-          const gid = parseInt(m[1]!, 10);
-          const name = m[2]!;
-          if (!tabs.some((t) => t.gid === gid)) {
-            tabs.push({ gid, name });
+      for (const pattern of patterns) {
+        const match = html.match(pattern);
+        if (match) {
+          const gid = parseInt(match[1]!, 10);
+          if (!isNaN(gid)) {
+            return gid;
           }
         }
-        if (tabs.length > 0) break;
       }
 
-      return tabs;
+      return null;
     } catch (error) {
       clearTimeout(timeoutId);
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new Error(
-            `Timeout while fetching Google Sheet metadata after ${DEFAULT_CONNECTION_TEST_TIMEOUT_MS}ms. Please verify the sheet URL is correct and the sheet is publicly accessible.`,
-          );
-        }
-        if (error.message.includes('fetch')) {
-          throw new Error(
-            `Failed to fetch Google Sheet: ${error.message}. This might be due to CORS restrictions or the sheet not being publicly accessible. Please ensure the sheet is shared with "Anyone with the link" permission.`,
-          );
-        }
-        throw error;
-      }
-      throw new Error(`Unknown error while fetching Google Sheet metadata: ${String(error)}`);
+      return null;
     }
   } catch (error) {
-    // Re-throw with better context
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error(`Failed to fetch spreadsheet metadata: ${String(error)}`);
+    return null;
   }
-}
+};
 
 export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
   const instanceMap = new Map<
     string,
     {
       instance: Awaited<ReturnType<typeof createDuckDbInstance>>;
-      tabs: Array<{ gid: number; name: string }>;
+      gid: number;
     }
   >();
 
@@ -138,32 +146,37 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
         );
       }
       const spreadsheetId = match[1]!;
+      let gid = extractGidFromUrl(key);
 
-      const discoveredTabs = await fetchSpreadsheetMetadata(spreadsheetId);
-      // Always ensure at least gid 0 if nothing discovered
-      if (discoveredTabs.length === 0) {
-        discoveredTabs.push({ gid: 0, name: 'sheet' });
+      // If no gid in URL, try to discover the first available gid
+      if (gid === null) {
+        gid = await discoverFirstGid(spreadsheetId);
+        // If discovery failed, default to 0
+        if (gid === null) {
+          gid = 0;
+        }
       }
 
       const instance = await createDuckDbInstance();
       const conn = await instance.connect();
 
       try {
-        for (const tab of discoveredTabs) {
-          const csvUrl = convertToCsvLink(spreadsheetId, tab.gid);
-          const escapedUrl = csvUrl.replace(/'/g, "''");
-          const escapedViewName = tab.name.replace(/"/g, '""');
+        const csvUrl = convertToCsvLink(spreadsheetId, gid);
+        const escapedUrl = csvUrl.replace(/'/g, "''");
 
-          await conn.run(`
-            CREATE OR REPLACE VIEW "${escapedViewName}" AS
-            SELECT * FROM read_csv_auto('${escapedUrl}')
-          `);
-        }
+        await conn.run(`
+          CREATE OR REPLACE VIEW "sheet" AS
+          SELECT * FROM read_csv_auto('${escapedUrl}')
+        `);
+      } catch (error) {
+        throw new Error(
+          `Failed to load Google Sheet: ${error instanceof Error ? error.message : String(error)}. Please ensure the sheet is publicly accessible and the URL is correct. If the sheet has multiple tabs, include the gid parameter in the URL (e.g., ?gid=1822465437).`,
+        );
       } finally {
         conn.closeSync();
       }
 
-      instanceMap.set(key, { instance, tabs: discoveredTabs });
+      instanceMap.set(key, { instance, gid });
     }
     return instanceMap.get(key)!;
   };
@@ -173,17 +186,12 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
       const parsed = ConfigSchema.parse(config);
       
       const testPromise = (async () => {
-        const { instance, tabs } = await getInstance(parsed);
+        const { instance } = await getInstance(parsed);
         const conn = await instance.connect();
 
         try {
-          if (tabs.length === 0) {
-            throw new Error('No sheets found in the Google Spreadsheet');
-          }
-          
-          const firstTab = tabs[0]!;
           const resultReader = await conn.runAndReadAll(
-            `SELECT 1 as test FROM "${firstTab.name.replace(/"/g, '""')}" LIMIT 1`,
+            `SELECT 1 as test FROM "sheet" LIMIT 1`,
           );
           await resultReader.readAll();
           context.logger?.info?.('gsheet-csv: testConnection ok');
@@ -210,7 +218,6 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
       const parsed = ConfigSchema.parse(config);
       let conn: QueryEngineConnection | Awaited<ReturnType<Awaited<ReturnType<typeof getInstance>>['instance']['connect']>>;
       let shouldCloseConnection = false;
-      let discoveredTabs: Array<{ gid: number; name: string }>;
 
       // Check if connection parameter is provided, otherwise use queryEngineConnection from context
       const queryEngineConn =
@@ -219,7 +226,7 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
           : null) || getQueryEngineConnection(context);
 
       if (queryEngineConn) {
-        // Use provided connection - create views in main engine
+        // Use provided connection - create view in main engine
         conn = queryEngineConn;
         const match = parsed.sharedLink.match(
           /https:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/,
@@ -228,26 +235,34 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
           throw new Error(`Invalid Google Sheets link format: ${parsed.sharedLink}`);
         }
         const spreadsheetId = match[1]!;
-        discoveredTabs = await fetchSpreadsheetMetadata(spreadsheetId);
-        if (discoveredTabs.length === 0) {
-          discoveredTabs.push({ gid: 0, name: 'sheet' });
+        let gid = extractGidFromUrl(parsed.sharedLink);
+
+        // If no gid in URL, try to discover the first available gid
+        if (gid === null) {
+          gid = await discoverFirstGid(spreadsheetId);
+          // If discovery failed, default to 0
+          if (gid === null) {
+            gid = 0;
+          }
         }
 
-        // Create views in main engine connection
-        for (const tab of discoveredTabs) {
-          const csvUrl = convertToCsvLink(spreadsheetId, tab.gid);
-          const escapedUrl = csvUrl.replace(/'/g, "''");
-          const escapedViewName = tab.name.replace(/"/g, '""');
+        // Create view in main engine connection
+        const csvUrl = convertToCsvLink(spreadsheetId, gid);
+        const escapedUrl = csvUrl.replace(/'/g, "''");
 
+        try {
           await conn.run(`
-            CREATE OR REPLACE VIEW "${escapedViewName}" AS
+            CREATE OR REPLACE VIEW "sheet" AS
             SELECT * FROM read_csv_auto('${escapedUrl}')
           `);
+        } catch (error) {
+          throw new Error(
+            `Failed to load Google Sheet: ${error instanceof Error ? error.message : String(error)}. Please ensure the sheet is publicly accessible and the URL is correct. If the sheet has multiple tabs, include the gid parameter in the URL (e.g., ?gid=1822465437).`,
+          );
         }
       } else {
         // Fallback for testConnection or when no connection provided - create temporary instance
-        const { instance, tabs } = await getInstance(parsed);
-        discoveredTabs = tabs;
+        const { instance } = await getInstance(parsed);
         conn = await instance.connect();
         shouldCloseConnection = true;
       }
@@ -257,70 +272,64 @@ export function makeGSheetDriver(context: DriverContext): IDataSourceDriver {
         const columnMetadata = [];
         const schemaName = 'main';
 
-        for (let i = 0; i < discoveredTabs.length; i++) {
-          const tab = discoveredTabs[i]!;
-          const tableId = i + 1;
-          const escapedViewName = tab.name.replace(/"/g, '""');
+        // Get column information
+        const describeReader = await conn.runAndReadAll(
+          `DESCRIBE "sheet"`,
+        );
+        await describeReader.readAll();
+        const describeRows = describeReader.getRowObjectsJS() as Array<{
+          column_name: string;
+          column_type: string;
+          null: string;
+        }>;
 
-          // Get column information
-          const describeReader = await conn.runAndReadAll(
-            `DESCRIBE "${escapedViewName}"`,
-          );
-          await describeReader.readAll();
-          const describeRows = describeReader.getRowObjectsJS() as Array<{
-            column_name: string;
-            column_type: string;
-            null: string;
-          }>;
+        // Get row count
+        const countReader = await conn.runAndReadAll(
+          `SELECT COUNT(*) as count FROM "sheet"`,
+        );
+        await countReader.readAll();
+        const countRows = countReader.getRowObjectsJS() as Array<{
+          count: bigint;
+        }>;
+        const rowCount = countRows[0]?.count ?? BigInt(0);
 
-          // Get row count
-          const countReader = await conn.runAndReadAll(
-            `SELECT COUNT(*) as count FROM "${escapedViewName}"`,
-          );
-          await countReader.readAll();
-          const countRows = countReader.getRowObjectsJS() as Array<{
-            count: bigint;
-          }>;
-          const rowCount = countRows[0]?.count ?? BigInt(0);
+        tables.push({
+          id: 1,
+          schema: schemaName,
+          name: 'sheet',
+          rls_enabled: false,
+          rls_forced: false,
+          bytes: 0,
+          size: String(rowCount),
+          live_rows_estimate: Number(rowCount),
+          dead_rows_estimate: 0,
+          comment: null,
+          primary_keys: [],
+          relationships: [],
+        });
 
-          tables.push({
-            id: tableId,
+        for (let idx = 0; idx < describeRows.length; idx++) {
+          const col = describeRows[idx]!;
+          columnMetadata.push({
+            id: `${schemaName}.sheet.${col.column_name}`,
+            table_id: 1,
             schema: schemaName,
-            name: tab.name,
-            rls_enabled: false,
-            rls_forced: false,
-            bytes: 0,
-            size: String(rowCount),
-            live_rows_estimate: Number(rowCount),
-            dead_rows_estimate: 0,
+            table: 'sheet',
+            name: col.column_name,
+            ordinal_position: idx + 1,
+            data_type: col.column_type,
+            format: col.column_type,
+            is_identity: false,
+            identity_generation: null,
+            is_generated: false,
+            is_nullable: col.null === 'YES',
+            is_updatable: false,
+            is_unique: false,
+            check: null,
+            default_value: null,
+            enums: [],
             comment: null,
-            primary_keys: [],
-            relationships: [],
           });
-
-          for (let idx = 0; idx < describeRows.length; idx++) {
-            const col = describeRows[idx]!;
-            columnMetadata.push({
-              id: `${schemaName}.${tab.name}.${col.column_name}`,
-              table_id: tableId,
-              schema: schemaName,
-              table: tab.name,
-              name: col.column_name,
-              ordinal_position: idx + 1,
-              data_type: col.column_type,
-              format: col.column_type,
-              is_identity: false,
-              identity_generation: null,
-              is_generated: false,
-              is_nullable: col.null === 'YES',
-              is_updatable: false,
-              is_unique: false,
-              check: null,
-              default_value: null,
-              enums: [],
-              comment: null,
-            });
-          }
         }
 
         const schemas = [
