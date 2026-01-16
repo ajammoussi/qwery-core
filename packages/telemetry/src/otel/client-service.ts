@@ -2,28 +2,19 @@
 
 import type { OtelTelemetryManager } from './manager';
 import type { Span } from '@opentelemetry/api';
+import { createNoOpSpan } from './span-utils';
 
-export type TelemetryEvent = {
-  name: string;
-  timestamp?: number;
-  attributes?: Record<string, unknown>;
-  sessionId?: string;
-};
-
+/**
+ * Client-side wrapper for OpenTelemetry telemetry operations.
+ * Provides a simplified API for capturing events and managing spans.
+ */
 export class OtelClientService {
   private telemetry: OtelTelemetryManager | null = null;
-  private queue: TelemetryEvent[] = [];
-  private maxQueueSize = 50; // batch before sending
-  private flushInterval = 5000; // flush every 5s
-  private flushing = false;
-  private flushTimer?: NodeJS.Timeout;
 
   constructor(telemetry?: OtelTelemetryManager) {
     if (telemetry) {
       this.telemetry = telemetry;
     }
-    // Start periodic flush
-    this.startFlushTimer();
   }
 
   setTelemetryManager(telemetry: OtelTelemetryManager): void {
@@ -55,13 +46,8 @@ export class OtelClientService {
         name: success ? 'client.command.success' : 'client.command.error',
         attributes,
       });
-    } else {
-      // Fallback to queue
-      this.captureEvent({
-        name: 'client.command',
-        attributes: { command, args, success, durationMs },
-      });
     }
+    // No-op if no telemetry manager (telemetry is disabled)
   }
 
   trackEvent(event: string, properties?: Record<string, unknown>): void {
@@ -70,13 +56,8 @@ export class OtelClientService {
         name: event,
         attributes: properties,
       });
-    } else {
-      // Fallback to queue
-      this.captureEvent({
-        name: event,
-        attributes: properties,
-      });
     }
+    // No-op if no telemetry manager (telemetry is disabled)
   }
 
   trackMetric(
@@ -94,27 +75,17 @@ export class OtelClientService {
         },
       });
     }
+    // No-op if no telemetry manager (telemetry is disabled)
   }
 
-  captureEvent(event: Omit<TelemetryEvent, 'sessionId' | 'timestamp'>) {
+  captureEvent(event: { name: string; attributes?: Record<string, unknown> }) {
     if (this.telemetry) {
-      // Use telemetry manager directly
       this.telemetry.captureEvent({
         name: event.name,
         attributes: event.attributes,
       });
-    } else {
-      // Fallback to queue
-      const e: TelemetryEvent = {
-        ...event,
-        sessionId: this.getSessionId(),
-        timestamp: Date.now(),
-      };
-      this.queue.push(e);
-      if (this.queue.length >= this.maxQueueSize) {
-        this.flushQueue();
-      }
     }
+    // No-op if no telemetry manager (telemetry is disabled)
   }
 
   /**
@@ -124,24 +95,8 @@ export class OtelClientService {
     if (this.telemetry) {
       return this.telemetry.startSpan(name, attributes);
     }
-    // Return a minimal no-op span if no telemetry manager
-    return {
-      setAttribute: () => {},
-      setAttributes: () => {},
-      addEvent: () => {},
-      addLink: () => {},
-      addLinks: () => {},
-      setStatus: () => {},
-      updateName: () => {},
-      end: () => {},
-      isRecording: () => false,
-      recordException: () => {},
-      spanContext: () => ({
-        traceId: '00000000000000000000000000000000',
-        spanId: '0000000000000000',
-        traceFlags: 0,
-      }),
-    } as unknown as Span;
+    // Return a no-op span if no telemetry manager
+    return createNoOpSpan();
   }
 
   /**
@@ -152,49 +107,6 @@ export class OtelClientService {
       this.telemetry.endSpan(span, success);
     } else {
       span.end();
-    }
-  }
-
-  /**
-   * Start periodic flush timer
-   */
-  private startFlushTimer(): void {
-    this.flushTimer = setInterval(() => {
-      this.flushQueue();
-    }, this.flushInterval);
-  }
-
-  /**
-   * Stop flush timer (for cleanup)
-   */
-  stopFlushTimer(): void {
-    if (this.flushTimer) {
-      clearInterval(this.flushTimer);
-    }
-  }
-
-  /**
-   * Send events to collector/exporter
-   */
-  private async flushQueue(): Promise<void> {
-    if (this.flushing || this.queue.length === 0) return;
-
-    this.flushing = true;
-    const eventsToSend = [...this.queue];
-    this.queue = [];
-
-    try {
-      // TODO: send to Node SDK / OTLP collector / ClickHouse exporter
-      // For MVP: console log
-      if (eventsToSend.length > 0) {
-        console.log('Telemetry flush:', eventsToSend);
-      }
-    } catch (error) {
-      console.error('Failed to flush telemetry:', error);
-      // Put back unsent events
-      this.queue.unshift(...eventsToSend);
-    } finally {
-      this.flushing = false;
     }
   }
 }

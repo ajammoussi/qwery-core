@@ -394,9 +394,9 @@ const telemetry = createTelemetryManager({
 
 ### Direct OTel Usage (for spans/metrics)
 ```typescript
-import { OtelTelemetryManager } from '@qwery/telemetry/otel';
+import { TelemetryManager } from '@qwery/telemetry/otel';
 
-const otel = new OtelTelemetryManager('qwery-app');
+const otel = new TelemetryManager('qwery-app');
 await otel.init();
 
 const span = otel.startSpan('operation.name', { key: 'value' });

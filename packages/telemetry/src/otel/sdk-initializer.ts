@@ -4,12 +4,12 @@ import { FilteringSpanExporter } from './filtering-exporter';
 import { SafeOTLPExporter, SafeOTLPMetricExporter } from './exporters';
 import { loadNodeModules } from './module-loader';
 import { isDebugEnabled } from './telemetry-utils';
-import type { OtelTelemetryManagerOptions } from './manager';
+import type { TelemetryConfig } from './config';
 
 export interface SDKInitializationParams {
   serviceName: string;
   sessionId: string;
-  options?: OtelTelemetryManagerOptions;
+  config: TelemetryConfig;
 }
 
 export async function initializeNodeSDK(
@@ -26,14 +26,8 @@ export async function initializeNodeSDK(
       'session.id': params.sessionId,
     });
 
-    const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
-
-    const exportAppTelemetryEnv =
-      process.env.QWERY_EXPORT_APP_TELEMETRY !== undefined
-        ? process.env.QWERY_EXPORT_APP_TELEMETRY !== 'false'
-        : undefined;
-    const exportAppTelemetry =
-      exportAppTelemetryEnv ?? params.options?.exportAppTelemetry ?? true;
+    // Use centralized config instead of reading process.env directly
+    const { otlpEndpoint, exportAppTelemetry, exportMetrics } = params.config;
 
     // Create base exporter
     const baseExporter = otlpEndpoint
@@ -45,13 +39,6 @@ export async function initializeNodeSDK(
       exporter: baseExporter,
       exportAppTelemetry,
     });
-
-    const exportMetricsEnv =
-      process.env.QWERY_EXPORT_METRICS !== undefined
-        ? process.env.QWERY_EXPORT_METRICS === 'true'
-        : undefined;
-    const exportMetrics =
-      exportMetricsEnv ?? params.options?.exportMetrics ?? true;
 
     const isDebugMode = isDebugEnabled();
     const metricReader = isDebugMode

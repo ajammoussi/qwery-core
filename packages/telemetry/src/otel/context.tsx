@@ -7,11 +7,11 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
-import type { OtelTelemetryManager } from './manager';
+import type { TelemetryManager } from './manager';
 import type { WorkspaceContext } from './utils';
 
 export interface OtelTelemetryContextValue {
-  telemetry: OtelTelemetryManager;
+  telemetry: TelemetryManager;
   workspace?: WorkspaceContext;
   setWorkspace: (workspace: WorkspaceContext | undefined) => void;
 }
@@ -22,7 +22,7 @@ const OtelTelemetryContext = createContext<OtelTelemetryContextValue | null>(
 
 export interface OtelTelemetryProviderProps {
   children: ReactNode;
-  telemetry: OtelTelemetryManager;
+  telemetry: TelemetryManager;
   initialWorkspace?: WorkspaceContext;
 }
 

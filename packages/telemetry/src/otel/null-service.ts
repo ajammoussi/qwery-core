@@ -1,12 +1,16 @@
 /**
- * Null Telemetry Service
+ * Null OpenTelemetry Telemetry Service
  *
- * No-op implementation of telemetry service for testing or opt-out scenarios.
+ * No-op implementation of OpenTelemetry manager interface for testing or opt-out scenarios.
  * All methods exist but perform no operations.
+ *
+ * Note: This is different from `NullTelemetryService` in `null-telemetry-service.ts`,
+ * which implements the generic `TelemetryService` interface.
  */
 
 import type { Span } from '@opentelemetry/api';
 import { OtelClientService } from './client-service';
+import { createNoOpSpan } from './span-utils';
 
 export class OtelNullTelemetryService {
   private sessionId: string = 'null-session';
@@ -46,24 +50,7 @@ export class OtelNullTelemetryService {
    * Start span (returns a no-op span)
    */
   startSpan(_name: string, _attributes?: Record<string, unknown>): Span {
-    // Return a minimal span-like object that does nothing
-    return {
-      setAttribute: () => {},
-      setAttributes: () => {},
-      addEvent: () => {},
-      addLink: () => {},
-      addLinks: () => {},
-      setStatus: () => {},
-      updateName: () => {},
-      end: () => {},
-      isRecording: () => false,
-      recordException: () => {},
-      spanContext: () => ({
-        traceId: '00000000000000000000000000000000',
-        spanId: '0000000000000000',
-        traceFlags: 0,
-      }),
-    } as unknown as Span;
+    return createNoOpSpan();
   }
 
   /**
@@ -192,17 +179,17 @@ export class OtelNullTelemetryService {
       attributes?: Record<string, string | number | boolean>;
     }>,
   ): Span {
-    return this.startSpan(_name, _attributes);
+    return createNoOpSpan();
   }
 }
 
 /**
- * Create a null telemetry service instance
+ * Create a null OpenTelemetry telemetry service instance
  */
 export function createOtelNullTelemetryService(): OtelNullTelemetryService {
   return new OtelNullTelemetryService();
 }
 
-// Export aliases for backward compatibility
-export { OtelNullTelemetryService as NullTelemetryService };
-export { createOtelNullTelemetryService as createNullTelemetryService };
+// Note: We do NOT export an alias as "NullTelemetryService" to avoid confusion
+// with the generic NullTelemetryService from null-telemetry-service.ts
+// Use OtelNullTelemetryService or createOtelNullTelemetryService() instead

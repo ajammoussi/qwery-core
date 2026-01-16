@@ -1,12 +1,11 @@
 // Main exports for @qwery/telemetry/otel
 
 // Core services
-export {
-  OtelTelemetryManager,
-  TelemetryManager,
-  type OtelTelemetryManagerOptions,
-  type TelemetryManagerOptions,
-} from './manager';
+// Only export TelemetryManager as the public API
+// OtelTelemetryManager is internal and should not be used directly
+export { TelemetryManager, type TelemetryManagerOptions } from './manager';
+// Export OtelTelemetryManagerOptions as type-only for internal use
+export type { OtelTelemetryManagerOptions } from './manager';
 export { OtelClientService } from './client-service';
 // Export alias for backward compatibility
 export { OtelClientService as ClientTelemetryService } from './client-service';
@@ -16,9 +15,7 @@ export {
 } from './filtering-exporter';
 export {
   OtelNullTelemetryService,
-  NullTelemetryService,
   createOtelNullTelemetryService,
-  createNullTelemetryService,
 } from './null-service';
 
 // Telemetry utilities (generic, works for CLI, web, desktop)
