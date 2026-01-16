@@ -378,7 +378,11 @@ export class FactoryAgent {
             clearTimeout(timeout);
             subscription.unsubscribe();
 
-            if (messageSpan && messageSpan.isRecording() && !messageEnded.current) {
+            if (
+              messageSpan &&
+              messageSpan.isRecording() &&
+              !messageEnded.current
+            ) {
               messageEnded.current = true;
               endMessageSpanWithEvent(
                 this.telemetry,
@@ -417,7 +421,11 @@ export class FactoryAgent {
             clearTimeout(timeout);
             subscription.unsubscribe();
 
-            if (messageSpan && messageSpan.isRecording() && !messageEnded.current) {
+            if (
+              messageSpan &&
+              messageSpan.isRecording() &&
+              !messageEnded.current
+            ) {
               messageEnded.current = true;
               endMessageSpanWithEvent(
                 this.telemetry,
@@ -464,7 +472,11 @@ export class FactoryAgent {
               resolved = true;
               clearTimeout(timeout);
 
-              if (messageSpan && messageSpan.isRecording() && !messageEnded.current) {
+              if (
+                messageSpan &&
+                messageSpan.isRecording() &&
+                !messageEnded.current
+              ) {
                 messageEnded.current = true;
                 endMessageSpanWithEvent(
                   this.telemetry,
@@ -547,7 +559,11 @@ export class FactoryAgent {
                 subscription.unsubscribe();
 
                 // End spans on error
-                if (messageSpan && messageSpan.isRecording() && !messageEnded.current) {
+                if (
+                  messageSpan &&
+                  messageSpan.isRecording() &&
+                  !messageEnded.current
+                ) {
                   messageEnded.current = true;
                   endMessageSpanWithEvent(
                     this.telemetry,

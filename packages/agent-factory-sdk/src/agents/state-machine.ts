@@ -519,8 +519,7 @@ export const createStateMachine = (
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        const errorType =
-          error instanceof Error ? error.name : 'UnknownError';
+        const errorType = error instanceof Error ? error.name : 'UnknownError';
 
         endActorSpanWithEvent(
           telemetry,
@@ -635,14 +634,8 @@ export const createStateMachine = (
       detectIntentActor,
       detectIntentActorCached: createCachedActor(
         detectIntentActor,
-        (input: { inputMessage: string; previousMessages?: unknown[] }) => {
-          const lastContextMessage = input.previousMessages?.length
-            ? input.previousMessages[input.previousMessages.length - 1]
-            : null;
-          const contextKey = lastContextMessage
-            ? JSON.stringify(lastContextMessage).slice(0, 100)
-            : '';
-          return `${input.inputMessage}::${contextKey}`; // Cache key includes message + context
+        (input: { inputMessage: string; model: string }) => {
+          return `${input.inputMessage}::${input.model}`;
         },
         30000,
       ),
@@ -787,7 +780,6 @@ export const createStateMachine = (
                   input: ({ context }: { context: AgentContext }) => ({
                     inputMessage: context.inputMessage,
                     model: context.model,
-                    previousMessages: context.previousMessages,
                   }),
                   onDone: [
                     {
