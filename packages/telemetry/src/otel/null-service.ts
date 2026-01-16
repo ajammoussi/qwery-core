@@ -1,5 +1,3 @@
-
-
 import type { Span } from '@opentelemetry/api';
 import { OtelClientService } from './client-service';
 import { createNoOpSpan } from './span-utils';
@@ -10,95 +8,70 @@ export class OtelNullTelemetryService {
   clientService: OtelClientService;
 
   constructor() {
-
     this.clientService = new OtelClientService(undefined);
   }
-
 
   getSessionId(): string {
     return this.sessionId;
   }
 
-  async init(): Promise<void> {
-  }
+  async init(): Promise<void> {}
 
- 
-  async shutdown(): Promise<void> {
-  }
+  async shutdown(): Promise<void> {}
 
   startSpan(_name: string, _attributes?: Record<string, unknown>): Span {
     return createNoOpSpan();
   }
 
-  
-  endSpan(_span: Span, _success: boolean): void {
-  }
+  endSpan(_span: Span, _success: boolean): void {}
 
-  
   captureEvent(_options: {
     name: string;
     attributes?: Record<string, unknown>;
-  }): void {
-  }
+  }): void {}
 
-  
   recordCommandDuration(
     _durationMs: number,
     _attributes?: Record<string, string | number | boolean>,
-  ): void {
-  }
+  ): void {}
 
   recordCommandCount(
     _attributes?: Record<string, string | number | boolean>,
-  ): void {
-  }
-
+  ): void {}
 
   recordCommandError(
     _attributes?: Record<string, string | number | boolean>,
-  ): void {
-  }
+  ): void {}
 
   recordCommandSuccess(
     _attributes?: Record<string, string | number | boolean>,
-  ): void {
-  }
+  ): void {}
 
   recordTokenUsage(
     _promptTokens: number,
     _completionTokens: number,
     _attributes?: Record<string, string | number | boolean>,
-  ): void {
-  }
-
+  ): void {}
 
   recordQueryDuration(
     _durationMs: number,
     _attributes?: Record<string, string | number | boolean>,
-  ): void {
-  }
-
+  ): void {}
 
   recordQueryCount(
     _attributes?: Record<string, string | number | boolean>,
-  ): void {
-  }
-
+  ): void {}
 
   recordQueryRowsReturned(
     _rowCount: number,
     _attributes?: Record<string, string | number | boolean>,
-  ): void {
-  }
+  ): void {}
 
-  
   recordMessageDuration(
     _durationMs: number,
     _attributes?: Record<string, string | number | boolean>,
-  ): void {
-  }
+  ): void {}
 
-  
   recordAgentTokenUsage(
     _promptTokens: number,
     _completionTokens: number,
@@ -107,7 +80,6 @@ export class OtelNullTelemetryService {
     // No-op
   }
 
-  
   startSpanWithLinks(
     _name: string,
     _attributes?: Record<string, unknown>,

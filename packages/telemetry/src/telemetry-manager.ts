@@ -128,8 +128,7 @@ export function createTelemetryManager<T extends string, Config extends object>(
             );
           }),
         ),
-      ).catch(() => {
-      });
+      ).catch(() => {});
       return Promise.resolve();
     },
 
@@ -144,8 +143,7 @@ export function createTelemetryManager<T extends string, Config extends object>(
             );
           }),
         ),
-      ).catch(() => {
-      });
+      ).catch(() => {});
       return Promise.resolve();
     },
 
@@ -175,8 +173,7 @@ export function createTelemetryManager<T extends string, Config extends object>(
             );
           }),
         ),
-      ).catch(() => {
-      });
+      ).catch(() => {});
       return Promise.resolve();
     },
 
@@ -193,8 +190,7 @@ export function createTelemetryManager<T extends string, Config extends object>(
             );
           }),
         ),
-      ).catch(() => {
-      });
+      ).catch(() => {});
       return Promise.resolve();
     },
   };

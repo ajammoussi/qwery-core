@@ -80,7 +80,6 @@ export class OtelClientService {
     }
   }
 
-
   startSpan(name: string, attributes?: Record<string, unknown>): Span {
     if (this.telemetry) {
       return this.telemetry.startSpan(name, attributes);
