@@ -129,7 +129,6 @@ export function createTelemetryManager<T extends string, Config extends object>(
           }),
         ),
       ).catch(() => {
-        // Silently ignore - telemetry should never block core logic
       });
       return Promise.resolve();
     },
@@ -146,13 +145,11 @@ export function createTelemetryManager<T extends string, Config extends object>(
           }),
         ),
       ).catch(() => {
-        // Silently ignore - telemetry should never block core logic
       });
       return Promise.resolve();
     },
 
     trackFeatureUsage: (feature: string) => {
-      // Fire-and-forget: don't block core logic on telemetry
       Promise.allSettled(
         getActiveServices().map((service) =>
           service.trackFeatureUsage(feature).catch((error) => {
@@ -169,7 +166,6 @@ export function createTelemetryManager<T extends string, Config extends object>(
     },
 
     trackAgent: (agent: string) => {
-      // Fire-and-forget: don't block core logic on telemetry
       Promise.allSettled(
         getActiveServices().map((service) =>
           service.trackAgent(agent).catch((error) => {
@@ -180,7 +176,6 @@ export function createTelemetryManager<T extends string, Config extends object>(
           }),
         ),
       ).catch(() => {
-        // Silently ignore - telemetry should never block core logic
       });
       return Promise.resolve();
     },
@@ -189,7 +184,6 @@ export function createTelemetryManager<T extends string, Config extends object>(
       eventName: string,
       eventProperties?: Record<string, string | string[]>,
     ) => {
-      // Fire-and-forget: don't block core logic on telemetry
       Promise.allSettled(
         getActiveServices().map((service) =>
           service.trackEvent(eventName, eventProperties).catch((error) => {
@@ -200,7 +194,6 @@ export function createTelemetryManager<T extends string, Config extends object>(
           }),
         ),
       ).catch(() => {
-        // Silently ignore - telemetry should never block core logic
       });
       return Promise.resolve();
     },

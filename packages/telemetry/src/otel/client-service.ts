@@ -4,10 +4,6 @@ import type { OtelTelemetryManager } from './manager';
 import type { Span } from '@opentelemetry/api';
 import { createNoOpSpan } from './span-utils';
 
-/**
- * Client-side wrapper for OpenTelemetry telemetry operations.
- * Provides a simplified API for capturing events and managing spans.
- */
 export class OtelClientService {
   private telemetry: OtelTelemetryManager | null = null;
 
@@ -47,7 +43,6 @@ export class OtelClientService {
         attributes,
       });
     }
-    // No-op if no telemetry manager (telemetry is disabled)
   }
 
   trackEvent(event: string, properties?: Record<string, unknown>): void {
@@ -57,7 +52,6 @@ export class OtelClientService {
         attributes: properties,
       });
     }
-    // No-op if no telemetry manager (telemetry is disabled)
   }
 
   trackMetric(
@@ -75,7 +69,6 @@ export class OtelClientService {
         },
       });
     }
-    // No-op if no telemetry manager (telemetry is disabled)
   }
 
   captureEvent(event: { name: string; attributes?: Record<string, unknown> }) {
@@ -85,23 +78,16 @@ export class OtelClientService {
         attributes: event.attributes,
       });
     }
-    // No-op if no telemetry manager (telemetry is disabled)
   }
 
-  /**
-   * Start a span (delegates to telemetry manager)
-   */
+
   startSpan(name: string, attributes?: Record<string, unknown>): Span {
     if (this.telemetry) {
       return this.telemetry.startSpan(name, attributes);
     }
-    // Return a no-op span if no telemetry manager
     return createNoOpSpan();
   }
 
-  /**
-   * End a span (delegates to telemetry manager)
-   */
   endSpan(span: Span, success = true): void {
     if (this.telemetry) {
       this.telemetry.endSpan(span, success);
