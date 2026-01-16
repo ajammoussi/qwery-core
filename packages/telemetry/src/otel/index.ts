@@ -1,14 +1,6 @@
-// Main exports for @qwery/telemetry/otel
-
-// Core services
-export {
-  OtelTelemetryManager,
-  TelemetryManager,
-  type OtelTelemetryManagerOptions,
-  type TelemetryManagerOptions,
-} from './manager';
+export { TelemetryManager, type TelemetryManagerOptions } from './manager';
+export type { OtelTelemetryManagerOptions } from './manager';
 export { OtelClientService } from './client-service';
-// Export alias for backward compatibility
 export { OtelClientService as ClientTelemetryService } from './client-service';
 export {
   FilteringSpanExporter,
@@ -16,12 +8,9 @@ export {
 } from './filtering-exporter';
 export {
   OtelNullTelemetryService,
-  NullTelemetryService,
   createOtelNullTelemetryService,
-  createNullTelemetryService,
 } from './null-service';
 
-// Telemetry utilities (generic, works for CLI, web, desktop)
 export {
   withActionSpan,
   createActionAttributes,
@@ -32,7 +21,6 @@ export {
   type WorkspaceContext,
 } from './utils';
 
-// React context for web/desktop apps
 export {
   OtelTelemetryProvider,
   TelemetryProvider,
@@ -46,7 +34,6 @@ export {
   type TelemetryProviderProps,
 } from './context';
 
-// Agent telemetry helpers
 export {
   createConversationAttributes,
   createMessageAttributes,

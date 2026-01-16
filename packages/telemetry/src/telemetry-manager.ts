@@ -70,60 +70,128 @@ export function createTelemetryManager<T extends string, Config extends object>(
     },
 
     identify: (userId: string, traits?: Record<string, string>) => {
-      return Promise.all(
-        getActiveServices().map((service) => service.identify(userId, traits)),
-      );
+      // Fire-and-forget: don't block core logic on telemetry
+      Promise.allSettled(
+        getActiveServices().map((service) =>
+          service.identify(userId, traits).catch((error) => {
+            console.warn('[Telemetry] identify failed for a provider:', error);
+          }),
+        ),
+      ).catch(() => {
+        // Silently ignore - telemetry should never block core logic
+      });
+      return Promise.resolve();
     },
 
     trackPageView: (path: string) => {
-      return Promise.all(
-        getActiveServices().map((service) => service.trackPageView(path)),
-      );
+      // Fire-and-forget: don't block core logic on telemetry
+      Promise.allSettled(
+        getActiveServices().map((service) =>
+          service.trackPageView(path).catch((error) => {
+            console.warn(
+              '[Telemetry] trackPageView failed for a provider:',
+              error,
+            );
+          }),
+        ),
+      ).catch(() => {
+        // Silently ignore - telemetry should never block core logic
+      });
+      return Promise.resolve();
     },
 
     trackError: (error: Error) => {
-      return Promise.all(
-        getActiveServices().map((service) => service.trackError(error)),
-      );
+      // Fire-and-forget: don't block core logic on telemetry
+      Promise.allSettled(
+        getActiveServices().map((service) =>
+          service.trackError(error).catch((telemetryError) => {
+            console.warn(
+              '[Telemetry] trackError failed for a provider:',
+              telemetryError,
+            );
+          }),
+        ),
+      ).catch(() => {
+        // Silently ignore - telemetry should never block core logic
+      });
+      return Promise.resolve();
     },
 
     trackUsage: (usage: string) => {
-      return Promise.all(
-        getActiveServices().map((service) => service.trackUsage(usage)),
-      );
+      // Fire-and-forget: don't block core logic on telemetry
+      Promise.allSettled(
+        getActiveServices().map((service) =>
+          service.trackUsage(usage).catch((error) => {
+            console.warn(
+              '[Telemetry] trackUsage failed for a provider:',
+              error,
+            );
+          }),
+        ),
+      ).catch(() => {});
+      return Promise.resolve();
     },
 
     trackPerformance: (performance: string) => {
-      return Promise.all(
+      // Fire-and-forget: don't block core logic on telemetry
+      Promise.allSettled(
         getActiveServices().map((service) =>
-          service.trackPerformance(performance),
+          service.trackPerformance(performance).catch((error) => {
+            console.warn(
+              '[Telemetry] trackPerformance failed for a provider:',
+              error,
+            );
+          }),
         ),
-      );
+      ).catch(() => {});
+      return Promise.resolve();
     },
 
     trackFeatureUsage: (feature: string) => {
-      return Promise.all(
+      Promise.allSettled(
         getActiveServices().map((service) =>
-          service.trackFeatureUsage(feature),
+          service.trackFeatureUsage(feature).catch((error) => {
+            console.warn(
+              '[Telemetry] trackFeatureUsage failed for a provider:',
+              error,
+            );
+          }),
         ),
-      );
+      ).catch(() => {
+        // Silently ignore - telemetry should never block core logic
+      });
+      return Promise.resolve();
     },
 
     trackAgent: (agent: string) => {
-      return Promise.all(
-        getActiveServices().map((service) => service.trackAgent(agent)),
-      );
+      Promise.allSettled(
+        getActiveServices().map((service) =>
+          service.trackAgent(agent).catch((error) => {
+            console.warn(
+              '[Telemetry] trackAgent failed for a provider:',
+              error,
+            );
+          }),
+        ),
+      ).catch(() => {});
+      return Promise.resolve();
     },
 
     trackEvent: (
       eventName: string,
       eventProperties?: Record<string, string | string[]>,
     ) => {
-      return Promise.all(
+      Promise.allSettled(
         getActiveServices().map((service) =>
-          service.trackEvent(eventName, eventProperties),
+          service.trackEvent(eventName, eventProperties).catch((error) => {
+            console.warn(
+              '[Telemetry] trackEvent failed for a provider:',
+              error,
+            );
+          }),
         ),
-      );
+      ).catch(() => {});
+      return Promise.resolve();
     },
   };
 }

@@ -221,7 +221,7 @@ QWERY_TELEMETRY_DEBUG=true
 
 ```typescript
 // Main exports
-export { OtelTelemetryManager } from '@qwery/telemetry/otel';
+export { TelemetryManager } from '@qwery/telemetry/otel';
 export { OtelClientService } from '@qwery/telemetry/otel';
 export { OtelNullTelemetryService } from '@qwery/telemetry/otel';
 

@@ -41,6 +41,10 @@ export interface OtelTelemetryManagerOptions {
  *
  * Manages OpenTelemetry SDK, spans, metrics, and events.
  * Supports multiple backends: OTLP (Jaeger), Console, etc.
+ *
+ * @internal
+ * This class is internal and should not be used directly by applications.
+ * Use `TelemetryManager` instead, which is exported as the public API.
  */
 export class OtelTelemetryManager {
   private sdk: InstanceType<
@@ -91,12 +95,12 @@ export class OtelTelemetryManager {
   }
 
   private async initializeNodeSDK(
-    options?: OtelTelemetryManagerOptions,
+    _options?: OtelTelemetryManagerOptions,
   ): Promise<void> {
     this.sdk = await initializeNodeSDK({
       serviceName: this.serviceName,
       sessionId: this.sessionId,
-      options,
+      config: this.config,
     });
   }
 
