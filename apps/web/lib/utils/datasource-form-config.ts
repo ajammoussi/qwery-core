@@ -337,6 +337,18 @@ function normalizeDetails(
   if (config.connectionUrl) return { connectionUrl: config.connectionUrl };
   const normalized = { ...config };
   delete (normalized as Record<string, unknown>).connectionUrl;
+
+  const rawPort = (normalized as Record<string, unknown>).port;
+  if (typeof rawPort === 'string') {
+    const trimmedPort = rawPort.trim();
+    if (trimmedPort) {
+      const parsedPort = Number.parseInt(trimmedPort, 10);
+      if (!Number.isNaN(parsedPort)) {
+        (normalized as Record<string, unknown>).port = parsedPort;
+      }
+    }
+  }
+
   Object.keys(normalized).forEach((key) => {
     const v = (normalized as Record<string, unknown>)[key];
     if (key !== 'password' && (v === '' || v === undefined)) {
