@@ -2,7 +2,7 @@ services:
   tpch-postgres:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: tpch/Dockerfile
     container_name: tpch-postgres
     environment:
       POSTGRES_DB: tpch
@@ -26,8 +26,39 @@ services:
     networks:
       - tpch
 
+  saas-postgres:
+    build:
+      context: .
+      dockerfile: saas/Dockerfile
+    container_name: saas-postgres
+    environment:
+      POSTGRES_DB: saas_analytics
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      SAAS_SCALE_FACTOR: ${SAAS_SCALE_FACTOR:-1}
+      SAAS_MONTHS: ${SAAS_MONTHS:-24}
+      SAAS_SEED: ${SAAS_SEED:-42}
+      DATA_DIR: /tmp/saas_data
+      DBNAME: saas_analytics
+      PGUSER: ${DB_USER:-postgres}
+    ports:
+      - "${SAAS_DB_PORT:-55433}:5432"
+    volumes:
+      # Persist data between container restarts
+      - saas_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d saas_analytics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - tpch
+
 volumes:
   tpch_data:
+    driver: local
+  saas_data:
     driver: local
 
 networks:
