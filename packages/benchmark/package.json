@@ -1,0 +1,28 @@
+{
+  "name": "@qwery/benchmark",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "run": "tsx --tsconfig ./tsconfig.json --import ./src/shims/register-domain-entities-loader.mjs src/run-all.ts",
+    "run:tpch": "tsx --tsconfig ./tsconfig.json --import ./src/shims/register-domain-entities-loader.mjs src/run-all.ts --db tpch",
+    "run:saas": "tsx --tsconfig ./tsconfig.json --import ./src/shims/register-domain-entities-loader.mjs src/run-all.ts --db saas",
+    "run:baseline": "tsx --tsconfig ./tsconfig.json --import ./src/shims/register-domain-entities-loader.mjs src/run-all.ts --compression-method baseline-no-compression",
+    "run:compression": "tsx --tsconfig ./tsconfig.json --import ./src/shims/register-domain-entities-loader.mjs src/run-all.ts --compression-method",
+    "extract": "tsx --tsconfig ./tsconfig.json --import ./src/shims/register-domain-entities-loader.mjs src/extract-results.ts",
+    "extract:baseline": "tsx --tsconfig ./tsconfig.json --import ./src/shims/register-domain-entities-loader.mjs src/extract-results.ts baseline-no-compression",
+    "validate": "tsx --tsconfig ./tsconfig.json --import ./src/shims/register-domain-entities-loader.mjs src/validate-session.ts"
+  },
+  "dependencies": {
+    "@qwery/agent-factory-sdk": "workspace:*",
+    "@qwery/domain": "workspace:*",
+    "@qwery/repository-in-memory": "workspace:*",
+    "@qwery/shared": "workspace:*",
+    "uuid": "^11.0.3"
+  },
+  "devDependencies": {
+    "@qwery/tsconfig": "workspace:*",
+    "@types/node": "^20.19.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.0"
+  }
+}

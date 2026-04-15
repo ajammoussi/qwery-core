@@ -1,0 +1,360 @@
+{
+  "id": "tpch-dcs-003",
+  "metadata": {
+    "database": "tpch",
+    "conversationType": "DCS",
+    "expectedTurns": 34,
+    "compressionBoundaryTurn": 18,
+    "userPersona": "technical",
+    "tablesExplored": [
+      "ORDERS",
+      "LINEITEM",
+      "CUSTOMER",
+      "NATION",
+      "REGION",
+      "SUPPLIER",
+      "PART"
+    ],
+    "description": "Deep callback session with metric value callback after 22-turn buffer - tests RRA for numerical precision"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "I'm doing a pricing analysis. Show me the average extended price per line item for 1995.",
+      "annotations": {
+        "type": "opening",
+        "expectedBehavior": "Agent should calculate average L_EXTENDEDPRICE for 1995"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "What's the median discount rate applied?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should calculate median L_DISCOUNT"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "The average discount is 0.07 (7%). This is our baseline discount rate for comparison. Also, note that we should always exclude returned items (R_RETURNFLAG = 'R') from pricing analysis.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude items with L_RETURNFLAG = 'R' and note baseline discount of 7%",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should acknowledge baseline discount and filter returned items"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "Now let's explore regions. Show me the customer distribution by region.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show customer count by region"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Which region has the most suppliers?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show supplier count by region"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "Show me nations within ASIA region.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should list Asian nations"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "What's the supplier count for each Asian nation?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show suppliers by Asian nation"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Let me check parts. How many distinct part types do we have?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should count distinct P_TYPE values"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Show me the most common part sizes.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show P_SIZE distribution"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "What containers are most frequently used?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show P_CONTAINER distribution"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Show me parts by brand distribution.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show P_BRAND counts"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "What's the retail price range for parts?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show min/max P_RETAILPRICE"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Let me look at orders now. What's the total order count for 1995?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should count orders in 1995"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Show me order priority breakdown.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show O_ORDERPRIORITY distribution"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "What's the average order total price by priority?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show average O_TOTALPRICE by priority"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Which clerks process the highest value orders?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show clerks by order value"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Show me the distribution of order statuses.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show O_ORDERSTATUS counts"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "How many pending orders do we have?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should count orders with status 'P'"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Let me check shipping modes available.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should list unique L_SHIPMODE values"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "What's the most common shipping mode?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show L_SHIPMODE frequency"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Show me the average ship delay by mode.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should calculate days between order and ship by mode"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "What's the delivery performance by ship mode?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should analyze ship-to-commit date comparison"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Let me check customer segments. What market segments exist?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should list C_MKTSEGMENT values"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Which segment has the most customers?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show customer count by segment"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "What's the average account balance by segment?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show C_ACCTBAL by segment"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Now back to pricing. What was the baseline discount rate we established at the beginning?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 3,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall the 7% baseline discount rate from turn 3"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Good. Now show me the average discount for returned vs non-returned items.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should compare discounts by return status"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Apply our return filter and show me the average discount for non-returned items.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should filter L_RETURNFLAG != 'R' and calculate average discount"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "How does this compare to our baseline?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should compare current discount to 7% baseline"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Show me pricing by region with the return filter applied.",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should show average price by region excluding returns"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Which region has the highest average extended price?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify top region by price"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Create a chart comparing discount rates across regions.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should visualize discount by region"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "What filters are currently active in our pricing analysis?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list: exclude returned items (L_RETURNFLAG != 'R')"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "Final summary: baseline discount was 7%, current average for non-returns, and top 3 regions by extended price.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should summarize with recalled baseline and filtered results"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 3,
+      "correctionText": "Baseline discount rate is 0.07 (7%)",
+      "type": "aggregation_method",
+      "description": "Reference value for discount comparisons"
+    },
+    {
+      "turnEstablished": 3,
+      "correctionText": "Exclude returned items (L_RETURNFLAG = 'R') from pricing analysis",
+      "type": "exclusion",
+      "description": "Filter out returned line items"
+    }
+  ],
+  "anaphoricReferences": [],
+  "callbacks": [
+    {
+      "sourceTurn": 26,
+      "targetTurn": 3,
+      "callbackType": "metric_recall",
+      "expectedEntity": "7% baseline discount rate",
+      "crossesCompressionBoundary": true,
+      "distance": 23
+    }
+  ]
+}

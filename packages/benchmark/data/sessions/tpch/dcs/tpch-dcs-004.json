@@ -1,0 +1,380 @@
+{
+  "id": "tpch-dcs-004",
+  "metadata": {
+    "database": "tpch",
+    "conversationType": "DCS",
+    "expectedTurns": 35,
+    "compressionBoundaryTurn": 20,
+    "userPersona": "mixed",
+    "tablesExplored": [
+      "ORDERS",
+      "LINEITEM",
+      "CUSTOMER",
+      "NATION",
+      "REGION",
+      "SUPPLIER",
+      "PART"
+    ],
+    "description": "Multi-callback DCS session with 2 deep callbacks crossing compression boundary - tests RRA with multiple recall points"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "I'm analyzing supply chain efficiency. Show me the average delivery time from order to shipment.",
+      "annotations": {
+        "type": "opening",
+        "expectedBehavior": "Agent should calculate days between O_ORDERDATE and L_SHIPDATE"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "The standard delivery SLA is 14 days from order to commit date. Orders taking longer than this are considered late. Also, we only analyze orders with status 'F' (finalized) for supply chain metrics.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Only analyze orders with O_ORDERSTATUS = 'F', SLA threshold is 14 days",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should note SLA and filter to finalized orders"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "What percentage of orders are delivered within the SLA?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should calculate on-time delivery rate using 14-day SLA"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "Good. The on-time delivery rate is now our baseline metric. Let's explore suppliers. Show me suppliers by region.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show supplier count by region"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Which suppliers have the highest account balances?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show top suppliers by S_ACCTBAL"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "Show me supplier names containing 'Supplier#00000'.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should filter supplier names"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "What's the supplier comment field used for?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should describe S_COMMENT field"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Show me parts supplied by Vietnamese suppliers.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show parts from Vietnam suppliers"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "What's the average supply cost from Vietnam?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should calculate average PS_SUPPLYCOST for Vietnam"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Let me check customer segments. Show me market segments.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should list C_MKTSEGMENT values"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "What's the customer count by segment?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show customer counts per segment"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Show me the geographic distribution of BUILDING segment customers.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show BUILDING customers by nation"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "What's the average order size for BUILDING customers?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should calculate average order value for BUILDING segment"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Let me check part specifications. What part types are available?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should list P_TYPE values"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Show me parts that are large sized.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should filter P_SIZE for large items"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "What brands do we carry?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should list P_BRAND values"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Show me the price range for each brand.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show min/max P_RETAILPRICE by brand"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Let me check orders. Show me order priority breakdown.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show O_ORDERPRIORITY distribution"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "What's the total value of orders by priority?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show sum O_TOTALPRICE by priority"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Which clerks handle urgent orders?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show clerks for high priority orders"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Show me shipping mode frequency.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show L_SHIPMODE counts"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "What's the relationship between ship mode and delivery time?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should analyze ship delay by L_SHIPMODE"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Show me line item quantities distribution.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show L_QUANTITY distribution"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "What's the discount distribution?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show L_DISCOUNT distribution"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Now I need to recall: what SLA threshold did we establish at the beginning?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 2,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall the 14-day SLA threshold from turn 2"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Right, 14 days. Now show me orders that exceeded this SLA, filtered by finalized status.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should show late orders with O_ORDERSTATUS = 'F'"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "What percentage of finalized orders were late?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate late delivery percentage"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Which suppliers had the most late deliveries?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show suppliers ranked by late order count"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "What's the late delivery rate by ship mode?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate late percentage by L_SHIPMODE"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Also, what was the on-time delivery baseline percentage we calculated earlier?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 3,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall the on-time delivery rate from turn 3"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "How does the current late rate compare to that baseline?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should compare current late rate with recalled baseline"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Show me the top 10 late orders by value with all filters applied.",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should show high-value late orders with finalized status"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "Create a chart showing late delivery percentage by region.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should visualize late delivery by region"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "What filters and thresholds are active in this analysis?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list: O_ORDERSTATUS = 'F', SLA = 14 days"
+      }
+    },
+    {
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Final summary: SLA threshold, baseline on-time rate, current late rate, and top 3 problematic suppliers.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide comprehensive summary with recalled values"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 2,
+      "correctionText": "SLA threshold is 14 days from order to commit",
+      "type": "filter_rule",
+      "description": "Orders exceeding 14 days are considered late"
+    },
+    {
+      "turnEstablished": 2,
+      "correctionText": "Only analyze orders with O_ORDERSTATUS = 'F' for supply chain metrics",
+      "type": "exclusion",
+      "description": "Filter to finalized orders only"
+    }
+  ],
+  "anaphoricReferences": [],
+  "callbacks": [
+    {
+      "sourceTurn": 25,
+      "targetTurn": 2,
+      "callbackType": "metric_recall",
+      "expectedEntity": "14-day SLA threshold",
+      "crossesCompressionBoundary": true,
+      "distance": 23
+    },
+    {
+      "sourceTurn": 30,
+      "targetTurn": 3,
+      "callbackType": "value_recall",
+      "expectedEntity": "On-time delivery baseline percentage",
+      "crossesCompressionBoundary": true,
+      "distance": 27
+    }
+  ]
+}

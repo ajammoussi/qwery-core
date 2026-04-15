@@ -1,0 +1,250 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "benchmark-session-schema",
+  "title": "Compression Benchmark Session - User Prompts",
+  "description": "Schema for test sessions containing user questions for compression benchmarking. Agent responses will be captured during manual testing.",
+  "type": "object",
+  "required": [
+    "id",
+    "metadata",
+    "turns",
+    "persistedCorrections",
+    "anaphoricReferences",
+    "callbacks"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^(tpch|saas)-(rci|irc|pta|dcs|sncj)-\\d{3}$",
+      "description": "Unique session identifier: database-type-number"
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "database",
+        "conversationType",
+        "expectedTurns",
+        "compressionBoundaryTurn"
+      ],
+      "properties": {
+        "database": {
+          "type": "string",
+          "enum": ["tpch", "saas"],
+          "description": "Target database"
+        },
+        "conversationType": {
+          "type": "string",
+          "enum": ["RCI", "IRC", "PTA", "DCS", "SNCJ"],
+          "description": "Conversation pattern type"
+        },
+        "expectedTurns": {
+          "type": "integer",
+          "minimum": 25,
+          "maximum": 55,
+          "description": "Total turns in session"
+        },
+        "compressionBoundaryTurn": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 30,
+          "description": "Turn where compression triggers (MiniMax 204800 ctx limit)"
+        },
+        "userPersona": {
+          "type": "string",
+          "enum": ["technical", "business", "mixed"],
+          "default": "mixed"
+        },
+        "tablesExplored": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "turns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["turnNumber", "role", "content"],
+        "properties": {
+          "turnNumber": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "role": {
+            "type": "string",
+            "enum": ["user"]
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The user's question/prompt"
+          },
+          "annotations": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "opening",
+                  "schema_probe",
+                  "hypothesis_exploration",
+                  "dead_end",
+                  "pivot",
+                  "filter_establishment",
+                  "correction",
+                  "anaphoric_reference",
+                  "callback",
+                  "refinement",
+                  "aggregation",
+                  "chart_request",
+                  "final_query",
+                  "buffer_turn",
+                  "probe"
+                ]
+              },
+              "establishesFilter": {
+                "type": "string",
+                "description": "Filter rule being established"
+              },
+              "isCorrection": {
+                "type": "boolean",
+                "default": false
+              },
+              "correctionType": {
+                "type": "string",
+                "enum": ["explicit", "implicit"]
+              },
+              "isAnaphoricReference": {
+                "type": "boolean",
+                "default": false
+              },
+              "anaphoricTargetTurn": {
+                "type": "integer"
+              },
+              "anaphoricPhrase": {
+                "type": "string",
+                "description": "The anaphoric phrase used"
+              },
+              "isCallback": {
+                "type": "boolean",
+                "default": false
+              },
+              "callbackTargetTurn": {
+                "type": "integer"
+              },
+              "crossesCompressionBoundary": {
+                "type": "boolean",
+                "default": false
+              },
+              "chartRequested": {
+                "type": "boolean",
+                "default": false
+              },
+              "threadContext": {
+                "type": "string",
+                "description": "For PTA: which thread (A or B)"
+              },
+              "expectedBehavior": {
+                "type": "string",
+                "description": "What the agent should do (for evaluation)"
+              }
+            }
+          }
+        }
+      }
+    },
+    "persistedCorrections": {
+      "type": "array",
+      "description": "Corrections that must persist through session",
+      "items": {
+        "type": "object",
+        "required": ["turnEstablished", "correctionText", "type"],
+        "properties": {
+          "turnEstablished": {
+            "type": "integer"
+          },
+          "correctionText": {
+            "type": "string",
+            "description": "The correction rule text"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "column_preference",
+              "filter_rule",
+              "table_alias",
+              "date_column",
+              "exclusion",
+              "join_key",
+              "aggregation_method"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of what should persist"
+          }
+        }
+      }
+    },
+    "anaphoricReferences": {
+      "type": "array",
+      "description": "Anaphoric references requiring resolution",
+      "items": {
+        "type": "object",
+        "required": [
+          "sourceTurn",
+          "targetTurn",
+          "phrase",
+          "crossesCompressionBoundary"
+        ],
+        "properties": {
+          "sourceTurn": { "type": "integer" },
+          "targetTurn": { "type": "integer" },
+          "phrase": { "type": "string" },
+          "crossesCompressionBoundary": { "type": "boolean" },
+          "expectedResolution": {
+            "type": "string",
+            "description": "What should be resolved"
+          },
+          "distance": {
+            "type": "integer",
+            "description": "Turns between source and target"
+          }
+        }
+      }
+    },
+    "callbacks": {
+      "type": "array",
+      "description": "Explicit callbacks to earlier info",
+      "items": {
+        "type": "object",
+        "required": [
+          "sourceTurn",
+          "targetTurn",
+          "callbackType",
+          "crossesCompressionBoundary"
+        ],
+        "properties": {
+          "sourceTurn": { "type": "integer" },
+          "targetTurn": { "type": "integer" },
+          "callbackType": {
+            "type": "string",
+            "enum": [
+              "result_recall",
+              "filter_recall",
+              "metric_recall",
+              "schema_recall",
+              "value_recall"
+            ]
+          },
+          "expectedEntity": { "type": "string" },
+          "crossesCompressionBoundary": { "type": "boolean" },
+          "distance": { "type": "integer" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,485 @@
+{
+  "id": "saas-rci-002",
+  "metadata": {
+    "database": "saas",
+    "conversationType": "RCI",
+    "expectedTurns": 40,
+    "compressionBoundaryTurn": 12,
+    "userPersona": "technical",
+    "tablesExplored": [
+      "subscriptions",
+      "invoices",
+      "accounts",
+      "plans",
+      "users"
+    ],
+    "description": "MRR decline root cause investigation focusing on downgrades and cancellations"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "Our MRR dropped $150K from October to December 2024. Can you investigate the root cause?",
+      "annotations": {
+        "type": "opening",
+        "expectedBehavior": "Agent should propose analyzing MRR changes by category"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "What's the difference between MRR and revenue in our schema?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should explain MRR from subscriptions vs invoice revenue"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "Show me MRR by month for 2024, broken down by change type: new, expansion, contraction, churn.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should calculate MRR movements by category"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "For MRR calculations, always use plan.monthly_price as the base revenue value.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use plan.monthly_price for MRR",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should confirm and use monthly_price column"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "The churn MRR spike in November is the main issue. Show me which accounts churned.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify accounts that churned in November"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "Exclude accounts from the 'Education' industry — they have a different billing cycle.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude Education industry",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter out Education accounts"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "Show me the plan tier distribution of churned accounts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show churned accounts by plan tier"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Enterprise churn is the issue. When analyzing subscription changes, use subscription.updated_at for the change date.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use subscription.updated_at for change dates",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should use updated_at for subscription change timing"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Show me the contraction MRR — accounts that downgraded.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify downgrades and their MRR impact"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Let me check if these accounts had billing issues. Show me invoice failures for churned accounts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should check invoice status for churned accounts"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "No billing issues. What about account activity before churn?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze account activity logs"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Were these accounts using our platform actively before churning?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should check user login and activity events"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Remember the MRR breakdown by change type? Show me that again but only for Enterprise tier.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 3,
+        "anaphoricPhrase": "Remember the MRR breakdown by change type?",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recreate MRR breakdown filtered to Enterprise"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "The contraction spike is significant. Show me accounts that downgraded from Enterprise to Professional.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify specific downgrade paths"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "What reasons were given for cancellations?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should check for cancellation reasons in accounts or subscriptions"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Let me see the account size — how many users did these churned Enterprise accounts have?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should count users for churned accounts"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Apply all our filters and show me a timeline of MRR changes by account.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 6,
+        "anaphoricPhrase": "all our filters",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply: use monthly_price, exclude Education, use updated_at"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "What was the total churn MRR in November?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 5,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall November churn MRR figure"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Show me new MRR by month — are we replacing the churn?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze new subscription MRR"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "New MRR is not keeping up. What's our net MRR growth rate?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate net MRR change rate"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Let me check expansion MRR from existing accounts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify accounts that upgraded"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Expansion is low. Show me accounts that had opportunity to expand — those hitting feature limits.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should check feature_usage for usage patterns"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "What filters are currently active?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list: use monthly_price, exclude Education, use updated_at"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Now show me the geographic distribution of churned accounts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show churned accounts by region"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "North America has most churn. What's the industry breakdown there?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze NA churn by industry"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Earlier we looked at downgrades. What percentage of MRR loss was from downgrades vs full churn?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 9,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should compare downgrade vs churn MRR impact"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Create a chart showing MRR waterfall for Q4.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create MRR waterfall visualization"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Show me the top 10 accounts by MRR loss.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should rank accounts by MRR decline"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "What was their average tenure before churning?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should calculate tenure for top churned accounts"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Apply the same filters we've established to show me a final summary.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 23,
+        "anaphoricPhrase": "the same filters we've established",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply all established filters"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "What's the MRR at risk from accounts showing downgrade signals?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should identify at-risk accounts and their MRR"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Create a chart showing MRR by plan tier over time.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create tier MRR trend visualization"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "What was the November churn MRR again?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 18,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall the November churn figure"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "Show me churn rate by cohort — accounts grouped by signup month.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze churn by signup cohort"
+      }
+    },
+    {
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Do older cohorts have better retention?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare retention across cohorts"
+      }
+    },
+    {
+      "turnNumber": 36,
+      "role": "user",
+      "content": "What filters are currently applied?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all active filters"
+      }
+    },
+    {
+      "turnNumber": 37,
+      "role": "user",
+      "content": "Show me the final MRR analysis dashboard.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide comprehensive MRR summary"
+      }
+    },
+    {
+      "turnNumber": 38,
+      "role": "user",
+      "content": "Create a chart comparing new MRR vs churn MRR by month.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create comparison visualization"
+      }
+    },
+    {
+      "turnNumber": 39,
+      "role": "user",
+      "content": "What are the top 5 actions to address the MRR decline?",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide recommendations"
+      }
+    },
+    {
+      "turnNumber": 40,
+      "role": "user",
+      "content": "Thank you. We've identified that MRR decline was driven primarily by Enterprise churn in November, with North America and Tech sectors most affected. Low expansion MRR and downgrades from Enterprise to Professional compounded the issue.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should acknowledge findings"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 4,
+      "correctionText": "Use plan.monthly_price for MRR calculations",
+      "type": "column_preference",
+      "description": "Always use monthly_price column for MRR"
+    },
+    {
+      "turnEstablished": 6,
+      "correctionText": "Exclude Education industry from analysis",
+      "type": "exclusion",
+      "description": "Filter out Education accounts"
+    },
+    {
+      "turnEstablished": 8,
+      "correctionText": "Use subscription.updated_at for change dates",
+      "type": "date_column",
+      "description": "Use updated_at for subscription change timing"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 13,
+      "targetTurn": 3,
+      "phrase": "Remember the MRR breakdown by change type?",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "MRR by new/expansion/contraction/churn",
+      "distance": 10
+    },
+    {
+      "sourceTurn": 17,
+      "targetTurn": 6,
+      "phrase": "all our filters",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Use monthly_price, exclude Education, use updated_at",
+      "distance": 11
+    },
+    {
+      "sourceTurn": 30,
+      "targetTurn": 23,
+      "phrase": "the same filters we've established",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "All established filters",
+      "distance": 7
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 18,
+      "targetTurn": 5,
+      "callbackType": "value_recall",
+      "expectedEntity": "November churn MRR",
+      "crossesCompressionBoundary": true,
+      "distance": 13
+    },
+    {
+      "sourceTurn": 26,
+      "targetTurn": 9,
+      "callbackType": "result_recall",
+      "expectedEntity": "Contraction MRR analysis",
+      "crossesCompressionBoundary": true,
+      "distance": 17
+    },
+    {
+      "sourceTurn": 33,
+      "targetTurn": 18,
+      "callbackType": "value_recall",
+      "expectedEntity": "November churn MRR figure",
+      "crossesCompressionBoundary": true,
+      "distance": 15
+    }
+  ]
+}

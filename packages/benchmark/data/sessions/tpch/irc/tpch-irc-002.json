@@ -1,0 +1,375 @@
+{
+  "id": "tpch-irc-002",
+  "metadata": {
+    "database": "tpch",
+    "conversationType": "IRC",
+    "expectedTurns": 30,
+    "compressionBoundaryTurn": 15,
+    "userPersona": "technical",
+    "tablesExplored": ["ORDERS", "LINEITEM", "PART", "SUPPLIER"],
+    "description": "Iterative refinement of order analysis with filter corrections"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "Show me all orders from 1995 with their line items.",
+      "annotations": {
+        "type": "opening",
+        "expectedBehavior": "Agent should show orders with lineitem details for 1995"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "Only include orders where total price is above 10000.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "O_TOTALPRICE > 10000",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter to high-value orders"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "Add a column showing the number of line items per order.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add line item count"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "For line item calculations, always use L_QUANTITY for quantities.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use L_QUANTITY for quantity",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should use L_QUANTITY column"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Show me the total quantity ordered per order.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should sum L_QUANTITY per order"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "Exclude orders with order priority '4-NOT SPECIFIED'.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude '4-NOT SPECIFIED' priority",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter out unspecified priority"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "Group the results by order priority.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should aggregate by O_ORDERPRIORITY"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Apply all our filters and show me the average order value by priority.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 6,
+        "anaphoricPhrase": "all our filters",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply: >10000, exclude '4-NOT SPECIFIED', use L_QUANTITY"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "What filters are currently applied?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all active filters"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Show me the parts in these orders.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join to PART table"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Which part types are most ordered?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show P_TYPE distribution"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "When I say date, I mean O_ORDERDATE — always use that.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use O_ORDERDATE for dates",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should confirm and use O_ORDERDATE"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Show me orders by month with all filters.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should aggregate by month"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Which suppliers are providing the most parts?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should join to SUPPLIER and aggregate"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Show me the revenue contribution by supplier.",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should sum L_EXTENDEDPRICE by supplier"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Remember the quantity column we discussed? Use that to show total quantity by supplier.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 4,
+        "anaphoricPhrase": "the quantity column we discussed",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use L_QUANTITY for supplier quantity"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Create a chart showing order distribution by priority.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create visualization"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "What was the filter for order price?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 2,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall > 10000 filter"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Correct. Show me the breakdown by order status.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should aggregate by O_ORDERSTATUS"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Show me all filters currently active.",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all filters"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Apply everything and show me top 10 orders by value.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should show top orders with all filters"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "What's the average line items per order?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate average items per order"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Show me discount levels by order priority.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze L_DISCOUNT by priority"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Are higher priority orders getting higher discounts?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should correlate priority and discount"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Create a final summary with all corrections applied.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide comprehensive summary"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Create a chart of order values by month.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create time series chart"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "What was the total revenue from high-value orders?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 5,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall total quantity/revenue"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Show me the final order count by status.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should show order counts"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Create a final dashboard visualization.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create summary dashboard"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Thank you. We've analyzed high-value orders and found that priority orders tend to have more line items and higher discounts.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should acknowledge findings"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 2,
+      "correctionText": "Only orders with total price above 10000",
+      "type": "filter_rule",
+      "description": "O_TOTALPRICE > 10000"
+    },
+    {
+      "turnEstablished": 4,
+      "correctionText": "Use L_QUANTITY for quantity calculations",
+      "type": "column_preference",
+      "description": "Always use L_QUANTITY column"
+    },
+    {
+      "turnEstablished": 6,
+      "correctionText": "Exclude '4-NOT SPECIFIED' priority orders",
+      "type": "exclusion",
+      "description": "Filter out unspecified priority"
+    },
+    {
+      "turnEstablished": 12,
+      "correctionText": "Use O_ORDERDATE for dates",
+      "type": "date_column",
+      "description": "Always use O_ORDERDATE column"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 8,
+      "targetTurn": 6,
+      "phrase": "all our filters",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Price > 10000, exclude '4-NOT SPECIFIED'",
+      "distance": 2
+    },
+    {
+      "sourceTurn": 16,
+      "targetTurn": 4,
+      "phrase": "the quantity column we discussed",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "L_QUANTITY column",
+      "distance": 12
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 18,
+      "targetTurn": 2,
+      "callbackType": "filter_recall",
+      "expectedEntity": "Order price filter (> 10000)",
+      "crossesCompressionBoundary": true,
+      "distance": 16
+    },
+    {
+      "sourceTurn": 27,
+      "targetTurn": 5,
+      "callbackType": "value_recall",
+      "expectedEntity": "Total quantity ordered",
+      "crossesCompressionBoundary": true,
+      "distance": 22
+    }
+  ]
+}

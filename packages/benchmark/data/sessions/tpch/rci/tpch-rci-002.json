@@ -1,0 +1,451 @@
+{
+  "id": "tpch-rci-002",
+  "metadata": {
+    "database": "tpch",
+    "conversationType": "RCI",
+    "expectedTurns": 40,
+    "compressionBoundaryTurn": 12,
+    "userPersona": "technical",
+    "tablesExplored": [
+      "SUPPLIER",
+      "PART",
+      "PARTSUPP",
+      "LINEITEM",
+      "ORDERS",
+      "NATION"
+    ],
+    "description": "Supplier performance investigation focusing on supply chain issues and part availability"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "Our procurement team reported that several key suppliers have delivery delays. Can you help me investigate supplier performance?",
+      "annotations": {
+        "type": "opening",
+        "expectedBehavior": "Agent should propose analyzing supplier metrics"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "What tables do we have related to suppliers and their parts?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should return schema for SUPPLIER, PART, PARTSUPP tables"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "Show me all suppliers and their total supply value.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show suppliers ranked by supply value"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "For this analysis, always calculate supply value as PS_SUPPLYCOST * PS_AVAILQTY.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Supply value = PS_SUPPLYCOST * PS_AVAILQTY",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should use this formula for supply value calculations"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Which suppliers have the highest number of parts supplied?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should count parts per supplier"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "Let me focus on suppliers from GERMANY. Show me German suppliers and their performance.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should filter suppliers by nation = GERMANY"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "What's the average availability quantity for German suppliers vs other nations?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare PS_AVAILQTY across nations"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "German suppliers have lower availability. Let me check order fulfillment — show me lineitems from German suppliers and their delivery performance.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show delivery metrics (ship date vs receipt date)"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "From now on, when analyzing delivery performance, calculate delay as L_RECEIPTDATE - L_SHIPDATE.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Delivery delay = L_RECEIPTDATE - L_SHIPDATE",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should use this formula for delay calculations"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Show me the average delivery delay by supplier nation.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show average delay grouped by supplier nation"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "German suppliers have the highest delays. Which specific German suppliers are the worst performers?",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should rank German suppliers by delivery delay"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Let me check if these suppliers also have quality issues. Show me return flags for their lineitems.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show L_RETURNFLAG distribution for problematic suppliers"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "What parts are most affected by delays from these suppliers?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show parts with longest delays from problematic suppliers"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Are these high-value parts? Show me the retail price of these delayed parts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should join PART table and show P_RETAILPRICE"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "These are expensive parts. Let me see the revenue impact — show me orders affected by these delays.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show order-level impact of delays"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Remember the delivery delay calculation we established? Apply it to show me orders that took more than 7 days.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 9,
+        "anaphoricPhrase": "the delivery delay calculation we established",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use L_RECEIPTDATE - L_SHIPDATE and filter > 7"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "What's the total revenue value of orders affected by long delays?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should sum order totals for delayed orders"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "That's significant. Let me check if this correlates with customer complaints — show me order priorities for delayed orders.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show O_ORDERPRIORITY distribution for delayed orders"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "High-priority orders are being delayed. Let me check if certain ship modes are worse.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze L_SHIPMODE for delayed orders"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Now I want to exclude RAIL ship mode from our analysis — we're investigating that separately.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude RAIL ship mode",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter out L_SHIPMODE = 'RAIL'"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "With RAIL excluded, show me the remaining delay distribution by supplier.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should re-run delay analysis excluding RAIL"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Which customers are most affected by these supplier delays?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show customers with most delayed orders"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Are these customers from specific regions?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should join CUSTOMER and NATION to show regional distribution"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "European customers are most affected. Earlier we looked at German suppliers — which specific German suppliers serve European customers?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 11,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should show German suppliers serving European customers"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Let me see the trend over time. Show me monthly delivery delays for these suppliers.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show delay trends by month"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Delays increased in Q3. Is this across all part types?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze delays by P_TYPE"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Certain part types have worse delays. Do we have alternative suppliers for these parts?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should check PARTSUPP for other suppliers of same parts"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Show me the supply cost difference between problematic suppliers and alternatives.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare PS_SUPPLYCOST across suppliers for same parts"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "The alternative suppliers are more expensive but faster. Let me calculate the tradeoff. What would be the cost increase if we switched?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate cost difference for switching suppliers"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Use the supply value formula we established earlier to calculate this.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 4,
+        "anaphoricPhrase": "the supply value formula we established earlier",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use PS_SUPPLYCOST * PS_AVAILQTY"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "What's the total potential savings in delivery time if we switch?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate time saved by switching"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Let me see a summary of affected orders with all filters applied.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should show affected orders excluding RAIL, using correct formulas"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "Can you create a chart showing delay by supplier nation?",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should generate appropriate visualization"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "What filters are currently applied to our analysis?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list: delivery delay formula, supply value formula, exclude RAIL"
+      }
+    },
+    {
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Good. Now show me the top 10 parts by total delay hours, with all filters applied.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should rank parts by delay with all established filters"
+      }
+    },
+    {
+      "turnNumber": 36,
+      "role": "user",
+      "content": "Let me compare this to the overall supplier performance. Show me all suppliers ranked by on-time delivery rate.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should calculate on-time percentage per supplier"
+      }
+    },
+    {
+      "turnNumber": 37,
+      "role": "user",
+      "content": "What's the correlation between supply cost and on-time delivery rate?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze relationship between PS_SUPPLYCOST and delay rate"
+      }
+    },
+    {
+      "turnNumber": 38,
+      "role": "user",
+      "content": "Show me the worst performing suppliers with their full details including contact information.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should show supplier details with performance metrics"
+      }
+    },
+    {
+      "turnNumber": 39,
+      "role": "user",
+      "content": "Can you create a summary report of supplier performance issues?",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should provide summary visualization"
+      }
+    },
+    {
+      "turnNumber": 40,
+      "role": "user",
+      "content": "Thank you. We've identified that German suppliers have the worst delivery delays, especially for high-value parts going to European customers. The alternative suppliers would cost more but significantly improve delivery times.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should acknowledge findings summary"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 4,
+      "correctionText": "Supply value = PS_SUPPLYCOST * PS_AVAILQTY",
+      "type": "aggregation_method",
+      "description": "Use this formula for all supply value calculations"
+    },
+    {
+      "turnEstablished": 9,
+      "correctionText": "Delivery delay = L_RECEIPTDATE - L_SHIPDATE",
+      "type": "aggregation_method",
+      "description": "Use this formula for all delivery delay calculations"
+    },
+    {
+      "turnEstablished": 20,
+      "correctionText": "Exclude RAIL ship mode from analysis",
+      "type": "exclusion",
+      "description": "Filter out L_SHIPMODE = 'RAIL' in all subsequent queries"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 16,
+      "targetTurn": 9,
+      "phrase": "the delivery delay calculation we established",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "L_RECEIPTDATE - L_SHIPDATE formula",
+      "distance": 7
+    },
+    {
+      "sourceTurn": 30,
+      "targetTurn": 4,
+      "phrase": "the supply value formula we established earlier",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "PS_SUPPLYCOST * PS_AVAILQTY formula",
+      "distance": 26
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 24,
+      "targetTurn": 11,
+      "callbackType": "result_recall",
+      "expectedEntity": "German suppliers with worst performance",
+      "crossesCompressionBoundary": true,
+      "distance": 13
+    }
+  ]
+}

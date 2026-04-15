@@ -1,0 +1,478 @@
+{
+  "id": "saas-rci-003",
+  "metadata": {
+    "database": "saas",
+    "conversationType": "RCI",
+    "expectedTurns": 38,
+    "compressionBoundaryTurn": 16,
+    "userPersona": "mixed",
+    "tablesExplored": [
+      "feature_usage",
+      "events",
+      "accounts",
+      "users",
+      "subscriptions"
+    ],
+    "description": "Feature adoption failure investigation focusing on collaboration tool underutilization"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "Our collaboration feature has only 15% adoption rate. Can you investigate why accounts aren't using it?",
+      "annotations": {
+        "type": "opening",
+        "expectedBehavior": "Agent should propose analyzing feature adoption patterns"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "What tables track feature usage and user actions?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should show feature_usage and events table schema"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "Show me feature adoption rates by account tier.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should calculate adoption rate by plan tier"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "For feature adoption, define 'adopted' as accounts that have used the feature at least 3 times.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Adopted = used feature >= 3 times",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should use 3+ uses threshold for adoption"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Which user roles are using the collaboration feature most?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze adoption by user role"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "Admins use it most. When analyzing feature events, always use event.created_at timestamp.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use event.created_at for event timestamps",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should confirm and use created_at"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "Show me the time from account creation to first collaboration feature use.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should calculate time-to-first-use"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Most accounts that adopt do so within 30 days. What about accounts that never adopted?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze non-adopters"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Exclude trial accounts from this analysis.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude trial accounts",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter out trial plan tier"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "What's the user count for non-adopter accounts?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare user counts between adopters and non-adopters"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Non-adopters have fewer users. Let me check if this is correlated with account activity.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze overall activity levels"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Show me events triggered by non-adopter accounts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show event distribution for non-adopters"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "They use basic features but not advanced ones. Are they aware of the collaboration feature?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should check for feature discovery events"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Remember the adoption rate by tier? Can you show that with industry breakdown?",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 3,
+        "anaphoricPhrase": "Remember the adoption rate by tier?",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recreate tier adoption with industry dimension"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Which industries have lowest adoption?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify low-adoption industries"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Healthcare and Legal have lowest adoption. Do they have specific compliance concerns?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze industry-specific patterns"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "What's the correlation between collaboration adoption and account retention?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze retention vs adoption correlation"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Adopters have much better retention. What was the adoption threshold we established?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 4,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall 3+ uses threshold"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Show me accounts that tried the feature once but didn't adopt.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify partial adopters (1-2 uses)"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Apply the same adoption criteria to find accounts at risk of non-adoption.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 4,
+        "anaphoricPhrase": "the same adoption criteria",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use 3+ uses threshold to identify at-risk"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "What features do non-adopters use instead?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show alternative feature usage"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "They use file sharing heavily. What filters are we currently applying?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list: adopted >= 3 uses, use created_at, exclude trial"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Good. Show me the time distribution of collaboration usage — when do users access it?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze hourly/daily usage patterns"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Usage is during work hours. Are there onboarding events for the feature?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should check for onboarding/training events"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Earlier we looked at user roles. Which roles never use collaboration?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 5,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall role analysis and identify non-using roles"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Viewers and guests rarely use it. That makes sense. Show me the activation funnel for collaboration.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should build activation funnel"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Where's the biggest drop-off in the funnel?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify funnel drop-off points"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Create a chart showing adoption by industry.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create industry adoption visualization"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "What was the adoption rate by tier we saw earlier?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 3,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall tier adoption rates"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Show me accounts that should be using collaboration based on their profile but aren't.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify expected adopters not using feature"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Apply all our filters and show me a final adoption summary.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 22,
+        "anaphoricPhrase": "all our filters",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply: adopted >= 3 uses, created_at, exclude trial"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "What's the revenue impact of non-adoption?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate revenue at risk from non-adopters"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "Create a chart showing the activation funnel.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create funnel visualization"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "What filters are currently active?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all active filters"
+      }
+    },
+    {
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Show me the top 5 actions to improve adoption.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide adoption improvement recommendations"
+      }
+    },
+    {
+      "turnNumber": 36,
+      "role": "user",
+      "content": "Create a final dashboard showing adoption metrics.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create adoption dashboard"
+      }
+    },
+    {
+      "turnNumber": 37,
+      "role": "user",
+      "content": "What was the time-to-first-use for adopters?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 7,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall time-to-first-use analysis"
+      }
+    },
+    {
+      "turnNumber": 38,
+      "role": "user",
+      "content": "Thank you. We've identified that collaboration adoption is hindered by: lack of awareness in Healthcare/Legal industries, drop-off at first-use for new accounts, and correlation with smaller team sizes. Adopters have significantly better retention.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should acknowledge findings"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 4,
+      "correctionText": "Adopted = used feature at least 3 times",
+      "type": "filter_rule",
+      "description": "Use 3+ uses threshold for adoption definition"
+    },
+    {
+      "turnEstablished": 6,
+      "correctionText": "Use event.created_at for event timestamps",
+      "type": "date_column",
+      "description": "Always use created_at for event timing"
+    },
+    {
+      "turnEstablished": 9,
+      "correctionText": "Exclude trial accounts from analysis",
+      "type": "exclusion",
+      "description": "Filter out trial plan tier"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 14,
+      "targetTurn": 3,
+      "phrase": "Remember the adoption rate by tier?",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Adoption rate by plan tier",
+      "distance": 11
+    },
+    {
+      "sourceTurn": 20,
+      "targetTurn": 4,
+      "phrase": "the same adoption criteria",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "3+ uses threshold",
+      "distance": 16
+    },
+    {
+      "sourceTurn": 31,
+      "targetTurn": 22,
+      "phrase": "all our filters",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Adopted >= 3 uses, created_at, exclude trial",
+      "distance": 9
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 18,
+      "targetTurn": 4,
+      "callbackType": "filter_recall",
+      "expectedEntity": "Adoption threshold (3+ uses)",
+      "crossesCompressionBoundary": true,
+      "distance": 14
+    },
+    {
+      "sourceTurn": 25,
+      "targetTurn": 5,
+      "callbackType": "result_recall",
+      "expectedEntity": "User role adoption analysis",
+      "crossesCompressionBoundary": true,
+      "distance": 20
+    },
+    {
+      "sourceTurn": 29,
+      "targetTurn": 3,
+      "callbackType": "value_recall",
+      "expectedEntity": "Adoption rate by tier figures",
+      "crossesCompressionBoundary": true,
+      "distance": 26
+    },
+    {
+      "sourceTurn": 37,
+      "targetTurn": 7,
+      "callbackType": "result_recall",
+      "expectedEntity": "Time-to-first-use analysis",
+      "crossesCompressionBoundary": true,
+      "distance": 30
+    }
+  ]
+}

@@ -1,0 +1,464 @@
+{
+  "id": "saas-pta-002",
+  "metadata": {
+    "database": "saas",
+    "conversationType": "PTA",
+    "expectedTurns": 35,
+    "compressionBoundaryTurn": 14,
+    "userPersona": "technical",
+    "tablesExplored": ["subscriptions", "plans", "accounts", "feature_usage"],
+    "description": "Parallel threads: MRR analysis (A) vs seat utilization patterns (B)"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "I need to analyze two metrics today. First, MRR trends by plan tier. Second, seat utilization by account size. Start with MRR analysis.",
+      "annotations": {
+        "type": "opening",
+        "expectedBehavior": "Agent should acknowledge both threads and start with MRR"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "Show me MRR by plan tier for each month in 2024.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show monthly MRR by tier"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "For MRR, use plan.monthly_price * subscription.quantity as the calculation.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "MRR = monthly_price * subscription.quantity",
+        "correctionType": "explicit",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should use this formula for MRR"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "Thread B — show me seat utilization (active users / purchased seats) by account size.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should calculate utilization by account size"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "For utilization, active user means logged in within the last 30 days.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Active = logged in within 30 days",
+        "correctionType": "explicit",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should use 30-day activity window"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "Thread A — which tier has the highest MRR growth rate?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should calculate and rank MRR growth by tier"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "Use subscription.start_date for MRR timing analysis.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use subscription.start_date for MRR timing",
+        "correctionType": "explicit",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should use start_date for MRR timing"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Thread B — do larger accounts have better or worse utilization?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should analyze utilization by account size"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Is there a relationship? Do accounts with low utilization also have stagnant MRR?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should cross-reference both threads"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Thread A — show me MRR churn by tier.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show churned MRR by tier"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Thread B — what's the average utilization by tier?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show utilization by plan tier"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Exclude trial accounts from both analyses.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude trial accounts",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter out trial tier"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Apply the same MRR formula to show me expansion MRR.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 3,
+        "anaphoricPhrase": "the same MRR formula",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use monthly_price * quantity"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Thread A — which accounts had the largest MRR decrease?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should identify largest MRR declines"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Thread B — do accounts with low utilization have higher churn risk?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should analyze utilization vs churn"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Earlier in Thread A we looked at MRR growth. What was the Enterprise tier growth rate?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 6,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall Enterprise MRR growth rate"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Thread B — show me utilization trend over time.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show utilization trend"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Both threads — is there an optimal utilization range that correlates with MRR growth?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should find optimal utilization range"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Thread A — show me MRR by industry.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show MRR by industry"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Apply the same utilization definition to show me utilization by industry.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 5,
+        "anaphoricPhrase": "the same utilization definition",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use 30-day activity window"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Thread B — what was the average utilization we calculated?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 11,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall utilization by tier"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Thread A — do accounts with high seat counts have proportional MRR?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should analyze seat count vs MRR"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "What filters are active for thread A?",
+      "annotations": {
+        "type": "probe",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should list: monthly_price * quantity, start_date, exclude trial"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "What filters are active for thread B?",
+      "annotations": {
+        "type": "probe",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should list: 30-day activity, exclude trial"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Create a chart showing MRR by tier over time (Thread A).",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "threadContext": "A",
+        "expectedBehavior": "Agent should create MRR visualization"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Create a chart showing utilization by tier (Thread B).",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "threadContext": "B",
+        "expectedBehavior": "Agent should create utilization visualization"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Thread A — show me top 10 accounts by MRR contribution.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should rank accounts by MRR"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Thread B — show me accounts with utilization below 50%.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should identify underutilized accounts"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Apply all filters from both threads for a combined view.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 12,
+        "anaphoricPhrase": "all filters from both threads",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply all thread filters"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Create a combined dashboard.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create combined dashboard"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "What was the MRR formula we established?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 3,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall monthly_price * quantity"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Final synthesis — summarize MRR vs utilization findings.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should synthesize both threads"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "What are the top 5 recommendations?",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide recommendations"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "Create a final summary dashboard.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create final dashboard"
+      }
+    },
+    {
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Thank you. We've identified that accounts with 70-85% utilization have the best MRR growth, while accounts below 50% utilization have significantly higher churn risk.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should acknowledge findings"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 3,
+      "correctionText": "MRR = plan.monthly_price * subscription.quantity",
+      "type": "aggregation_method",
+      "description": "Use this formula for MRR (Thread A)"
+    },
+    {
+      "turnEstablished": 5,
+      "correctionText": "Active user = logged in within last 30 days",
+      "type": "filter_rule",
+      "description": "Use 30-day window for activity (Thread B)"
+    },
+    {
+      "turnEstablished": 7,
+      "correctionText": "Use subscription.start_date for MRR timing",
+      "type": "date_column",
+      "description": "Use start_date for MRR timing (Thread A)"
+    },
+    {
+      "turnEstablished": 12,
+      "correctionText": "Exclude trial accounts from both analyses",
+      "type": "exclusion",
+      "description": "Filter out trial tier"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 13,
+      "targetTurn": 3,
+      "phrase": "the same MRR formula",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "monthly_price * quantity",
+      "distance": 10
+    },
+    {
+      "sourceTurn": 20,
+      "targetTurn": 5,
+      "phrase": "the same utilization definition",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "30-day activity window",
+      "distance": 15
+    },
+    {
+      "sourceTurn": 29,
+      "targetTurn": 12,
+      "phrase": "all filters from both threads",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "All thread filters and trial exclusion",
+      "distance": 17
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 16,
+      "targetTurn": 6,
+      "callbackType": "value_recall",
+      "expectedEntity": "Enterprise MRR growth rate",
+      "crossesCompressionBoundary": true,
+      "distance": 10
+    },
+    {
+      "sourceTurn": 21,
+      "targetTurn": 11,
+      "callbackType": "result_recall",
+      "expectedEntity": "Utilization by tier",
+      "crossesCompressionBoundary": true,
+      "distance": 10
+    },
+    {
+      "sourceTurn": 31,
+      "targetTurn": 3,
+      "callbackType": "filter_recall",
+      "expectedEntity": "MRR formula",
+      "crossesCompressionBoundary": true,
+      "distance": 28
+    }
+  ]
+}

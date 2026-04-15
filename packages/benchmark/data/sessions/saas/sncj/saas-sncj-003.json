@@ -1,0 +1,458 @@
+{
+  "id": "saas-sncj-003",
+  "metadata": {
+    "database": "saas",
+    "conversationType": "SNCJ",
+    "expectedTurns": 38,
+    "compressionBoundaryTurn": 16,
+    "userPersona": "business",
+    "tablesExplored": [
+      "accounts",
+      "users",
+      "subscriptions",
+      "plans",
+      "invoices",
+      "events",
+      "feature_usage"
+    ],
+    "description": "Full SaaS schema navigation with all table relationships"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "Walk me through all the tables in our SaaS database and how they relate.",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should show all tables and their relationships"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "What's the primary key in each table?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should list primary keys for all tables"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "What foreign keys connect the tables?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should list all foreign key relationships"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "Show me the columns in the accounts table.",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should show accounts schema"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "What about the subscriptions table?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should show subscriptions schema"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "Show me the plans table structure.",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should show plans schema"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "How do plans relate to subscriptions?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should explain subscriptions.plan_id foreign key"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "For this session, always use subscriptions.plan_id to join subscriptions to plans.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use subscriptions.plan_id for plan joins",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should confirm and use plan_id for plan joins"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Show me accounts with their subscription and plan details.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should join accounts-subscriptions-plans"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Now add user count to each account.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join users table and count"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Add invoice totals to the account summary.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join invoices and sum amounts"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Exclude trial accounts from all analyses.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude trial accounts",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter out trial tier"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Also exclude internal test accounts.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude internal test accounts",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter out test accounts"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Show me the full schema with all joins: accounts-users-subscriptions-plans-invoices.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should create five-table join"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Apply the same join key we established for plan joins.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 8,
+        "anaphoricPhrase": "the same join key we established for plan joins",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use subscriptions.plan_id"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Add feature usage metrics to the account summary.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join feature_usage table"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Add event counts by type to the analysis.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join events table and count by type"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Earlier you showed me the schema relationships. What foreign key connects users to accounts?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 3,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall users.account_id foreign key"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Show me revenue by plan tier with user counts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should aggregate revenue and users by plan"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "What's the average feature usage by plan tier?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze feature usage by plan"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Show me account health scores based on all metrics.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should create composite health score"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Apply all our filters to show me the comprehensive account dashboard.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 13,
+        "anaphoricPhrase": "all our filters",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply: plan_id joins, exclude trial, exclude test"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "What filters are currently applied?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all active filters"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Create a chart showing account distribution by plan tier.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create plan distribution visualization"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Show me the top 10 accounts by health score.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should rank accounts by health score"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "What plan ID did we use for joins?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 8,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall subscriptions.plan_id"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Show me revenue by industry with feature usage correlation.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze industry vs usage vs revenue"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Create a chart showing user engagement by plan tier.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create engagement visualization"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Show me the full account lifecycle analysis.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze account from signup to current state"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "What accounts are at risk based on all metrics?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify at-risk accounts using all metrics"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Create a final comprehensive dashboard.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create comprehensive dashboard"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Show me a summary of all table relationships we explored.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should summarize all schema relationships"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "What are the top 5 insights from this full schema analysis?",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide key schema insights"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "Earlier we looked at plan joins. What column connects subscriptions to plans?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 7,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall plan_id foreign key"
+      }
+    },
+    {
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Show me the final multi-table analysis with all corrections applied.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide comprehensive analysis"
+      }
+    },
+    {
+      "turnNumber": 36,
+      "role": "user",
+      "content": "Create a chart showing revenue vs feature usage by tier.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create correlation visualization"
+      }
+    },
+    {
+      "turnNumber": 37,
+      "role": "user",
+      "content": "What filters are currently active?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all active filters"
+      }
+    },
+    {
+      "turnNumber": 38,
+      "role": "user",
+      "content": "Thank you. We've navigated the full SaaS schema, establishing that accounts connect to users via account_id, subscriptions connect to plans via plan_id, and high feature usage accounts have 2.5x revenue compared to low usage accounts.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should acknowledge findings"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 8,
+      "correctionText": "Use subscriptions.plan_id for plan joins",
+      "type": "join_key",
+      "description": "Always use plan_id for subscription-plan joins"
+    },
+    {
+      "turnEstablished": 12,
+      "correctionText": "Exclude trial accounts from all analyses",
+      "type": "exclusion",
+      "description": "Filter out trial tier"
+    },
+    {
+      "turnEstablished": 13,
+      "correctionText": "Exclude internal test accounts",
+      "type": "exclusion",
+      "description": "Filter out test accounts"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 15,
+      "targetTurn": 8,
+      "phrase": "the same join key we established for plan joins",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "subscriptions.plan_id",
+      "distance": 7
+    },
+    {
+      "sourceTurn": 22,
+      "targetTurn": 13,
+      "phrase": "all our filters",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "plan_id joins, exclude trial, exclude test",
+      "distance": 9
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 18,
+      "targetTurn": 3,
+      "callbackType": "schema_recall",
+      "expectedEntity": "users.account_id foreign key",
+      "crossesCompressionBoundary": true,
+      "distance": 15
+    },
+    {
+      "sourceTurn": 26,
+      "targetTurn": 8,
+      "callbackType": "filter_recall",
+      "expectedEntity": "subscriptions.plan_id join key",
+      "crossesCompressionBoundary": true,
+      "distance": 18
+    },
+    {
+      "sourceTurn": 34,
+      "targetTurn": 7,
+      "callbackType": "schema_recall",
+      "expectedEntity": "Plan-subscription relationship",
+      "crossesCompressionBoundary": true,
+      "distance": 27
+    }
+  ]
+}

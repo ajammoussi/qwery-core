@@ -1,0 +1,464 @@
+{
+  "id": "tpch-rci-005",
+  "metadata": {
+    "database": "tpch",
+    "conversationType": "RCI",
+    "expectedTurns": 40,
+    "compressionBoundaryTurn": 10,
+    "userPersona": "technical",
+    "tablesExplored": ["PART", "PARTSUPP", "SUPPLIER", "LINEITEM", "ORDERS"],
+    "description": "Part category performance investigating pricing and availability issues"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "Our inventory team noticed discrepancies in part pricing. Can you investigate part pricing patterns?",
+      "annotations": {
+        "type": "opening",
+        "expectedBehavior": "Agent should propose analyzing part pricing data"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "What part-related tables and columns do we have?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should show PART and PARTSUPP schema"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "Show me the distribution of parts by type.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show count by P_TYPE"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "For pricing analysis, always compare retail price (P_RETAILPRICE) with supply cost (PS_SUPPLYCOST).",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Compare P_RETAILPRICE vs PS_SUPPLYCOST",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should use these columns for price comparison"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Which part types have the highest markup (retail price vs supply cost)?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should calculate markup percentage by P_TYPE"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "Let me see the parts with the lowest markup. These might be pricing errors.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show parts with lowest or negative markup"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "Only include parts that have been ordered at least once.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Only include ordered parts",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter parts that appear in LINEITEM"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Show me suppliers for these low-markup parts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show suppliers for low-markup parts"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Are there multiple suppliers for these parts? If so, compare their prices.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show price variation across suppliers for same parts"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Some suppliers charge significantly more. Use L_EXTENDEDPRICE for actual sold prices.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use L_EXTENDEDPRICE for sold prices",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should use extended price for actual transaction analysis"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Compare the actual sold prices to the retail prices for these parts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare L_EXTENDEDPRICE to P_RETAILPRICE"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Are we selling below retail for some parts?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify parts sold below retail"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Remember the markup analysis we did? Can you recalculate using actual sold prices instead of supply cost?",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 5,
+        "anaphoricPhrase": "the markup analysis we did",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recalculate markup using L_EXTENDEDPRICE"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Exclude parts with container 'SM CASE' — those have special pricing rules.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude 'SM CASE' container",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter out P_CONTAINER = 'SM CASE'"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Show me the profit margin by part type now.",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate profit margin by P_TYPE"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Which part brands have the worst margins?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show margins by P_BRAND"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Let me check availability. Show me parts with low availability (PS_AVAILQTY).",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify low-stock parts"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Are the low-availability parts also the low-margin ones?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should correlate availability with margin"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "What was the average markup we calculated earlier?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 5,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall the markup figure"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Show me order frequency for these problematic parts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show order counts for low-margin parts"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Low-margin parts are ordered frequently. Let me see the revenue impact.",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate revenue for low-margin parts"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Which suppliers are providing these low-margin high-volume parts?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify suppliers for problematic parts"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Are these suppliers also providing high-margin parts?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare supplier product portfolios"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Apply all our filters and show me a pricing summary by part type.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 14,
+        "anaphoricPhrase": "all our filters",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply: ordered parts only, exclude SM CASE, use L_EXTENDEDPRICE"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Let me see which sizes are most problematic.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze by P_SIZE"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Create a chart showing margin distribution by part type.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create visualization"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "What filters are active in our analysis?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all established filters"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Show me the top 20 parts by order count with all filters applied.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should show parts ranking with filters"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Are there seasonal patterns in part ordering?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show monthly order patterns"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Do part prices vary by season?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze price changes over time"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Let me see the price variance for each part type.",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should show price variance by P_TYPE"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Which manufacturers have price consistency issues?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify MFGRs with high price variance"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "Earlier we looked at low-markup parts. What part types were those?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 6,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall the part types identified"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "Show me a final summary of pricing issues by part type and brand.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide comprehensive summary"
+      }
+    },
+    {
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Create a chart showing price distribution for top 5 part types.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create visualization"
+      }
+    },
+    {
+      "turnNumber": 36,
+      "role": "user",
+      "content": "What's the total revenue impact of pricing inconsistencies?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate total revenue at risk"
+      }
+    },
+    {
+      "turnNumber": 37,
+      "role": "user",
+      "content": "Show me alternative suppliers for the problematic parts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify alternative suppliers in PARTSUPP"
+      }
+    },
+    {
+      "turnNumber": 38,
+      "role": "user",
+      "content": "Compare pricing from alternative vs current suppliers.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show price comparison"
+      }
+    },
+    {
+      "turnNumber": 39,
+      "role": "user",
+      "content": "What are the top 3 pricing recommendations based on this analysis?",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide recommendations"
+      }
+    },
+    {
+      "turnNumber": 40,
+      "role": "user",
+      "content": "Thank you. We've identified that certain part types have inconsistent pricing, with some being sold below retail, and specific suppliers charging significantly more than others for the same parts.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should acknowledge and confirm findings"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 4,
+      "correctionText": "Compare P_RETAILPRICE vs PS_SUPPLYCOST for pricing",
+      "type": "aggregation_method",
+      "description": "Use retail price and supply cost for price comparison"
+    },
+    {
+      "turnEstablished": 7,
+      "correctionText": "Only include ordered parts",
+      "type": "filter_rule",
+      "description": "Filter parts that appear in LINEITEM"
+    },
+    {
+      "turnEstablished": 10,
+      "correctionText": "Use L_EXTENDEDPRICE for sold prices",
+      "type": "column_preference",
+      "description": "Use extended price for actual transaction prices"
+    },
+    {
+      "turnEstablished": 14,
+      "correctionText": "Exclude 'SM CASE' container",
+      "type": "exclusion",
+      "description": "Filter out P_CONTAINER = 'SM CASE'"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 13,
+      "targetTurn": 5,
+      "phrase": "the markup analysis we did",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Markup by part type from turn 5",
+      "distance": 8
+    },
+    {
+      "sourceTurn": 24,
+      "targetTurn": 14,
+      "phrase": "all our filters",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Ordered parts, exclude SM CASE, use L_EXTENDEDPRICE",
+      "distance": 10
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 19,
+      "targetTurn": 5,
+      "callbackType": "value_recall",
+      "expectedEntity": "Average markup percentage",
+      "crossesCompressionBoundary": true,
+      "distance": 14
+    },
+    {
+      "sourceTurn": 33,
+      "targetTurn": 6,
+      "callbackType": "result_recall",
+      "expectedEntity": "Part types with lowest markup",
+      "crossesCompressionBoundary": true,
+      "distance": 27
+    }
+  ]
+}

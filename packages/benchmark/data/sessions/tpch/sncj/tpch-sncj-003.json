@@ -1,0 +1,455 @@
+{
+  "id": "tpch-sncj-003",
+  "metadata": {
+    "database": "tpch",
+    "conversationType": "SNCJ",
+    "expectedTurns": 35,
+    "compressionBoundaryTurn": 14,
+    "userPersona": "technical",
+    "tablesExplored": [
+      "ORDERS",
+      "CUSTOMER",
+      "NATION",
+      "REGION",
+      "SUPPLIER",
+      "PART",
+      "PARTSUPP",
+      "LINEITEM"
+    ],
+    "description": "Schema navigation session exploring full star schema with all major TPC-H tables joined"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "I want to build a comprehensive analysis that spans the entire TPC-H schema. First, walk me through all the major tables and their relationships.",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should provide overview of all 8 major tables and their relationships"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "What columns does the ORDERS table have?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should list ORDERS columns"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "What columns does the LINEITEM table have?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should list LINEITEM columns"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "How do ORDERS and LINEITEM relate to each other?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should explain O_ORDERKEY = L_ORDERKEY relationship"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "What columns does the CUSTOMER table have?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should list CUSTOMER columns"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "What columns does the SUPPLIER table have?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should list SUPPLIER columns"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "What columns do NATION and REGION tables have?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should list both NATION and REGION columns"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "What columns does the PART table have?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should list PART columns"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "What is PARTSUPP and what columns does it have?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should explain PARTSUPP as junction table and list its columns"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Give me a simple query showing total revenue by region for 1995.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should join ORDERS-LINEITEM-CUSTOMER-NATION-REGION"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Now add customer market segment to the breakdown.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should include C_MKTSEGMENT in GROUP BY"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Also include the supplier nation in the analysis.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join to SUPPLIER and include supplier nation"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "The LINEITEM table has L_PARTKEY and L_SUPPKEY. When joining, always use L_PARTKEY to join to PART and L_SUPPKEY to join to SUPPLIER. Also use O_CUSTKEY to join ORDERS to CUSTOMER.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use L_PARTKEY for PART, L_SUPPKEY for SUPPLIER, O_CUSTKEY for CUSTOMER joins",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should acknowledge all join key preferences"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "What columns did the PART table have again? I need to know about part size.",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 8,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall P_SIZE column from PART table"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Add part size breakdown to our revenue analysis.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join to PART and include P_SIZE"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "What were the possible values for O_ORDERSTATUS?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 2,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall order status values from ORDERS schema"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Filter to only completed orders with status 'F'.",
+      "annotations": {
+        "type": "filter_establishment",
+        "establishesFilter": "O_ORDERSTATUS = 'F'",
+        "expectedBehavior": "Agent should add status filter"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Show me revenue by region, customer segment, and part type.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should produce multi-dimensional breakdown"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Add supplier information - which supplier provided the most revenue per region?",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join to SUPPLIER and show supplier-level detail"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "What was the relationship between CUSTOMER and NATION again?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 5,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall C_NATIONKEY relationship"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Show me customers from GERMANY and their order history.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should filter to German customers via NATION join"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Add the parts they ordered and which suppliers provided them.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join through LINEITEM to PART and SUPPLIER"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Now show me the same query but for JAPAN instead of GERMANY.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 21,
+        "anaphoricPhrase": "the same query",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should repeat the analysis for Japan"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "What columns does PARTSUPP have? I want to include supply cost.",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 9,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall PS_SUPPLYCOST from PARTSUPP"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Add supply cost to our German customer analysis.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join to PARTSUPP and include PS_SUPPLYCOST"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Calculate profit margin: revenue minus supply cost for each order line.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should calculate L_EXTENDEDPRICE - PS_SUPPLYCOST * L_QUANTITY"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "What about LINEITEM status - what values can L_LINESTATUS have?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should explain L_LINESTATUS values"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Filter to only shipped items with status 'S'.",
+      "annotations": {
+        "type": "filter_establishment",
+        "establishesFilter": "L_LINESTATUS = 'S'",
+        "expectedBehavior": "Agent should add line item status filter"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Show me a comprehensive query joining ORDERS, LINEITEM, CUSTOMER, SUPPLIER, PART, NATION, and REGION.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should produce 7-table join"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Add PARTSUPP for supply cost information - now all 8 tables.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should include PARTSUPP in the join"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Just to confirm - what are all the join keys we've established?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list: O_ORDERKEY=L_ORDERKEY, O_CUSTKEY=C_CUSTKEY, C_NATIONKEY=N_NATIONKEY, N_REGIONKEY=R_REGIONKEY, L_PARTKEY=P_PARTKEY, L_SUPPKEY=S_SUPPKEY, S_NATIONKEY=N_NATIONKEY, PS_PARTKEY=P_PARTKEY, PS_SUPPKEY=S_SUPPKEY"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Show me revenue by region, customer nation, and supplier nation.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show multi-nation analysis"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "Add part manufacturer to this breakdown.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should include P_MFGR in output"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "What filters are currently applied to this analysis?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list: O_ORDERSTATUS='F', L_LINESTATUS='S'"
+      }
+    },
+    {
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Final comprehensive query: join all 8 tables (ORDERS, LINEITEM, CUSTOMER, SUPPLIER, PART, PARTSUPP, NATION, REGION), show revenue and profit by region, customer nation, supplier nation, and part type, filter to completed orders and shipped items, using O_CUSTKEY for CUSTOMER joins, L_PARTKEY for PART joins, and L_SUPPKEY for SUPPLIER joins.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should produce complete star schema query with all established join keys and filters"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 13,
+      "correctionText": "Use L_PARTKEY for PART, L_SUPPKEY for SUPPLIER, O_CUSTKEY for CUSTOMER joins",
+      "type": "join_key",
+      "description": "Always use specific join keys: L_PARTKEY to PART, L_SUPPKEY to SUPPLIER, O_CUSTKEY to CUSTOMER"
+    },
+    {
+      "turnEstablished": 17,
+      "correctionText": "Filter to only completed orders with status 'F'",
+      "type": "filter_rule",
+      "description": "All queries should include O_ORDERSTATUS = 'F' filter"
+    },
+    {
+      "turnEstablished": 28,
+      "correctionText": "Filter to only shipped line items with status 'S'",
+      "type": "filter_rule",
+      "description": "All queries should include L_LINESTATUS = 'S' filter"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 14,
+      "targetTurn": 8,
+      "phrase": "What columns did the PART table have again",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "PART columns including P_SIZE",
+      "distance": 6
+    },
+    {
+      "sourceTurn": 16,
+      "targetTurn": 2,
+      "phrase": "What were the possible values for O_ORDERSTATUS",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Order status values from ORDERS table",
+      "distance": 14
+    },
+    {
+      "sourceTurn": 20,
+      "targetTurn": 5,
+      "phrase": "What was the relationship between CUSTOMER and NATION",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "C_NATIONKEY foreign key relationship",
+      "distance": 15
+    },
+    {
+      "sourceTurn": 23,
+      "targetTurn": 21,
+      "phrase": "the same query",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Customer order history with parts and suppliers",
+      "distance": 2
+    },
+    {
+      "sourceTurn": 24,
+      "targetTurn": 9,
+      "phrase": "What columns does PARTSUPP have",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "PARTSUPP columns including PS_SUPPLYCOST",
+      "distance": 15
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 14,
+      "targetTurn": 8,
+      "callbackType": "schema_recall",
+      "expectedEntity": "PART columns, specifically P_SIZE",
+      "crossesCompressionBoundary": true,
+      "distance": 6
+    },
+    {
+      "sourceTurn": 16,
+      "targetTurn": 2,
+      "callbackType": "schema_recall",
+      "expectedEntity": "O_ORDERSTATUS values",
+      "crossesCompressionBoundary": true,
+      "distance": 14
+    },
+    {
+      "sourceTurn": 20,
+      "targetTurn": 5,
+      "callbackType": "schema_recall",
+      "expectedEntity": "CUSTOMER-NATION relationship via C_NATIONKEY",
+      "crossesCompressionBoundary": true,
+      "distance": 15
+    },
+    {
+      "sourceTurn": 24,
+      "targetTurn": 9,
+      "callbackType": "schema_recall",
+      "expectedEntity": "PARTSUPP columns including PS_SUPPLYCOST",
+      "crossesCompressionBoundary": true,
+      "distance": 15
+    }
+  ]
+}

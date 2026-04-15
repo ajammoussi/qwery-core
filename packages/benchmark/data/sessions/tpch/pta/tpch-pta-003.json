@@ -1,0 +1,464 @@
+{
+  "id": "tpch-pta-003",
+  "metadata": {
+    "database": "tpch",
+    "conversationType": "PTA",
+    "expectedTurns": 34,
+    "compressionBoundaryTurn": 14,
+    "userPersona": "business",
+    "tablesExplored": [
+      "PART",
+      "PARTSUPP",
+      "SUPPLIER",
+      "LINEITEM",
+      "ORDERS",
+      "NATION"
+    ],
+    "description": "Parallel analysis of part pricing dynamics vs order fulfillment patterns"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "I need to analyze two areas. First, part pricing — how part costs vary across suppliers. Second, order fulfillment patterns — how orders are distributed over time. Let's start with part pricing.",
+      "annotations": {
+        "type": "opening",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should begin Thread A: part pricing analysis"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "Show me the average supply cost by part, along with the price variance across suppliers.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show part cost and price variance across suppliers"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "For part pricing, always use PS_SUPPLYCOST from the PARTSUPP table, not the PART retail price.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "A",
+        "isCorrection": true,
+        "establishesFilter": "Use PS_SUPPLYCOST for pricing (Thread A)",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should use PS_SUPPLYCOST for Thread A pricing analysis"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "Which parts have the highest price variance across suppliers?",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should identify parts with highest PS_SUPPLYCOST variance"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Now let's switch to Thread B. I want to analyze order fulfillment patterns. Show me order counts by month.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should begin Thread B: order fulfillment analysis"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "For order analysis, always filter to orders where O_ORDERSTATUS is not 'P' — pending orders are incomplete.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "B",
+        "isCorrection": true,
+        "establishesFilter": "O_ORDERSTATUS != 'P' (Thread B)",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should exclude pending orders for Thread B"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "Show me orders by priority level and their average fulfillment time.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show order priority vs fulfillment duration"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Back to Thread A. Which suppliers offer the best prices for the high-variance parts?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should identify suppliers with lowest PS_SUPPLYCOST for high-variance parts"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "What nations are these low-cost suppliers from?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show supplier nations for low-cost suppliers"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Thread B: Which order priorities have the longest fulfillment times?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should identify priorities with longest fulfillment"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Cross-reference: Are the parts with high price variance from Thread A commonly ordered in the slow-to-fulfill order priorities from Thread B?",
+      "annotations": {
+        "type": "aggregation",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should correlate high-variance parts with slow fulfillment orders"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Thread A: What's the total supply cost for parts with variance above average?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should calculate total supply cost for high-variance parts"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Thread B: What's the distribution of order statuses by priority?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show order status distribution by priority"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Thread A: Earlier you showed me supplier nations for low-cost suppliers. What was that breakdown?",
+      "annotations": {
+        "type": "callback",
+        "threadContext": "A",
+        "isCallback": true,
+        "callbackTargetTurn": 9,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall supplier nation breakdown from Thread A"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Thread B: Show me the same for the other thread.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "A",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 14,
+        "anaphoricPhrase": "the same for the other thread",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should show order fulfillment nation breakdown for Thread B"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "That's confusing. For Thread B, show me the customer nations for orders with long fulfillment times.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "B",
+        "isCorrection": true,
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should show customer nation breakdown for Thread B"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Thread A: Exclude parts from suppliers in 'AFRICA' region from pricing analysis.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "A",
+        "isCorrection": true,
+        "establishesFilter": "Exclude AFRICA region suppliers (Thread A)",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should apply AFRICA supplier exclusion to Thread A"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Thread B: Exclude orders from customers in 'ASIA' region from fulfillment analysis.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "B",
+        "isCorrection": true,
+        "establishesFilter": "Exclude ASIA region customers (Thread B)",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should apply ASIA customer exclusion to Thread B"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Thread A: Re-run the pricing analysis with AFRICA exclusion applied.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should recalculate pricing excluding AFRICA suppliers"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Thread B: Re-run the fulfillment analysis with ASIA exclusion applied.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should recalculate fulfillment excluding ASIA customers"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Cross-reference: Compare the number of parts affected in Thread A's analysis with orders affected in Thread B's analysis.",
+      "annotations": {
+        "type": "aggregation",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should compare scope of affected entities across threads"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Thread A: Deepen — show me the part categories with highest average supply cost.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show part categories by average PS_SUPPLYCOST"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Thread B: Deepen — show me the order line item counts by month.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show line item volume by month"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Thread A: Remember to use PS_SUPPLYCOST for pricing calculations.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "A",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 3,
+        "anaphoricPhrase": "Remember to use PS_SUPPLYCOST",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should confirm PS_SUPPLYCOST usage for Thread A"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Thread B: Apply the same filter we established earlier for order status.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "B",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 6,
+        "anaphoricPhrase": "the same filter we established earlier",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply O_ORDERSTATUS != 'P' filter"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Cross-reference: Which part categories from Thread A are most frequently ordered in Thread B's high-volume months?",
+      "annotations": {
+        "type": "aggregation",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should correlate part categories with order volume"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Thread A: What's the supply cost trend for top-ordered parts over the period?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should analyze supply cost trends for popular parts"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Thread B: What's the fulfillment time trend for high-priority orders?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should analyze fulfillment trends for high-priority orders"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Apply the same trend analysis to Thread A.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "A",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 28,
+        "anaphoricPhrase": "the same trend analysis",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply trend analysis to Thread A supply costs"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Final synthesis: Summarize pricing dynamics and fulfillment patterns with key correlations.",
+      "annotations": {
+        "type": "final_query",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should synthesize findings from both threads"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Thread A: Confirm all active filters for this thread.",
+      "annotations": {
+        "type": "probe",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should list: use PS_SUPPLYCOST, exclude AFRICA suppliers"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Thread B: Confirm all active filters for this thread.",
+      "annotations": {
+        "type": "probe",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should list: O_ORDERSTATUS != 'P', exclude ASIA customers"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "Thread A: Show me top 10 parts by supply cost savings potential.",
+      "annotations": {
+        "type": "final_query",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should identify parts with highest cost reduction potential"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "Thread B: Show me orders with fulfillment times above average by priority.",
+      "annotations": {
+        "type": "final_query",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show above-average fulfillment times by priority"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 3,
+      "correctionText": "Use PS_SUPPLYCOST for pricing in Thread A",
+      "type": "column_preference",
+      "description": "Always use PS_SUPPLYCOST for Thread A pricing analysis"
+    },
+    {
+      "turnEstablished": 6,
+      "correctionText": "Exclude pending orders (O_ORDERSTATUS != 'P') for Thread B",
+      "type": "filter_rule",
+      "description": "Filter out pending orders for Thread B"
+    },
+    {
+      "turnEstablished": 17,
+      "correctionText": "Exclude AFRICA region suppliers for Thread A",
+      "type": "exclusion",
+      "description": "Filter out AFRICA suppliers for Thread A only"
+    },
+    {
+      "turnEstablished": 18,
+      "correctionText": "Exclude ASIA region customers for Thread B",
+      "type": "exclusion",
+      "description": "Filter out ASIA customers for Thread B only"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 15,
+      "targetTurn": 14,
+      "phrase": "the same for the other thread",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Apply nation breakdown to Thread B's orders",
+      "distance": 1
+    },
+    {
+      "sourceTurn": 24,
+      "targetTurn": 3,
+      "phrase": "Remember to use PS_SUPPLYCOST",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Use PS_SUPPLYCOST for Thread A pricing",
+      "distance": 21
+    },
+    {
+      "sourceTurn": 25,
+      "targetTurn": 6,
+      "phrase": "the same filter we established earlier",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Apply O_ORDERSTATUS != 'P' filter for Thread B",
+      "distance": 19
+    },
+    {
+      "sourceTurn": 29,
+      "targetTurn": 28,
+      "phrase": "the same trend analysis",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Apply trend analysis approach to Thread A",
+      "distance": 1
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 14,
+      "targetTurn": 9,
+      "callbackType": "value_recall",
+      "expectedEntity": "Supplier nation breakdown for low-cost suppliers",
+      "crossesCompressionBoundary": true,
+      "distance": 5
+    }
+  ]
+}

@@ -1,0 +1,465 @@
+{
+  "id": "tpch-pta-001",
+  "metadata": {
+    "database": "tpch",
+    "conversationType": "PTA",
+    "expectedTurns": 35,
+    "compressionBoundaryTurn": 15,
+    "userPersona": "business",
+    "tablesExplored": [
+      "ORDERS",
+      "LINEITEM",
+      "SUPPLIER",
+      "NATION",
+      "REGION",
+      "CUSTOMER",
+      "PARTSUPP"
+    ],
+    "description": "Parallel analysis of orders volume trends vs supplier performance across regions"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "I want to analyze two different aspects today. First, I want to look at orders volume trends by month. Second, I want to investigate supplier performance ratings. Let's start with the orders volume analysis.",
+      "annotations": {
+        "type": "opening",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should begin Thread A: orders volume analysis"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "Show me monthly order counts and total revenue for 1995, broken down by order priority.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should query ORDERS and LINEITEM for monthly breakdown by priority"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "From now on, for order analysis, always exclude orders with status 'F' — those are flagged as problematic.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "A",
+        "isCorrection": true,
+        "establishesFilter": "O_ORDERSTATUS != 'F' for Thread A",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should apply this filter only to Thread A queries"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "Now let's switch to Thread B. I want to look at supplier performance. Show me the top 20 suppliers by total supply volume and their availability percentages.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should begin Thread B: supplier performance analysis"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "For supplier analysis, always use the NATION table for supplier location, not the region directly.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "B",
+        "isCorrection": true,
+        "establishesFilter": "Join SUPPLIER to NATION for location (Thread B only)",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should use NATION table for supplier location in Thread B"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "Show me those suppliers broken down by their nation and their average supply cost.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should group suppliers by nation with avg supply cost"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "Back to Thread A. Which order priorities had the most significant month-over-month revenue changes?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should calculate month-over-month changes by priority"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "High priority orders show a spike in March. What regions were those high priority orders shipped to?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show regional breakdown for high priority orders in March"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Switching back to Thread B. For those top supplier nations, what parts do they primarily supply?",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show part distribution for top supplier nations"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Show me the suppliers who have the highest availability but lowest average cost — we want to identify efficient suppliers.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should rank suppliers by availability/cost ratio"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Now cross-reference: Are the regions with high priority orders in March from Thread A using suppliers from Thread B's top efficient list?",
+      "annotations": {
+        "type": "aggregation",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should check if high priority order regions use efficient suppliers"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Back to Thread A. Apply the same filters we established earlier — show me orders excluding status 'F'.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "A",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 3,
+        "anaphoricPhrase": "the same filters we established earlier",
+        "expectedBehavior": "Agent should apply O_ORDERSTATUS != 'F' filter"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "What was the total revenue for high priority orders in March? I need that number.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should calculate total revenue for high priority March orders"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Back to Thread B. For the efficient suppliers we identified, what's their total order fulfillment volume?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show order fulfillment volume for efficient suppliers"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Show me the same for the other thread.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "A",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 14,
+        "anaphoricPhrase": "the same for the other thread",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should show order fulfillment volume for Thread A (orders)"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "That's not right — I meant show me the order volume breakdown for Thread A. The previous query was applying Thread B's supplier logic to Thread A.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "A",
+        "isCorrection": true,
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should correct and show Thread A specific analysis"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Compare Thread A's March high priority revenue with Thread B's top efficient supplier revenue.",
+      "annotations": {
+        "type": "aggregation",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should compare revenues from both threads"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Thread A: What customer segments drove the high priority orders in March?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should analyze customer segments for high priority March orders"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Thread B: Do those efficient suppliers serve the customer segments identified in Thread A?",
+      "annotations": {
+        "type": "aggregation",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should check supplier-customer segment alignment"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Thread B: Show me the nations of the efficient suppliers — remember, use the NATION table.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "B",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 5,
+        "anaphoricPhrase": "remember, use the NATION table",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use NATION table as established in Thread B"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Thread A: Earlier you showed me revenue by priority — what was the high priority total again?",
+      "annotations": {
+        "type": "callback",
+        "threadContext": "A",
+        "isCallback": true,
+        "callbackTargetTurn": 13,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall high priority revenue from Thread A"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Thread A: Deepen the analysis — show me weekly breakdown within March for high priority orders.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show weekly high priority order breakdown for March"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Thread B: Deepen the supplier analysis — show me parts supplied by efficient suppliers by category.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show part categories from efficient suppliers"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Cross-reference: Do the weekly spikes in Thread A correspond to parts from Thread B's efficient suppliers?",
+      "annotations": {
+        "type": "aggregation",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should correlate weekly order spikes with efficient supplier parts"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Thread A: Show me the customer nations for those high priority March orders.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show customer nation breakdown for Thread A"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Thread B: What's the geographic distribution of efficient suppliers vs inefficient ones?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should compare geographic distribution of supplier efficiency"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Apply the same geographic analysis to Thread A.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "A",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 26,
+        "anaphoricPhrase": "the same geographic analysis",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply geographic analysis approach to Thread A orders"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Thread A: Exclude orders from 'ASIA' region going forward — we're focusing on other markets.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "A",
+        "isCorrection": true,
+        "establishesFilter": "Exclude ASIA region for Thread A",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should apply ASIA exclusion only to Thread A"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Thread B: Are any efficient suppliers from ASIA? If so, mark them for review.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should identify ASIA efficient suppliers"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Comparison: Show me a side-by-side summary of Thread A's order volume trends and Thread B's supplier efficiency metrics.",
+      "annotations": {
+        "type": "aggregation",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should present synthesized summary from both threads"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Thread A: What's the correlation between order priority and customer nation?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should analyze priority distribution by customer nation"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Thread B: What's the correlation between supplier nation and part category?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should analyze supplier nation vs part category"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "Final synthesis: Which customer nations from Thread A are served by which efficient supplier nations from Thread B?",
+      "annotations": {
+        "type": "final_query",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should show customer-supplier nation alignment"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "Thread A: Confirm what filters are currently active for this thread.",
+      "annotations": {
+        "type": "probe",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should list Thread A filters: O_ORDERSTATUS != 'F', exclude ASIA"
+      }
+    },
+    {
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Thread B: Confirm what filters are currently active for this thread.",
+      "annotations": {
+        "type": "probe",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should list Thread B filter: use NATION table for supplier location"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 3,
+      "correctionText": "Exclude orders with status 'F' for Thread A",
+      "type": "filter_rule",
+      "description": "O_ORDERSTATUS != 'F' only for Thread A"
+    },
+    {
+      "turnEstablished": 5,
+      "correctionText": "Use NATION table for supplier location in Thread B",
+      "type": "table_alias",
+      "description": "Join SUPPLIER to NATION for location (Thread B only)"
+    },
+    {
+      "turnEstablished": 28,
+      "correctionText": "Exclude ASIA region for Thread A",
+      "type": "exclusion",
+      "description": "Filter out ASIA region for Thread A orders only"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 12,
+      "targetTurn": 3,
+      "phrase": "the same filters we established earlier",
+      "crossesCompressionBoundary": false,
+      "expectedResolution": "O_ORDERSTATUS != 'F' filter for Thread A",
+      "distance": 9
+    },
+    {
+      "sourceTurn": 15,
+      "targetTurn": 14,
+      "phrase": "the same for the other thread",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Order fulfillment volume for Thread A instead of Thread B",
+      "distance": 1
+    },
+    {
+      "sourceTurn": 20,
+      "targetTurn": 5,
+      "phrase": "remember, use the NATION table",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Use NATION table for supplier location in Thread B",
+      "distance": 15
+    },
+    {
+      "sourceTurn": 27,
+      "targetTurn": 26,
+      "phrase": "the same geographic analysis",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Geographic distribution analysis approach for Thread A",
+      "distance": 1
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 21,
+      "targetTurn": 13,
+      "callbackType": "value_recall",
+      "expectedEntity": "High priority revenue from Thread A",
+      "crossesCompressionBoundary": true,
+      "distance": 8
+    }
+  ]
+}

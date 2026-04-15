@@ -1,0 +1,489 @@
+{
+  "id": "tpch-rci-004",
+  "metadata": {
+    "database": "tpch",
+    "conversationType": "RCI",
+    "expectedTurns": 42,
+    "compressionBoundaryTurn": 18,
+    "userPersona": "mixed",
+    "tablesExplored": [
+      "ORDERS",
+      "LINEITEM",
+      "PART",
+      "SUPPLIER",
+      "NATION",
+      "REGION"
+    ],
+    "description": "Regional performance investigation focusing on part quality issues and return rates"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "Our quality team reported an increase in product returns. Can you investigate return patterns?",
+      "annotations": {
+        "type": "opening",
+        "expectedBehavior": "Agent should propose analyzing return data"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "What columns do we have that track returns?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should identify L_RETURNFLAG and L_LINESTATUS"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "Show me the distribution of return flags across all lineitems.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show count by L_RETURNFLAG"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "For all return analysis, only consider items with status 'O' (ordered/shipped).",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "L_LINESTATUS = 'O'",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter to L_LINESTATUS = 'O'"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Now show me returns by region.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show return rates by customer region"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "EUROPE has the highest return rate. Which nations in Europe?",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should break down by nation"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "FRANCE and GERMANY have highest returns. Use O_ORDERDATE for all date filtering in this analysis.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use O_ORDERDATE for date filtering",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should confirm and use O_ORDERDATE"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Show me return trends over time for these nations.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show monthly return rates"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Returns increased in Q2. Which parts are being returned most?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show parts by return count"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Exclude all orders from before 1994 from this analysis.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "O_ORDERDATE >= '1994-01-01'",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should apply date filter"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Show me the suppliers of these frequently-returned parts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should join to SUPPLIER table"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Are these suppliers also causing issues in other regions?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show supplier return rates by region"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "The issue is concentrated in Europe. What part types from these suppliers have highest returns?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show P_TYPE distribution for returns"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Let me see the revenue impact. Calculate the lost revenue from returns.",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should sum L_EXTENDEDPRICE for returned items"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "What's the return rate percentage for these problematic suppliers?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate return percentage per supplier"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Are there specific customers who return more often?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show customers by return rate"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Remember the return distribution we looked at earlier? Can you show that again but only for Europe?",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 5,
+        "anaphoricPhrase": "the return distribution we looked at earlier",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recreate return by region for Europe only"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Let me check if ship mode affects return rates.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show return rates by L_SHIPMODE"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "AIR shipments have higher returns. From now on, exclude AIR mode from our analysis.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude AIR ship mode",
+        "correctionType": "implicit",
+        "expectedBehavior": "Agent should filter out L_SHIPMODE = 'AIR'"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "What's causing returns in non-AIR shipments?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze returns excluding AIR"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Let me see if delivery time correlates with returns.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare delivery time vs return rate"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Faster deliveries have more returns. That's counterintuitive. Let me check order priority.",
+      "annotations": {
+        "type": "pivot",
+        "expectedBehavior": "Agent should analyze returns by O_ORDERPRIORITY"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "High-priority orders have more returns. Show me the specific parts in high-priority orders that are returned.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show part-level return analysis for high-priority"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "What was the return count for Germany in March?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 8,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall or recalculate March Germany returns"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Let me check if this is seasonal. Show me returns by month across all years.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show monthly return patterns"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "The pattern isn't clearly seasonal. What about the suppliers' nations?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show return rates by supplier nation"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Suppliers from specific nations have higher return rates. Are these suppliers providing parts to multiple customer regions?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show supplier-customer region matrix"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "The same suppliers have issues across multiple regions. Let me see the total return value by supplier.",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should show total return value per supplier"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Apply all our filters and show me the top 10 parts by return rate.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 19,
+        "anaphoricPhrase": "all our filters",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply: L_LINESTATUS='O', O_ORDERDATE>=1994, exclude AIR"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Create a chart showing return rates by region.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create visualization"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "What filters are currently applied?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all filters"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Good. Now show me customers who have returned items from multiple orders.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify repeat return customers"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "Are these high-value customers?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare customer value for repeat returners"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "Let me see if discount levels correlate with returns.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze L_DISCOUNT vs return rate"
+      }
+    },
+    {
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Highly discounted items are returned more. What's the discount distribution for returned vs non-returned items?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare discount distributions"
+      }
+    },
+    {
+      "turnNumber": 36,
+      "role": "user",
+      "content": "Show me the revenue at risk if these return patterns continue.",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should project future return losses"
+      }
+    },
+    {
+      "turnNumber": 37,
+      "role": "user",
+      "content": "Can you summarize the return analysis findings?",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should summarize key findings"
+      }
+    },
+    {
+      "turnNumber": 38,
+      "role": "user",
+      "content": "Earlier we saw that FRANCE had high returns. What was the exact return rate?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 6,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall France return rate"
+      }
+    },
+    {
+      "turnNumber": 39,
+      "role": "user",
+      "content": "Show me a final breakdown with all filters: returns by nation, supplier, and part type.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide comprehensive filtered analysis"
+      }
+    },
+    {
+      "turnNumber": 40,
+      "role": "user",
+      "content": "Create a chart comparing return rates across European nations.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create visualization"
+      }
+    },
+    {
+      "turnNumber": 41,
+      "role": "user",
+      "content": "What are the top 5 actions we should take based on this analysis?",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide recommendations"
+      }
+    },
+    {
+      "turnNumber": 42,
+      "role": "user",
+      "content": "Thank you. We've identified that return issues are concentrated in Europe, particularly France and Germany, driven by specific suppliers and high-discount items.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should acknowledge and confirm findings"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 4,
+      "correctionText": "Only consider items with status 'O'",
+      "type": "filter_rule",
+      "description": "Filter L_LINESTATUS = 'O'"
+    },
+    {
+      "turnEstablished": 7,
+      "correctionText": "Use O_ORDERDATE for date filtering",
+      "type": "date_column",
+      "description": "Always use O_ORDERDATE"
+    },
+    {
+      "turnEstablished": 10,
+      "correctionText": "Exclude orders from before 1994",
+      "type": "filter_rule",
+      "description": "O_ORDERDATE >= '1994-01-01'"
+    },
+    {
+      "turnEstablished": 19,
+      "correctionText": "Exclude AIR ship mode",
+      "type": "exclusion",
+      "description": "Filter out L_SHIPMODE = 'AIR'"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 17,
+      "targetTurn": 5,
+      "phrase": "the return distribution we looked at earlier",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Returns by region from turn 5",
+      "distance": 12
+    },
+    {
+      "sourceTurn": 29,
+      "targetTurn": 19,
+      "phrase": "all our filters",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "L_LINESTATUS='O', O_ORDERDATE>=1994, exclude AIR",
+      "distance": 10
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 24,
+      "targetTurn": 8,
+      "callbackType": "value_recall",
+      "expectedEntity": "Germany March return count",
+      "crossesCompressionBoundary": true,
+      "distance": 16
+    },
+    {
+      "sourceTurn": 38,
+      "targetTurn": 6,
+      "callbackType": "value_recall",
+      "expectedEntity": "France return rate percentage",
+      "crossesCompressionBoundary": true,
+      "distance": 32
+    }
+  ]
+}

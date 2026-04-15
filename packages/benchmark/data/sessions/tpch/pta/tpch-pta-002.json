@@ -1,0 +1,475 @@
+{
+  "id": "tpch-pta-002",
+  "metadata": {
+    "database": "tpch",
+    "conversationType": "PTA",
+    "expectedTurns": 36,
+    "compressionBoundaryTurn": 16,
+    "userPersona": "business",
+    "tablesExplored": ["CUSTOMER", "ORDERS", "LINEITEM", "NATION", "REGION"],
+    "description": "Parallel analysis of customer churn patterns vs revenue trends across market segments"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "I want to explore two questions today. First, I want to understand customer churn — which customers stopped ordering. Second, I want to track revenue trends over time. Let's start with customer churn analysis.",
+      "annotations": {
+        "type": "opening",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should begin Thread A: customer churn analysis"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "Show me customers who ordered in Q1 1995 but had no orders in Q2 1995. I want to understand who churned.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should identify customers with Q1 orders but no Q2 orders"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "For churn analysis, always focus on the C_MKTSEGMENT column to categorize customers.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "A",
+        "isCorrection": true,
+        "establishesFilter": "Use C_MKTSEGMENT for customer categorization (Thread A)",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should use C_MKTSEGMENT for Thread A analysis"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "What market segments did the churned customers belong to?",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show market segment distribution of churned customers"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Now let's switch to Thread B. I want to analyze revenue trends. Show me monthly revenue for 1995.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should begin Thread B: revenue trend analysis"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "For revenue analysis, always use O_ORDERDATE as the date column, not any other date field.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "B",
+        "isCorrection": true,
+        "establishesFilter": "Use O_ORDERDATE for all date filtering (Thread B)",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should use O_ORDERDATE for Thread B queries"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "Show me revenue broken down by month and order priority level.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show revenue by month and priority"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Back to Thread A. What was the total revenue from the churned customers in Q1?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should calculate Q1 revenue for churned customers"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "What nations were the churned customers from?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show nation distribution of churned customers"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Thread B: What's the revenue trend for each market segment?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show revenue by segment over time"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Cross-reference: Do the market segments with declining revenue in Thread B match the segments with high churn in Thread A?",
+      "annotations": {
+        "type": "aggregation",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should compare segment performance across both threads"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Thread A: Show me the average order value for churned customers vs retained customers.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should compare AOV for churned vs retained customers"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Thread B: Show me the same comparison.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "B",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 12,
+        "anaphoricPhrase": "the same comparison",
+        "crossesCompressionBoundary": false,
+        "expectedBehavior": "Agent should apply AOV comparison to Thread B (revenue analysis)"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "That's not what I meant. I meant for Thread B, show me monthly revenue compared to the previous month.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "B",
+        "isCorrection": true,
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should show month-over-month revenue comparison"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Thread A: What was the order frequency for churned customers before they churned?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should analyze order frequency before churn"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Thread B: Which months showed the biggest revenue changes?",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should identify months with largest revenue changes"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Earlier in Thread A, you showed me the market segments for churned customers. What was the breakdown?",
+      "annotations": {
+        "type": "callback",
+        "threadContext": "A",
+        "isCallback": true,
+        "callbackTargetTurn": 4,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall market segment breakdown for churned customers"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Thread A: Exclude customers from 'MIDDLE EAST' region from all churn analysis.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "A",
+        "isCorrection": true,
+        "establishesFilter": "Exclude MIDDLE EAST region (Thread A)",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should apply MIDDLE EAST exclusion to Thread A"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Thread B: What regions contributed most to the revenue decline?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show regional revenue breakdown for Thread B"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Thread A: Re-run the churn analysis with the MIDDLE EAST exclusion applied.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should recalculate churn metrics excluding MIDDLE EAST"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Thread B: Remember to use O_ORDERDATE for all revenue calculations.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "B",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 6,
+        "anaphoricPhrase": "Remember to use O_ORDERDATE",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should confirm O_ORDERDATE usage for Thread B"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Cross-reference: Compare the total churned revenue from Thread A with the revenue decline identified in Thread B.",
+      "annotations": {
+        "type": "aggregation",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should compare churn revenue impact vs revenue decline"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Thread A: Deepen the analysis — what specific products did churned customers order most?",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show top products for churned customers"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Thread B: Deepen the analysis — which product categories had the biggest revenue changes?",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show revenue changes by product category"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Cross-reference: Are the products most ordered by churned customers the same products with declining revenue?",
+      "annotations": {
+        "type": "aggregation",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should correlate churned customer products with revenue decline products"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Thread A: Show me the customer acquisition date distribution for churned customers.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show when churned customers first ordered"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Thread B: Show me revenue by customer acquisition cohort.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show revenue by when customers first ordered"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Apply the same cohort analysis to Thread A.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "A",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 27,
+        "anaphoricPhrase": "the same cohort analysis",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply cohort analysis to churned customers"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Thread A: From now on, only analyze customers with more than 2 orders total — single-order customers are noise.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "A",
+        "isCorrection": true,
+        "establishesFilter": "Only customers with >2 orders (Thread A)",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter for customers with >2 orders in Thread A"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Thread B: From now on, only analyze revenue from orders with status 'O' — we want open orders.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "B",
+        "isCorrection": true,
+        "establishesFilter": "Only orders with status 'O' (Thread B)",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter for O_ORDERSTATUS = 'O' in Thread B"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Thread A: Re-run the segment analysis with the new filter.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should apply >2 orders filter to segment analysis"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Thread B: Re-run the monthly trend with the new filter.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should apply status filter to monthly trend"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "Final synthesis: Summarize the key findings from both threads and their relationship.",
+      "annotations": {
+        "type": "final_query",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should synthesize findings from both churn and revenue analysis"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "Thread A: Confirm all active filters for this thread.",
+      "annotations": {
+        "type": "probe",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should list: use C_MKTSEGMENT, exclude MIDDLE EAST, >2 orders"
+      }
+    },
+    {
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Thread B: Confirm all active filters for this thread.",
+      "annotations": {
+        "type": "probe",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should list: use O_ORDERDATE, status 'O'"
+      }
+    },
+    {
+      "turnNumber": 36,
+      "role": "user",
+      "content": "Can you create a visualization comparing Thread A's churn by segment with Thread B's revenue trends?",
+      "annotations": {
+        "type": "chart_request",
+        "threadContext": "cross_reference",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create visualization combining both threads"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 3,
+      "correctionText": "Use C_MKTSEGMENT for customer categorization in Thread A",
+      "type": "column_preference",
+      "description": "Always use C_MKTSEGMENT for Thread A customer categorization"
+    },
+    {
+      "turnEstablished": 6,
+      "correctionText": "Use O_ORDERDATE for all date filtering in Thread B",
+      "type": "date_column",
+      "description": "Use O_ORDERDATE for Thread B revenue analysis"
+    },
+    {
+      "turnEstablished": 18,
+      "correctionText": "Exclude MIDDLE EAST region for Thread A",
+      "type": "exclusion",
+      "description": "Filter out MIDDLE EAST customers for Thread A only"
+    },
+    {
+      "turnEstablished": 29,
+      "correctionText": "Only analyze customers with >2 orders in Thread A",
+      "type": "filter_rule",
+      "description": "Exclude single-order and 2-order customers from Thread A"
+    },
+    {
+      "turnEstablished": 30,
+      "correctionText": "Only analyze orders with status 'O' in Thread B",
+      "type": "filter_rule",
+      "description": "Filter for O_ORDERSTATUS = 'O' in Thread B"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 13,
+      "targetTurn": 12,
+      "phrase": "the same comparison",
+      "crossesCompressionBoundary": false,
+      "expectedResolution": "AOV comparison approach for Thread B",
+      "distance": 1
+    },
+    {
+      "sourceTurn": 21,
+      "targetTurn": 6,
+      "phrase": "Remember to use O_ORDERDATE",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Use O_ORDERDATE for Thread B date filtering",
+      "distance": 15
+    },
+    {
+      "sourceTurn": 28,
+      "targetTurn": 27,
+      "phrase": "the same cohort analysis",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Apply cohort analysis approach to Thread A churned customers",
+      "distance": 1
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 17,
+      "targetTurn": 4,
+      "callbackType": "value_recall",
+      "expectedEntity": "Market segment breakdown for churned customers",
+      "crossesCompressionBoundary": true,
+      "distance": 13
+    }
+  ]
+}

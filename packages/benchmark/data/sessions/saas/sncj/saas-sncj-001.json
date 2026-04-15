@@ -1,0 +1,403 @@
+{
+  "id": "saas-sncj-001",
+  "metadata": {
+    "database": "saas",
+    "conversationType": "SNCJ",
+    "expectedTurns": 35,
+    "compressionBoundaryTurn": 14,
+    "userPersona": "technical",
+    "tablesExplored": ["accounts", "users", "subscriptions"],
+    "description": "Schema navigation and complex joins: Account-User-Subscription relationships"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "Before we start, walk me through what tables are available in our SaaS database.",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should list all tables: accounts, users, subscriptions, plans, invoices, events, feature_usage"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "What columns does the accounts table have?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should show accounts table schema"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "What about the users table?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should show users table schema"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "How do I join accounts to users? What's the key?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should explain users.account_id foreign key"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "What columns does the subscriptions table have?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should show subscriptions table schema"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "How do I join subscriptions to accounts?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should explain subscriptions.account_id foreign key"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "For this session, always use users.account_id for joining users to accounts.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use users.account_id for user-account joins",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should confirm and use account_id for joins"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Give me a simple count of users per account.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should join users to accounts and count"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Now add the subscription plan from the subscriptions table.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join subscriptions to show plan"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "What about subscription status?",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add subscription status column"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Does the subscriptions table have a column for plan start date?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should confirm subscription.start_date column"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Show me accounts with their user count and subscription details.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should join accounts-users-subscriptions"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Exclude trial subscriptions from all our analyses.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude trial subscriptions",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter out trial status"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Apply the same join key we established to show me accounts with multiple subscriptions.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 7,
+        "anaphoricPhrase": "the same join key we established",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use account_id for joins"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "What's the relationship between account age and subscription status?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze account tenure vs subscription"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Show me user counts by subscription status.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should group users by subscription status"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Earlier you mentioned the subscriptions table schema. What were the possible status values?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 5,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall subscription status values"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Show me accounts with no users.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should find orphan accounts using LEFT JOIN"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Show me users with no subscription.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should find users without active subscription"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "What filters are currently applied?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list: use account_id for joins, exclude trial"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Create a query joining all three tables: accounts, users, subscriptions.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should create three-way join"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Show me account details with user count and subscription revenue.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should join and aggregate across tables"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Apply all our filters to show me the top accounts by user count.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 13,
+        "anaphoricPhrase": "all our filters",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply: account_id joins, exclude trial"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Create a chart showing account size distribution.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create account size visualization"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Show me subscription status breakdown by account tier.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze subscription status by tier"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "What's the user role distribution within accounts?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show user role breakdown"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Show me a final summary of account-user-subscription relationships.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide comprehensive join summary"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Create a chart showing subscription status by account tier.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create visualization"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "What join key did we establish for user-account joins?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 7,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall account_id join key"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Show me the top 10 accounts by subscription value.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should rank accounts by subscription revenue"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Create a final dashboard.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create summary dashboard"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "What are the top 5 insights about our account-user-subscription relationships?",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide key relationship insights"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "Show me accounts with exactly one user and one subscription.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should find single-user single-subscription accounts"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "Create a chart showing user count by subscription status.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create visualization"
+      }
+    },
+    {
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Thank you. We've mapped the account-user-subscription relationships, identifying that accounts with 10+ users have 85% active subscription rate, while single-user accounts have higher churn.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should acknowledge findings"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 7,
+      "correctionText": "Use users.account_id for joining users to accounts",
+      "type": "join_key",
+      "description": "Always use account_id for user-account joins"
+    },
+    {
+      "turnEstablished": 13,
+      "correctionText": "Exclude trial subscriptions from all analyses",
+      "type": "exclusion",
+      "description": "Filter out trial status"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 14,
+      "targetTurn": 7,
+      "phrase": "the same join key we established",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "users.account_id for joins",
+      "distance": 7
+    },
+    {
+      "sourceTurn": 23,
+      "targetTurn": 13,
+      "phrase": "all our filters",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "account_id joins, exclude trial",
+      "distance": 10
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 17,
+      "targetTurn": 5,
+      "callbackType": "schema_recall",
+      "expectedEntity": "Subscription status values",
+      "crossesCompressionBoundary": true,
+      "distance": 12
+    },
+    {
+      "sourceTurn": 29,
+      "targetTurn": 7,
+      "callbackType": "filter_recall",
+      "expectedEntity": "account_id join key",
+      "crossesCompressionBoundary": true,
+      "distance": 22
+    }
+  ]
+}

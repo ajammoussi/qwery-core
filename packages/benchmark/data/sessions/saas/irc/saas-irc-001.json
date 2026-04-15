@@ -1,0 +1,405 @@
+{
+  "id": "saas-irc-001",
+  "metadata": {
+    "database": "saas",
+    "conversationType": "IRC",
+    "expectedTurns": 32,
+    "compressionBoundaryTurn": 12,
+    "userPersona": "business",
+    "tablesExplored": ["accounts", "users", "subscriptions", "plans"],
+    "description": "Iterative refinement of cohort analysis with multiple explicit corrections"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "Give me a cohort analysis showing user retention by signup month for 2024.",
+      "annotations": {
+        "type": "opening",
+        "expectedBehavior": "Agent should create cohort retention table by signup month"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "For retention, only count users who have been active in the last 30 days.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Retained = active in last 30 days",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should use last 30 days activity for retention definition"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "Add a column showing the average MRR per cohort.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add average MRR calculation per cohort"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "When I say 'signup month', I mean the account creation month, not subscription start. Use accounts.created_at.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use accounts.created_at for signup date",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should confirm and use accounts.created_at"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Now add month-over-month retention rate change.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should calculate MoM retention change"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "Exclude trial accounts from all cohort analyses.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude trial accounts",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter out trial plan tier"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "Apply the same filters we've established to show me top 10 accounts by age.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 6,
+        "anaphoricPhrase": "the same filters we've established",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply: retained = last 30 days, use created_at, exclude trial"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Just to confirm — what filters are we currently applying?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all active filters"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Good. Now show me the same cohort analysis but for Enterprise accounts only.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should filter to Enterprise tier and re-run cohort analysis"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Show me the user count by cohort.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add user count to cohort data"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "When analyzing subscription dates, always use subscription.start_date.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use subscription.start_date for subscription dates",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should confirm and use subscription.start_date"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Let me see the average user count per account by cohort.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should calculate users per account by cohort"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Which cohort has the best retention?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify best performing cohort"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Show me the account industry distribution by cohort.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should show industry breakdown per cohort"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Remember the retention definition we established? Apply that to show active users by month.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 2,
+        "anaphoricPhrase": "the retention definition we established",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use last 30 days activity definition"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "What's the total MRR from the January 2024 cohort?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate January cohort MRR"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Create a chart showing cohort retention curves.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create cohort retention visualization"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "What filters are currently active?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all active filters"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Show me the retention by plan tier within each cohort.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add plan tier dimension to cohort analysis"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "What's the churn rate by cohort?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate churn rate per cohort"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Earlier we excluded trial accounts. What would the numbers look like if we included them?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 6,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should show what trial accounts would contribute"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Keep trial accounts excluded. Show me the final cohort summary.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide comprehensive cohort summary"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Add feature adoption rate by cohort.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add feature adoption to cohort data"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "What's the feature adoption rate by cohort?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate adoption percentage per cohort"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Apply all the corrections we've made to show me a final dashboard.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 11,
+        "anaphoricPhrase": "all the corrections we've made",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply: last 30 days, use created_at, exclude trial, use subscription.start_date"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Create a chart showing cohort size over time.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create cohort size trend visualization"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Show me the growth rate by cohort.",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate cohort growth rates"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Which cohorts are growing vs declining?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify growth trends"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "What was the retention rate for the March 2024 cohort?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 13,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall March cohort retention"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Show me the top 10 cohorts by retention with all filters.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should show cohort ranking with all filters"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Create a final summary chart.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create summary visualization"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Thank you. We've established that January and February 2024 cohorts have the best retention, with Enterprise tier showing stronger retention across all cohorts.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should acknowledge findings"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 2,
+      "correctionText": "Retained = active in last 30 days",
+      "type": "filter_rule",
+      "description": "Use last 30 days activity for retention"
+    },
+    {
+      "turnEstablished": 4,
+      "correctionText": "Use accounts.created_at for signup date",
+      "type": "date_column",
+      "description": "Always use account creation date for signup"
+    },
+    {
+      "turnEstablished": 6,
+      "correctionText": "Exclude trial accounts from all analyses",
+      "type": "exclusion",
+      "description": "Filter out trial plan tier"
+    },
+    {
+      "turnEstablished": 11,
+      "correctionText": "Use subscription.start_date for subscription dates",
+      "type": "date_column",
+      "description": "Always use subscription start date"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 7,
+      "targetTurn": 6,
+      "phrase": "the same filters we've established",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Last 30 days, use created_at, exclude trial",
+      "distance": 1
+    },
+    {
+      "sourceTurn": 15,
+      "targetTurn": 2,
+      "phrase": "the retention definition we established",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Active in last 30 days definition",
+      "distance": 13
+    },
+    {
+      "sourceTurn": 25,
+      "targetTurn": 11,
+      "phrase": "all the corrections we've made",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "All established corrections",
+      "distance": 14
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 21,
+      "targetTurn": 6,
+      "callbackType": "filter_recall",
+      "expectedEntity": "Trial account exclusion decision",
+      "crossesCompressionBoundary": true,
+      "distance": 15
+    },
+    {
+      "sourceTurn": 29,
+      "targetTurn": 13,
+      "callbackType": "value_recall",
+      "expectedEntity": "March 2024 cohort retention",
+      "crossesCompressionBoundary": true,
+      "distance": 16
+    }
+  ]
+}

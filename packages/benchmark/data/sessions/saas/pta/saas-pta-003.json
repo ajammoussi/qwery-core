@@ -1,0 +1,444 @@
+{
+  "id": "saas-pta-003",
+  "metadata": {
+    "database": "saas",
+    "conversationType": "PTA",
+    "expectedTurns": 34,
+    "compressionBoundaryTurn": 11,
+    "userPersona": "mixed",
+    "tablesExplored": ["invoices", "events", "accounts", "users"],
+    "description": "Parallel threads: Invoice analysis (A) vs Event patterns (B)"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "I want to explore two areas. First, invoice payment patterns. Second, user event activity. Let's start with invoices.",
+      "annotations": {
+        "type": "opening",
+        "expectedBehavior": "Agent should acknowledge both threads and start with invoices"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "Show me invoice payment status distribution for 2024.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show invoice status breakdown"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "For invoices, only include those with amount > $100.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Invoice amount > $100",
+        "correctionType": "explicit",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should filter to invoices > $100"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "Thread B — show me event types by volume.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show event counts by type"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "For events, only count events from active users (logged in within 90 days).",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Active users = logged in within 90 days",
+        "correctionType": "explicit",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should use 90-day activity window"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "Thread A — what's the average time to payment?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should calculate payment timing"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "Use invoice.due_date for payment timing analysis.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use invoice.due_date for payment timing",
+        "correctionType": "explicit",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should use due_date for timing"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Thread B — which events correlate with retention?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should analyze event types vs retention"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Is there a correlation? Do accounts with failed invoices have different event patterns?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should cross-reference both threads"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Thread A — show me failed invoices by account tier.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show failed invoices by tier"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Thread B — show me event patterns by user role.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should analyze events by role"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Exclude internal test accounts from both threads.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude internal test accounts",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter out test accounts"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Apply the same invoice filter to show me overdue invoices.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 3,
+        "anaphoricPhrase": "the same invoice filter",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use amount > $100 filter"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Thread A — what industries have the most payment failures?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show failed invoices by industry"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Thread B — what events do churned users perform before leaving?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should analyze pre-churn events"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Earlier in Thread A we looked at payment timing. What was the average?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 6,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall payment timing"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Thread B — do users with more events have better payment behavior?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should correlate events with payment status"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Both threads — identify accounts with both failed invoices and declining events.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should find intersection of both threads"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Thread A — show me invoice amount distribution.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show invoice amount distribution"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Apply the same event filter to show me events by industry.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 5,
+        "anaphoricPhrase": "the same event filter",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use 90-day activity filter"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Thread B — what was the active user definition we used?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 5,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall 90-day activity definition"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Thread A — do larger invoices take longer to pay?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should correlate invoice size with payment time"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "What filters are active for thread A?",
+      "annotations": {
+        "type": "probe",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should list: amount > $100, due_date, exclude test"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "What filters are active for thread B?",
+      "annotations": {
+        "type": "probe",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should list: 90-day activity, exclude test"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Create a chart showing invoice status distribution (Thread A).",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "threadContext": "A",
+        "expectedBehavior": "Agent should create invoice visualization"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Create a chart showing events by type (Thread B).",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "threadContext": "B",
+        "expectedBehavior": "Agent should create event visualization"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Thread A — show me top accounts by failed invoice value.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should rank accounts by failed invoice total"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Thread B — show me event trends over time.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show event volume trends"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Apply all filters for a combined analysis.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 12,
+        "anaphoricPhrase": "all filters",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply all thread filters"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Create a combined dashboard.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create combined dashboard"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Final synthesis — summarize invoice and event findings.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should synthesize both threads"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "What are the top 5 recommendations?",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide recommendations"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "Create a final summary dashboard.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create final dashboard"
+      }
+    },
+    {
+      "turnNumber": 34,
+      "role": "user",
+      "content": "Thank you. We've identified that accounts with declining event activity are 3x more likely to have failed invoices, and Healthcare industry has both the highest payment failure rate and lowest event engagement.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should acknowledge findings"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 3,
+      "correctionText": "Invoice amount > $100",
+      "type": "filter_rule",
+      "description": "Filter to significant invoices (Thread A)"
+    },
+    {
+      "turnEstablished": 5,
+      "correctionText": "Active users = logged in within 90 days",
+      "type": "filter_rule",
+      "description": "Use 90-day activity window (Thread B)"
+    },
+    {
+      "turnEstablished": 7,
+      "correctionText": "Use invoice.due_date for payment timing",
+      "type": "date_column",
+      "description": "Use due_date for payment timing (Thread A)"
+    },
+    {
+      "turnEstablished": 12,
+      "correctionText": "Exclude internal test accounts",
+      "type": "exclusion",
+      "description": "Filter out test accounts"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 13,
+      "targetTurn": 3,
+      "phrase": "the same invoice filter",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Amount > $100",
+      "distance": 10
+    },
+    {
+      "sourceTurn": 20,
+      "targetTurn": 5,
+      "phrase": "the same event filter",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "90-day activity window",
+      "distance": 15
+    },
+    {
+      "sourceTurn": 29,
+      "targetTurn": 12,
+      "phrase": "all filters",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "All thread filters and exclusions",
+      "distance": 17
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 16,
+      "targetTurn": 6,
+      "callbackType": "value_recall",
+      "expectedEntity": "Average payment timing",
+      "crossesCompressionBoundary": true,
+      "distance": 10
+    },
+    {
+      "sourceTurn": 21,
+      "targetTurn": 5,
+      "callbackType": "filter_recall",
+      "expectedEntity": "Active user definition (90 days)",
+      "crossesCompressionBoundary": true,
+      "distance": 16
+    }
+  ]
+}

@@ -1,0 +1,376 @@
+{
+  "id": "saas-irc-002",
+  "metadata": {
+    "database": "saas",
+    "conversationType": "IRC",
+    "expectedTurns": 30,
+    "compressionBoundaryTurn": 15,
+    "userPersona": "technical",
+    "tablesExplored": ["events", "feature_usage", "accounts", "users"],
+    "description": "Iterative refinement of retention metrics with filter corrections"
+  },
+  "turns": [
+    {
+      "turnNumber": 1,
+      "role": "user",
+      "content": "Show me user retention metrics for Q4 2024.",
+      "annotations": {
+        "type": "opening",
+        "expectedBehavior": "Agent should show retention metrics for Oct-Dec 2024"
+      }
+    },
+    {
+      "turnNumber": 2,
+      "role": "user",
+      "content": "Only include users who have logged in at least once.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Users with at least one login",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter to users with login events"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
+      "content": "Add daily active users (DAU) and weekly active users (WAU) columns.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add DAU/WAU calculations"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
+      "content": "For active user calculations, always use event.created_at as the timestamp.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Use event.created_at for timestamps",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should confirm and use created_at"
+      }
+    },
+    {
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Show me DAU/MAU ratio by week.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should calculate weekly DAU/MAU ratio"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
+      "content": "Exclude weekends from the DAU calculation — we're a B2B product.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Exclude weekends from DAU",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter to weekdays only"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "Apply all our filters and show me the retention by account tier.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 6,
+        "anaphoricPhrase": "all our filters",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply: >= 1 login, use created_at, exclude weekends"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "What filters are currently applied?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all active filters"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Show me the user engagement score distribution.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze engagement score distribution"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Which accounts have the highest engagement scores?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should rank accounts by engagement"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "When I say engagement, I mean the sum of all feature_usage.usage_count for the user.",
+      "annotations": {
+        "type": "correction",
+        "isCorrection": true,
+        "establishesFilter": "Engagement = sum of usage_count",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should use usage_count sum for engagement"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Show me engagement by user role.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze engagement by user role"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Which features are most used by retained users?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show feature usage for retained users"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Remember the DAU/MAU ratio? Show me that by account tier.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 5,
+        "anaphoricPhrase": "Remember the DAU/MAU ratio?",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should show DAU/MAU by plan tier"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Create a chart showing DAU trend over Q4.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create DAU trend visualization"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "What was the login filter we established?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 2,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall >= 1 login filter"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Correct. Show me the breakdown by user status.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should analyze by user status"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Show me all filters currently active.",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all filters"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Apply everything and show me top 10 users by engagement.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should show top users with all filters"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "What's the average engagement per user?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate average engagement"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Show me engagement distribution by account size.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze engagement by account user count"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Create a final summary with all corrections applied.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide comprehensive summary"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Create a chart of engagement by tier.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create tier engagement visualization"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "What was the total DAU for December?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 5,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall December DAU figure"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Show me the final user count by activity level.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should show user distribution by activity"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Create a final dashboard visualization.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create summary dashboard"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "What filters are currently active?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all active filters"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Show me retention rate by industry with all filters.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should show retention by industry"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Create a final chart showing retention trends.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create retention trend visualization"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Thank you. We've analyzed Q4 2024 retention showing that Enterprise tier has the highest DAU/MAU ratio, with Admin roles showing strongest engagement.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should acknowledge findings"
+      }
+    }
+  ],
+  "persistedCorrections": [
+    {
+      "turnEstablished": 2,
+      "correctionText": "Only users with at least one login",
+      "type": "filter_rule",
+      "description": "Filter to users with login events"
+    },
+    {
+      "turnEstablished": 4,
+      "correctionText": "Use event.created_at for timestamps",
+      "type": "date_column",
+      "description": "Always use created_at column"
+    },
+    {
+      "turnEstablished": 6,
+      "correctionText": "Exclude weekends from DAU calculation",
+      "type": "filter_rule",
+      "description": "Weekdays only for DAU"
+    },
+    {
+      "turnEstablished": 11,
+      "correctionText": "Engagement = sum of usage_count",
+      "type": "aggregation_method",
+      "description": "Use usage_count sum for engagement"
+    }
+  ],
+  "anaphoricReferences": [
+    {
+      "sourceTurn": 7,
+      "targetTurn": 6,
+      "phrase": "all our filters",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": ">= 1 login, use created_at, exclude weekends",
+      "distance": 1
+    },
+    {
+      "sourceTurn": 14,
+      "targetTurn": 5,
+      "phrase": "Remember the DAU/MAU ratio?",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "DAU/MAU ratio by week",
+      "distance": 9
+    }
+  ],
+  "callbacks": [
+    {
+      "sourceTurn": 16,
+      "targetTurn": 2,
+      "callbackType": "filter_recall",
+      "expectedEntity": "Login filter (>= 1)",
+      "crossesCompressionBoundary": true,
+      "distance": 14
+    },
+    {
+      "sourceTurn": 24,
+      "targetTurn": 5,
+      "callbackType": "value_recall",
+      "expectedEntity": "December DAU figure",
+      "crossesCompressionBoundary": true,
+      "distance": 19
+    }
+  ]
+}
