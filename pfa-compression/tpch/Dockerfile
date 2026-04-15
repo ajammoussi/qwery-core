@@ -36,8 +36,9 @@ RUN cp /tmp/tpch-dbgen/dists.dss /tmp/ && \
 RUN apk add --no-cache postgresql-client
 
 # Copy initialization scripts (run once on first DB init)
-COPY init-tpch.sql /docker-entrypoint-initdb.d/10-init-tpch.sql
-COPY generate-and-load-tpch.sh /docker-entrypoint-initdb.d/20-generate-and-load-tpch.sh
+COPY tpch/init-tpch.sql /docker-entrypoint-initdb.d/10-init-tpch.sql
+COPY tpch/post-load-indexes-tpch.sql /usr/local/share/sql/post-load-indexes-tpch.sql
+COPY tpch/generate-and-load-tpch.sh /docker-entrypoint-initdb.d/20-generate-and-load-tpch.sh
 RUN chmod +x /docker-entrypoint-initdb.d/20-generate-and-load-tpch.sh
 
 WORKDIR /var/lib/postgresql

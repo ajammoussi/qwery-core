@@ -67,10 +67,18 @@ import_table "lineitem"
 
 echo "      ✓ Data loading complete"
 
+echo "[3/4] Creating indexes..."
+psql -v ON_ERROR_STOP=1 \
+  --username "$PGUSER" \
+  --dbname "$DBNAME" \
+  -f /usr/local/share/sql/post-load-indexes-tpch.sql
+
+echo "      ✓ Index creation complete"
+
 # Verify data
 echo ""
 echo "========================================="
-echo "[3/3] Data Verification"
+echo "[4/4] Data Verification"
 echo "========================================="
 
 psql -v ON_ERROR_STOP=1 \

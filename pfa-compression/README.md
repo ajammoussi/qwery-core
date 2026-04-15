@@ -1,19 +1,30 @@
-# TPC-H PostgreSQL Container Setup
+# Multi-Database PostgreSQL Container Setup
 
-Automated TPC-H PostgreSQL database container with official TPC-H benchmark data generation. Everything is fully automatic - no manual configuration required.
+Automated PostgreSQL setup with two analytical datasets:
+
+- **Database 1: TPC-H** (official benchmark data via `dbgen`)
+- **Database 2: SaaS/B2B Analytics** (fully synthetic Python-generated data)
+
+Everything is designed to stay minimal and low-boilerplate while still being robust and production-like.
 
 ## Features
 
 ✨ **Fully Automated**
 - One-command setup
 - Official TPC-H data generation using `dbgen` toolchain
+- Synthetic SaaS analytics data generation using Python
 - Automatic schema creation and data loading
 - No manual seed data
 
 📊 **Scalable**
 - Configurable scale factors (1GB to 100GB+)
 - Official TPC-H benchmark compliance
-- Generate realistic dataset patterns
+- Realistic SaaS distributions (monthly churn, power-law feature usage)
+
+🔀 **Flexible Execution**
+- Run only TPC-H
+- Run only SaaS analytics
+- Run both databases together
 
 🚀 **Production-Ready**
 - Health checks included
@@ -28,7 +39,7 @@ Automated TPC-H PostgreSQL database container with official TPC-H benchmark data
 
 ## Quick Start
 
-### 1. Basic Setup (1GB Scale Factor)
+### 1. Basic Setup
 
 ```bash
 cd pfa-compression
@@ -43,20 +54,45 @@ This will:
 - Load the data automatically
 - Show row counts for verification
 
-### 2. Custom Scale Factor
+### 2. Run SaaS Analytics Database Only
 
-Pass the scale factor as the first argument:
+```bash
+bash run.sh saas
+```
+
+### 3. Run Both Databases Together
+
+```bash
+bash run.sh both
+```
+
+### 4. Custom Scale Factors
+
+Set TPC-H scale only (backward compatible):
 
 ```bash
 bash run.sh 10
+```
+
+Set both scale factors with explicit target:
+
+```bash
+bash run.sh both 10 55432 2 55433
+```
+
+Arguments for explicit mode:
+
+```text
+bash run.sh [tpch|saas|both] [tpch_scale] [tpch_port] [saas_scale] [saas_port]
 ```
 
 Scale factors:
 - `1` = ~1GB of data
 - `10` = ~10GB of data
 - `100` = ~100GB of data (may take hours)
+- SaaS `SAAS_SCALE_FACTOR=1` = baseline synthetic dataset
 
-### 3. Custom Database Credentials
+### 5. Custom Database Credentials
 
 ```bash
 DB_USER=myuser DB_PASSWORD=mypass DB_PORT=5433 bash run.sh
@@ -65,19 +101,24 @@ DB_USER=myuser DB_PASSWORD=mypass DB_PORT=5433 bash run.sh
 Default credentials:
 - User: `postgres`
 - Password: `postgres`
-- Host Port: `55432` (container internal port remains `5432`)
-- Database: `tpch`
+- TPC-H Host Port: `55432` (container internal port remains `5432`)
+- SaaS Host Port: `55433` (container internal port remains `5432`)
+- Databases: `tpch`, `saas_analytics`
 
 ## Usage
 
-### Connect to the Database
+### Connect to the Databases
 
 ```bash
-# From host machine
+# TPC-H (from host machine)
 psql -h 127.0.0.1 -U postgres -d tpch -p 55432
 
-# Inside container
+# SaaS analytics (from host machine)
+psql -h 127.0.0.1 -U postgres -d saas_analytics -p 55433
+
+# Inside containers
 docker exec -it tpch-postgres psql -U postgres -d tpch
+docker exec -it saas-postgres psql -U postgres -d saas_analytics
 ```
 
 ### Run TPC-H Queries
@@ -118,11 +159,54 @@ docker exec -it tpch-postgres du -sh /var/lib/postgresql/data
 
 ## Files
 
-- **Dockerfile** - Custom PostgreSQL 16 image with TPC-H dbgen
 - **docker-compose.yml** - Complete orchestration setup
-- **init-tpch.sql** - TPC-H schema definition (8 tables)
-- **generate-and-load-tpch.sh** - Data generation and loading script
-- **run.sh** - Single entrypoint for build + startup + completion wait
+- **run.sh** - Single entrypoint for `tpch`, `saas`, or `both`
+- **tpch/Dockerfile** - Custom PostgreSQL 16 image with TPC-H dbgen
+- **tpch/init-tpch.sql** - TPC-H schema definition (8 tables)
+- **tpch/generate-and-load-tpch.sh** - TPC-H data generation and loading script
+- **saas/Dockerfile** - Lightweight PostgreSQL 16 image for SaaS synthetic generation
+- **saas/init-saas.sql** - SaaS analytics schema definition (7 tables)
+- **saas/generate-saas-data.py** - Synthetic SaaS data generator with realistic distributions
+- **saas/generate-and-load-saas.sh** - SaaS data loading script
+
+## Folder Layout
+
+```text
+pfa-compression/
+  docker-compose.yml
+  run.sh
+  .env
+  .env.example
+  tpch/
+    Dockerfile
+    init-tpch.sql
+    generate-and-load-tpch.sh
+  saas/
+    Dockerfile
+    init-saas.sql
+    generate-saas-data.py
+    generate-and-load-saas.sh
+```
+
+## SaaS Analytics Tables
+
+The synthetic dataset creates 7 core SaaS/B2B analytics tables:
+
+| Table | Purpose | Primary Use |
+|-------|---------|------------|
+| accounts | Customer organizations | Dimension table |
+| users | End users per account | Dimension table |
+| subscriptions | Plan assignments and lifecycle | Fact table |
+| plans | Product and pricing catalog | Dimension table |
+| events | Product event stream | Fact table |
+| feature_usage | Daily feature aggregation | Fact table |
+| invoices | Billing and payment outcomes | Fact table |
+
+Synthetic behavior modeled in generation:
+- Monthly churn hazard near 5%
+- Feature activity with a power-law skew
+- Mixed billing cycles (`monthly` and `annual`)
+- Realistic event/session timestamps over time
 
 ## TPC-H Tables
 
@@ -217,12 +301,14 @@ SCALE_FACTOR=5 docker-compose up -d
 ```bash
 # Verify container is running
 docker ps | grep tpch-postgres
+docker ps | grep saas-postgres
 
 # Wait longer for startup (health check may take 30-40s)
 docker logs -f tpch-postgres
 
 # Verify host port mapping (left side should be 55432 by default)
 docker port tpch-postgres
+docker port saas-postgres
 ```
 
 ### Password authentication failed for user "postgres"
@@ -239,10 +325,10 @@ docker exec -it tpch-postgres psql -U postgres -h 127.0.0.1 -d tpch -c '\conninf
 PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d tpch -p 55432 -c '\conninfo'
 ```
 
-If 55432 is already used on your machine, run with another host port:
+If host ports are already used on your machine, run with other ports:
 
 ```bash
-DB_PORT=55433 bash run.sh
+DB_PORT=55440 SAAS_DB_PORT=55441 bash run.sh both
 ```
 
 ## Cleanup
@@ -268,19 +354,26 @@ docker system prune -a
 
 ## Integration with Qwery
 
-To use this TPC-H database with Qwery:
+To use these databases with Qwery:
 
 1. Start the container (see Quick Start)
-2. In Qwery, add a new PostgreSQL datasource:
+2. In Qwery, add a PostgreSQL datasource for TPC-H:
    - Host: `localhost`
   - Port: `55432`
    - Database: `tpch`
    - User: `postgres`
    - Password: `postgres`
-3. Query using natural language!
+3. Add a second PostgreSQL datasource for SaaS analytics:
+  - Host: `localhost`
+  - Port: `55433`
+  - Database: `saas_analytics`
+  - User: `postgres`
+  - Password: `postgres`
+4. Query using natural language!
 
 ```
 Example: "Show me the top 10 suppliers by revenue"
+Example: "Show monthly churn rate by segment over the last 12 months"
 ```
 
 ## References
