@@ -1,14 +1,9 @@
 import type { LanguageModel } from 'ai';
-import { readFileSync } from 'node:fs';
 import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createAzure } from '@ai-sdk/azure';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-
-const modelsManifest = JSON.parse(
-  readFileSync(new URL('../../models.json', import.meta.url), 'utf8'),
-) as Manifest;
 
 export type Model = {
   providerID: string;
@@ -51,6 +46,24 @@ type ManifestProvider = {
 };
 
 type Manifest = Record<string, ManifestProvider>;
+
+async function loadManifest(): Promise<Manifest> {
+  if (typeof window === 'undefined') {
+    const { readFile } = await import('node:fs/promises');
+    const content = await readFile(
+      new URL('../../models.json', import.meta.url),
+      'utf8',
+    );
+    return JSON.parse(content) as Manifest;
+  }
+
+  const response = await fetch(new URL('../../models.json', import.meta.url));
+  if (!response.ok) {
+    throw new Error(`Failed to load models manifest: ${response.status}`);
+  }
+
+  return (await response.json()) as Manifest;
+}
 
 function buildProviders(
   manifest: Manifest,
@@ -99,7 +112,7 @@ function buildProviders(
   return providers;
 }
 
-const providers = buildProviders(modelsManifest as Manifest);
+const providers = buildProviders(await loadManifest());
 
 const sdkCache = new Map<string, SDKWithLanguageModel>();
 const languageModelsCache = new Map<string, LanguageModel>();
