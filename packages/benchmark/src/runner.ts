@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Repositories } from '@qwery/domain/repositories';
+import { DatasourceKind } from '@qwery/domain/entities';
 import { runAgentToCompletion } from '@qwery/agent-factory-sdk/agents/run-agent-to-completion';
 import type {
   BenchmarkSession,
@@ -13,6 +14,7 @@ import {
   calculateMetrics,
   saveResult,
 } from './session-loader.js';
+import { Roles } from '@qwery/domain/common/roles';
 
 export type BenchmarkConfig = {
   model?: string;
@@ -20,6 +22,7 @@ export type BenchmarkConfig = {
   datasourceId: string;
   storageDir?: string;
   compressionMethod?: CompressionMethod;
+  repositories?: Repositories;
 };
 
 type ConversationMessage = {
@@ -35,6 +38,57 @@ type ToolMetadataEvent = {
   toolOutput?: unknown;
   error?: string;
 };
+
+const BENCHMARK_USER_ID = '11111111-1111-4111-8111-111111111111';
+const BENCHMARK_ORGANIZATION_ID = '22222222-2222-4222-8222-222222222222';
+const BENCHMARK_PROJECT_ID = '33333333-3333-4333-8333-333333333333';
+
+async function seedBenchmarkContext(repositories: Repositories): Promise<void> {
+  const now = new Date();
+
+  const existingUser = await repositories.user.findById(BENCHMARK_USER_ID);
+  if (!existingUser) {
+    await repositories.user.create({
+      id: BENCHMARK_USER_ID,
+      username: 'benchmark-runner',
+      role: Roles.USER,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  const existingOrganization = await repositories.organization.findById(
+    BENCHMARK_ORGANIZATION_ID,
+  );
+  if (!existingOrganization) {
+    await repositories.organization.create({
+      id: BENCHMARK_ORGANIZATION_ID,
+      name: 'Benchmark Organization',
+      slug: 'benchmark-organization',
+      userId: BENCHMARK_USER_ID,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: BENCHMARK_USER_ID,
+      updatedBy: BENCHMARK_USER_ID,
+    });
+  }
+
+  const existingProject = await repositories.project.findById(BENCHMARK_PROJECT_ID);
+  if (!existingProject) {
+    await repositories.project.create({
+      id: BENCHMARK_PROJECT_ID,
+      organizationId: BENCHMARK_ORGANIZATION_ID,
+      name: 'Benchmark Project',
+      slug: 'benchmark-project',
+      description: 'Synthetic project used for benchmark persistence',
+      status: 'active',
+      createdAt: now,
+      updatedAt: now,
+      createdBy: BENCHMARK_USER_ID,
+      updatedBy: BENCHMARK_USER_ID,
+    });
+  }
+}
 
 export async function createBenchmarkRepositories(
   storageDir: string,
@@ -53,7 +107,7 @@ export async function createBenchmarkRepositories(
 
   void storageDir;
 
-  return {
+  const repositories: Repositories = {
     user: new UserRepository(),
     organization: new OrganizationRepository(),
     project: new ProjectRepository(),
@@ -64,6 +118,10 @@ export async function createBenchmarkRepositories(
     usage: new UsageRepository(),
     todo: new TodoRepository(),
   };
+
+  await seedBenchmarkContext(repositories);
+
+  return repositories;
 }
 
 export async function runSession(
@@ -73,9 +131,9 @@ export async function runSession(
   const compressionMethod =
     config.compressionMethod || 'baseline-no-compression';
   const result = createEmptyResult(session, compressionMethod);
-  const repositories = await createBenchmarkRepositories(
-    config.storageDir || 'qwery.db',
-  );
+  const repositories =
+    config.repositories ??
+    (await createBenchmarkRepositories(config.storageDir || 'qwery.db'));
 
   const conversationId = uuidv4();
   const conversationSlug = `${session.id}-${Date.now()}`;
@@ -86,13 +144,13 @@ export async function runSession(
     id: conversationId,
     title: session.metadata.description,
     slug: conversationSlug,
-    projectId: '00000000-0000-0000-0000-000000000001',
+    projectId: BENCHMARK_PROJECT_ID,
     taskId: '00000000-0000-0000-0000-000000000001',
     datasources: [config.datasourceId],
     createdAt: new Date(),
     updatedAt: new Date(),
-    createdBy: 'benchmark',
-    updatedBy: 'benchmark',
+    createdBy: BENCHMARK_USER_ID,
+    updatedBy: BENCHMARK_USER_ID,
     isPublic: false,
   };
 
@@ -128,7 +186,7 @@ export async function runSession(
         abortSignal: abortController.signal,
         maxSteps: config.maxSteps ?? 10,
         datasources: [config.datasourceId],
-        onToolMetadata: (meta) => {
+        onToolMetadata: (meta: unknown) => {
           const event = meta as unknown as ToolMetadataEvent;
 
           if (event.type === 'tool-input-available') {
@@ -215,25 +273,27 @@ export async function ensureDatasource(
   config: Record<string, unknown>,
 ): Promise<string> {
   const existing = await repositories.datasource.findAll();
-  const found = existing.find((d: { id: string; name: string }) => d.name === name);
+  const found = existing.find(
+    (d: { id: string; name: string }) => d.name === name,
+  );
   if (found) {
     return found.id;
   }
 
   const datasource = {
     id: uuidv4(),
-    projectId: '00000000-0000-0000-0000-000000000001',
+    projectId: BENCHMARK_PROJECT_ID,
     name,
     description: '',
     slug: name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
     datasource_provider: provider,
     datasource_driver: provider,
-    datasource_kind: 'remote',
+    datasource_kind: DatasourceKind.REMOTE,
     config,
     createdAt: new Date(),
     updatedAt: new Date(),
-    createdBy: 'benchmark',
-    updatedBy: 'benchmark',
+    createdBy: BENCHMARK_USER_ID,
+    updatedBy: BENCHMARK_USER_ID,
     isPublic: false,
   };
 

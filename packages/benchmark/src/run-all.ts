@@ -1,7 +1,7 @@
 import { parseArgs } from 'util';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { mkdir, cp } from 'fs/promises';
+import { mkdir, cp, readFile } from 'fs/promises';
 import { loadAllSessions } from './session-loader.js';
 import {
   runSession,
@@ -23,6 +23,59 @@ type SessionRunResult = {
 };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+async function loadEnvFile(filePath: string): Promise<boolean> {
+  try {
+    const content = await readFile(filePath, 'utf8');
+    const lines = content.split(/\r?\n/);
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) {
+        continue;
+      }
+
+      const separator = trimmed.indexOf('=');
+      if (separator <= 0) {
+        continue;
+      }
+
+      const key = trimmed.slice(0, separator).trim();
+      const rawValue = trimmed.slice(separator + 1).trim();
+
+      if (!key || process.env[key] !== undefined) {
+        continue;
+      }
+
+      const value =
+        (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+        (rawValue.startsWith("'") && rawValue.endsWith("'"))
+          ? rawValue.slice(1, -1)
+          : rawValue;
+
+      process.env[key] = value;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function loadBenchmarkEnv() {
+  const repoRoot = join(__dirname, '..', '..', '..');
+  const candidates = [
+    join(repoRoot, 'apps', 'server', '.env'),
+    join(repoRoot, 'apps', 'web', '.env'),
+  ];
+
+  for (const candidate of candidates) {
+    const loaded = await loadEnvFile(candidate);
+    if (loaded) {
+      console.log(`Loaded environment from ${candidate}`);
+    }
+  }
+}
 
 async function copyTestCasesToData() {
   const sessionsDir = join(__dirname, '..', 'data', 'sessions');
@@ -47,6 +100,8 @@ async function copyTestCasesToData() {
 }
 
 async function main() {
+  await loadBenchmarkEnv();
+
   const { values } = parseArgs({
     options: {
       db: {
@@ -60,7 +115,7 @@ async function main() {
       model: {
         type: 'string',
         short: 'm',
-        default: 'minimax/m2.7',
+        default: 'ollama-cloud/minimax-m2.7',
       },
       'storage-dir': {
         type: 'string',
@@ -134,19 +189,20 @@ async function main() {
   const datasourceIds: Partial<Record<'tpch' | 'saas', string>> = {};
 
   for (const [db, dsConfig] of Object.entries(datasourceConfigs)) {
-    datasourceIds[db] = await ensureDatasource(
+    const dbKey = db as 'tpch' | 'saas';
+    datasourceIds[dbKey] = await ensureDatasource(
       repositories,
       `${db}_benchmark`,
       dsConfig.provider,
       dsConfig.config,
     );
-    console.log(`Datasource ${db}: ${datasourceIds[db]}`);
+    console.log(`Datasource ${db}: ${datasourceIds[dbKey]}`);
   }
 
   const results: SessionRunResult[] = [];
 
   for (let i = 0; i < sessionsToRun.length; i++) {
-    const session = sessionsToRun[i];
+    const session = sessionsToRun[i]!;
     console.log(
       `\n[${i + 1}/${sessionsToRun.length}] Running ${session.id}...`,
     );
@@ -157,14 +213,30 @@ async function main() {
       datasourceId: datasourceIds[session.metadata.database] ?? '',
       storageDir,
       compressionMethod,
+      repositories,
     };
 
     try {
       const result = await runSession(session, config);
-      console.log(
-        `  Completed: ${result.turns.length} turns, ${result.metrics.totalToolCalls} tool calls`,
-      );
-      results.push({ sessionId: session.id, status: 'success' });
+      if (result.errors.length > 0) {
+        const firstError = result.errors[0] ?? 'Unknown error';
+        console.log(
+          `  Completed with errors: ${result.turns.length} turns, ${result.metrics.totalToolCalls} tool calls`,
+        );
+        console.log(
+          `  First error: ${firstError} (${result.errors.length} total turn errors)`,
+        );
+        results.push({
+          sessionId: session.id,
+          status: 'error',
+          error: firstError,
+        });
+      } else {
+        console.log(
+          `  Completed: ${result.turns.length} turns, ${result.metrics.totalToolCalls} tool calls`,
+        );
+        results.push({ sessionId: session.id, status: 'success' });
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);

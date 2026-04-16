@@ -1,11 +1,14 @@
 import type { LanguageModel } from 'ai';
+import { readFileSync } from 'node:fs';
 import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createAzure } from '@ai-sdk/azure';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 
-import modelsManifest from '../../models.json';
+const modelsManifest = JSON.parse(
+  readFileSync(new URL('../../models.json', import.meta.url), 'utf8'),
+) as Manifest;
 
 export type Model = {
   providerID: string;

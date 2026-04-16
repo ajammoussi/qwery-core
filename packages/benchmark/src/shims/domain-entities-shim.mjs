@@ -3,3 +3,8 @@ export const MessageRole = {
   ASSISTANT: 'assistant',
   SYSTEM: 'system',
 };
+
+export const DatasourceKind = {
+  EMBEDDED: 'embedded',
+  REMOTE: 'remote',
+};

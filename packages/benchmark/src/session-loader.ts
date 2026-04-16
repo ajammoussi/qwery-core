@@ -12,7 +12,6 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export async function loadSession(filePath: string): Promise {
 export async function loadSession(
   filePath: string,
 ): Promise<BenchmarkSession> {
@@ -38,7 +37,7 @@ export async function loadAllSessions(
         const typeDir = join(dbDir, convType);
         try {
           const files = await readdir(typeDir);
-          for (const file of files.filter((f) => f.endsWith('.json'))) {
+          for (const file of files.filter((f: string) => f.endsWith('.json'))) {
             const session = await loadSession(join(typeDir, file));
             sessions.push(session);
           }

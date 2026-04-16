@@ -97,7 +97,7 @@ export interface TurnResult {
 
 export interface ToolCallResult {
   toolName: string;
-  toolInput: Record;
+  toolInput: Record<string, unknown>;
   toolOutput: unknown;
   executionTimeMs: number;
   success: boolean;

@@ -5,7 +5,7 @@ Test sessions and runner for benchmarking conversation compression methods in Qw
 ## Overview
 
 - **35 total sessions** across 2 databases and 5 conversation types
-- **Model**: MiniMax M2.7 (context: 204,800 tokens, output: 131,072 tokens)
+- **Model**: ollama-cloud/minimax-m2.7 (context: 204,800 tokens, output: 131,072 tokens)
 - **Purpose**: Establish baseline responses for compression method comparison
 
 ## Directory Structure

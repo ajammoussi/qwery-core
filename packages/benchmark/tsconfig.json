@@ -1,22 +1,18 @@
 {
+  "extends": "@qwery/tsconfig/base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "experimentalDecorators": true,
     "skipLibCheck": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
+    "tsBuildInfoFile": "node_modules/.cache/tsbuildinfo.json",
     "baseUrl": ".",
-    "paths": {
-      "@qwery/domain/entities": ["./src/shims/domain-entities.ts"]
-    },
-    "outDir": "dist",
-    "rootDir": "src",
-    "declaration": true,
-    "noEmit": false
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler"
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["*.ts", "src"],
+  "exclude": ["node_modules", "dist", "src/shims"],
+  "ts-node": {
+    "esm": true,
+    "swc": true
+  }
 }

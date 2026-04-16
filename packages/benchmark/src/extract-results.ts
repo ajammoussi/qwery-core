@@ -41,8 +41,8 @@ async function generateReport(compressionMethod?: CompressionMethod) {
         avgResponseTimeMs: number;
         successRate: number;
       };
-      byDatabase: Record;
-      byType: Record;
+      byDatabase: Record<string, { sessions: number; turns: number; toolCalls: number; inputTokens: number; outputTokens: number; avgResponseTimeMs: number }>
+      byType: Record<string, { sessions: number; turns: number; toolCalls: number; inputTokens: number; outputTokens: number; avgResponseTimeMs: number }>
       sessions: BenchmarkResult[];
     } = {
       compressionMethod: method,
@@ -74,7 +74,7 @@ async function generateReport(compressionMethod?: CompressionMethod) {
         const typeDir = join(methodDir, db, type);
         try {
           const files = await readdir(typeDir);
-          for (const file of files.filter((f) => f.endsWith('.json'))) {
+          for (const file of files.filter((f: string) => f.endsWith('.json'))) {
             const content = await readFile(join(typeDir, file), 'utf-8');
             const result = JSON.parse(content) as BenchmarkResult;
 
@@ -129,23 +129,25 @@ async function generateReport(compressionMethod?: CompressionMethod) {
         report.summary.totalSessions;
 
       for (const db of Object.keys(report.byDatabase)) {
-        if (report.byDatabase[db].sessions > 0) {
-          report.byDatabase[db].avgResponseTimeMs = Math.round(
+        const dbEntry = report.byDatabase[db];
+        if (dbEntry && dbEntry.sessions > 0) {
+          dbEntry.avgResponseTimeMs = Math.round(
             report.sessions
               .filter((s) => s.database === db)
               .reduce((sum, s) => sum + s.metrics.avgResponseTimeMs, 0) /
-              report.byDatabase[db].sessions,
+              dbEntry.sessions,
           );
         }
       }
 
       for (const type of Object.keys(report.byType)) {
-        if (report.byType[type].sessions > 0) {
-          report.byType[type].avgResponseTimeMs = Math.round(
+        const typeEntry = report.byType[type];
+        if (typeEntry && typeEntry.sessions > 0) {
+          typeEntry.avgResponseTimeMs = Math.round(
             report.sessions
               .filter((s) => s.conversationType.toLowerCase() === type)
               .reduce((sum, s) => sum + s.metrics.avgResponseTimeMs, 0) /
-              report.byType[type].sessions,
+              typeEntry.sessions,
           );
         }
       }
@@ -170,18 +172,24 @@ async function generateReport(compressionMethod?: CompressionMethod) {
 
     console.log('\nBy Database:');
     for (const [db, stats] of Object.entries(report.byDatabase)) {
-      if (stats.sessions > 0) {
+      const dbStats = stats as {
+        sessions: number;
+        turns: number;
+        toolCalls: number;
+      };
+      if (dbStats.sessions > 0) {
         console.log(
-          `  ${db}: ${stats.sessions} sessions, ${stats.turns} turns, ${stats.toolCalls} tools`,
+          ` ${db}: ${dbStats.sessions} sessions, ${dbStats.turns} turns, ${dbStats.toolCalls} tools`,
         );
       }
     }
 
     console.log('\nBy Type:');
     for (const [type, stats] of Object.entries(report.byType)) {
-      if (stats.sessions > 0) {
+      const typeStats = stats as { sessions: number; turns: number };
+      if (typeStats.sessions > 0) {
         console.log(
-          `  ${type.toUpperCase()}: ${stats.sessions} sessions, ${stats.turns} turns`,
+          ` ${type.toUpperCase()}: ${typeStats.sessions} sessions, ${typeStats.turns} turns`,
         );
       }
     }

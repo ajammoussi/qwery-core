@@ -3,6 +3,7 @@ export * from './ask-agent';
 export * from './query-agent';
 export * from './compaction-agent';
 export * from './summary-agent';
+export * from './run-agent-to-completion';
 export { prompt, loop, type AgentSessionPromptInput } from './agent-session';
 export {
   SessionCompaction,

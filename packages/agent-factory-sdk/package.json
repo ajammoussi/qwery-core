@@ -17,6 +17,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./agents/run-agent-to-completion": "./src/agents/run-agent-to-completion.ts",
     "./config": "./src/config/index.ts",
     "./config/node": "./src/config/node.ts",
     "./llm": "./src/llm/index.ts",

@@ -5,7 +5,7 @@ import type { BenchmarkSession } from './types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-async function validateSession(filePath: string): Promise {
+async function validateSession(filePath: string): Promise<{ valid: boolean; errors: string[] }> {
   const errors: string[] = [];
 
   try {
@@ -89,7 +89,7 @@ async function validateAll() {
 
   let total = 0;
   let valid = 0;
-  const invalid: Array = [];
+  const invalid: Array<{ file: string; errors: string[] }> = [];
 
   for (const db of databases) {
     for (const type of types) {
