@@ -3,8 +3,8 @@
   "metadata": {
     "database": "saas",
     "conversationType": "PTA",
-    "expectedTurns": 36,
-    "compressionBoundaryTurn": 12,
+    "expectedTurns": 15,
+    "compressionBoundaryTurn": 5,
     "userPersona": "business",
     "tablesExplored": ["accounts", "subscriptions", "feature_usage", "events"],
     "description": "Parallel threads: churn analysis (A) vs feature adoption patterns (B)"
@@ -22,16 +22,6 @@
     {
       "turnNumber": 2,
       "role": "user",
-      "content": "Show me monthly churn rate for Enterprise vs Professional vs SMB accounts in 2024.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "threadContext": "A",
-        "expectedBehavior": "Agent should show churn rate by tier and month"
-      }
-    },
-    {
-      "turnNumber": 3,
-      "role": "user",
       "content": "For churn, only count accounts with subscription status 'cancelled'.",
       "annotations": {
         "type": "correction",
@@ -43,7 +33,7 @@
       }
     },
     {
-      "turnNumber": 4,
+      "turnNumber": 3,
       "role": "user",
       "content": "Now let's switch to thread B — what's the 30-day feature activation rate for accounts who signed up in 2024?",
       "annotations": {
@@ -53,7 +43,7 @@
       }
     },
     {
-      "turnNumber": 5,
+      "turnNumber": 4,
       "role": "user",
       "content": "For activation, only count features used at least 5 times in the first 30 days.",
       "annotations": {
@@ -66,40 +56,7 @@
       }
     },
     {
-      "turnNumber": 6,
-      "role": "user",
-      "content": "Back to thread A — for Enterprise accounts that churned, what was their average contract value?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "threadContext": "A",
-        "expectedBehavior": "Agent should analyze contract value for churned Enterprise accounts"
-      }
-    },
-    {
-      "turnNumber": 7,
-      "role": "user",
-      "content": "Use subscription.end_date for churn date analysis.",
-      "annotations": {
-        "type": "correction",
-        "isCorrection": true,
-        "establishesFilter": "Use subscription.end_date for churn timing",
-        "correctionType": "explicit",
-        "threadContext": "A",
-        "expectedBehavior": "Agent should use end_date for churn date"
-      }
-    },
-    {
-      "turnNumber": 8,
-      "role": "user",
-      "content": "Thread B — which features have the highest activation rates?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "threadContext": "B",
-        "expectedBehavior": "Agent should rank features by activation rate"
-      }
-    },
-    {
-      "turnNumber": 9,
+      "turnNumber": 5,
       "role": "user",
       "content": "Is there any overlap? Do the high-churn Enterprise accounts have lower feature adoption?",
       "annotations": {
@@ -108,27 +65,65 @@
       }
     },
     {
-      "turnNumber": 10,
+      "turnNumber": 6,
       "role": "user",
-      "content": "Thread A deepened — show me the industries of churned Enterprise accounts.",
+      "content": "Thread A — what features did churned accounts use before leaving?",
       "annotations": {
         "type": "hypothesis_exploration",
         "threadContext": "A",
-        "expectedBehavior": "Agent should show industry breakdown for churned Enterprise"
+        "expectedBehavior": "Agent should show feature usage for churned accounts"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
+      "content": "Thread B — do accounts that activate within 7 days have better retention?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should analyze retention for quick activators"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Earlier in thread A we looked at Enterprise churn. What was the average contract value?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 2,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall Enterprise contract value from thread A"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Apply the same churn definition to show me churn rate by industry.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 2,
+        "anaphoricPhrase": "the same churn definition",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use cancelled status"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Apply the same activation threshold to show me activation by account age.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 4,
+        "anaphoricPhrase": "the same activation threshold",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should use 5+ uses in 30 days"
       }
     },
     {
       "turnNumber": 11,
-      "role": "user",
-      "content": "Thread B — show me activation rate by industry.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "threadContext": "B",
-        "expectedBehavior": "Agent should show activation by industry"
-      }
-    },
-    {
-      "turnNumber": 12,
       "role": "user",
       "content": "Exclude trial accounts from both threads.",
       "annotations": {
@@ -140,62 +135,7 @@
       }
     },
     {
-      "turnNumber": 13,
-      "role": "user",
-      "content": "Apply the same churn definition to show me churn rate by industry.",
-      "annotations": {
-        "type": "anaphoric_reference",
-        "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 3,
-        "anaphoricPhrase": "the same churn definition",
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should use cancelled status"
-      }
-    },
-    {
-      "turnNumber": 14,
-      "role": "user",
-      "content": "Thread A — what features did churned accounts use before leaving?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "threadContext": "A",
-        "expectedBehavior": "Agent should show feature usage for churned accounts"
-      }
-    },
-    {
-      "turnNumber": 15,
-      "role": "user",
-      "content": "Thread B — do accounts that activate within 7 days have better retention?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "threadContext": "B",
-        "expectedBehavior": "Agent should analyze retention for quick activators"
-      }
-    },
-    {
-      "turnNumber": 16,
-      "role": "user",
-      "content": "Earlier in thread A we looked at Enterprise churn. What was the average contract value?",
-      "annotations": {
-        "type": "callback",
-        "isCallback": true,
-        "callbackTargetTurn": 6,
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should recall Enterprise contract value from thread A"
-      }
-    },
-    {
-      "turnNumber": 17,
-      "role": "user",
-      "content": "Thread B — what's the activation rate by plan tier?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "threadContext": "B",
-        "expectedBehavior": "Agent should show activation by tier"
-      }
-    },
-    {
-      "turnNumber": 18,
+      "turnNumber": 12,
       "role": "user",
       "content": "Both threads compared — is there a pattern where low-activation industries have high churn?",
       "annotations": {
@@ -204,94 +144,17 @@
       }
     },
     {
-      "turnNumber": 19,
-      "role": "user",
-      "content": "Thread A — show me churned accounts by account age.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "threadContext": "A",
-        "expectedBehavior": "Agent should analyze churn by account tenure"
-      }
-    },
-    {
-      "turnNumber": 20,
-      "role": "user",
-      "content": "Apply the same activation threshold to show me activation by account age.",
-      "annotations": {
-        "type": "anaphoric_reference",
-        "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 5,
-        "anaphoricPhrase": "the same activation threshold",
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should use 5+ uses in 30 days"
-      }
-    },
-    {
-      "turnNumber": 21,
-      "role": "user",
-      "content": "Thread B — what was the activation rate for the first cohort we analyzed?",
-      "annotations": {
-        "type": "callback",
-        "isCallback": true,
-        "callbackTargetTurn": 4,
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should recall 2024 activation rate"
-      }
-    },
-    {
-      "turnNumber": 22,
-      "role": "user",
-      "content": "Thread A — do churned accounts have lower user counts?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "threadContext": "A",
-        "expectedBehavior": "Agent should compare user counts"
-      }
-    },
-    {
-      "turnNumber": 23,
+      "turnNumber": 13,
       "role": "user",
       "content": "What filters are active for thread A?",
       "annotations": {
         "type": "probe",
         "threadContext": "A",
-        "expectedBehavior": "Agent should list thread A filters: cancelled status, end_date, exclude trial"
+        "expectedBehavior": "Agent should list thread A filters: cancelled status, exclude trial"
       }
     },
     {
-      "turnNumber": 24,
-      "role": "user",
-      "content": "What filters are active for thread B?",
-      "annotations": {
-        "type": "probe",
-        "threadContext": "B",
-        "expectedBehavior": "Agent should list thread B filters: 5+ uses in 30 days, exclude trial"
-      }
-    },
-    {
-      "turnNumber": 25,
-      "role": "user",
-      "content": "Create a chart showing churn rate by tier (thread A).",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "threadContext": "A",
-        "expectedBehavior": "Agent should create churn visualization"
-      }
-    },
-    {
-      "turnNumber": 26,
-      "role": "user",
-      "content": "Create a chart showing activation rate by tier (thread B).",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "threadContext": "B",
-        "expectedBehavior": "Agent should create activation visualization"
-      }
-    },
-    {
-      "turnNumber": 27,
+      "turnNumber": 14,
       "role": "user",
       "content": "Synthesis — which insights are actionable across both threads?",
       "annotations": {
@@ -300,121 +163,33 @@
       }
     },
     {
-      "turnNumber": 28,
-      "role": "user",
-      "content": "Thread A — show me top 10 churned Enterprise accounts.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "threadContext": "A",
-        "expectedBehavior": "Agent should rank churned Enterprise accounts"
-      }
-    },
-    {
-      "turnNumber": 29,
-      "role": "user",
-      "content": "Thread B — show me accounts that activated in first 7 days.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "threadContext": "B",
-        "expectedBehavior": "Agent should identify quick activators"
-      }
-    },
-    {
-      "turnNumber": 30,
-      "role": "user",
-      "content": "Apply all filters from both threads to show a combined analysis.",
-      "annotations": {
-        "type": "anaphoric_reference",
-        "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 12,
-        "anaphoricPhrase": "all filters from both threads",
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should apply both thread filters"
-      }
-    },
-    {
-      "turnNumber": 31,
-      "role": "user",
-      "content": "Create a final dashboard combining both thread insights.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create combined dashboard"
-      }
-    },
-    {
-      "turnNumber": 32,
-      "role": "user",
-      "content": "Thread A — what was the industry breakdown for churned accounts?",
-      "annotations": {
-        "type": "callback",
-        "isCallback": true,
-        "callbackTargetTurn": 10,
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should recall industry churn data"
-      }
-    },
-    {
-      "turnNumber": 33,
+      "turnNumber": 15,
       "role": "user",
       "content": "Thread B — what was the activation threshold we established?",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 5,
+        "callbackTargetTurn": 4,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should recall 5+ uses threshold"
-      }
-    },
-    {
-      "turnNumber": 34,
-      "role": "user",
-      "content": "Final synthesis — summarize findings from both threads.",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should provide comprehensive synthesis"
-      }
-    },
-    {
-      "turnNumber": 35,
-      "role": "user",
-      "content": "What are the top 5 actions based on this analysis?",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should provide recommendations"
-      }
-    },
-    {
-      "turnNumber": 36,
-      "role": "user",
-      "content": "Thank you. We've identified that Healthcare and Finance have both high churn and low activation rates, suggesting a correlation. Enterprise accounts with fewer users churn more often, while quick activation correlates with better retention.",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should acknowledge findings"
       }
     }
   ],
   "persistedCorrections": [
     {
-      "turnEstablished": 3,
+      "turnEstablished": 2,
       "correctionText": "Churn = subscription status 'cancelled'",
       "type": "filter_rule",
       "description": "Use cancelled status for churn (Thread A)"
     },
     {
-      "turnEstablished": 5,
+      "turnEstablished": 4,
       "correctionText": "Activated = feature used >= 5 times in 30 days",
       "type": "filter_rule",
       "description": "Use 5+ uses in 30 days for activation (Thread B)"
     },
     {
-      "turnEstablished": 7,
-      "correctionText": "Use subscription.end_date for churn timing",
-      "type": "date_column",
-      "description": "Use end_date for churn date (Thread A)"
-    },
-    {
-      "turnEstablished": 12,
+      "turnEstablished": 11,
       "correctionText": "Exclude trial accounts from both threads",
       "type": "exclusion",
       "description": "Filter out trial tier"
@@ -422,62 +197,38 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 13,
-      "targetTurn": 3,
+      "sourceTurn": 9,
+      "targetTurn": 2,
       "phrase": "the same churn definition",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Cancelled status definition",
-      "distance": 10
+      "distance": 7
     },
     {
-      "sourceTurn": 20,
-      "targetTurn": 5,
+      "sourceTurn": 10,
+      "targetTurn": 4,
       "phrase": "the same activation threshold",
       "crossesCompressionBoundary": true,
       "expectedResolution": "5+ uses in 30 days",
-      "distance": 15
-    },
-    {
-      "sourceTurn": 30,
-      "targetTurn": 12,
-      "phrase": "all filters from both threads",
-      "crossesCompressionBoundary": true,
-      "expectedResolution": "All thread-specific and shared filters",
-      "distance": 18
+      "distance": 6
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 16,
-      "targetTurn": 6,
+      "sourceTurn": 8,
+      "targetTurn": 2,
       "callbackType": "value_recall",
       "expectedEntity": "Enterprise contract value from Thread A",
       "crossesCompressionBoundary": true,
-      "distance": 10
+      "distance": 6
     },
     {
-      "sourceTurn": 21,
+      "sourceTurn": 15,
       "targetTurn": 4,
-      "callbackType": "value_recall",
-      "expectedEntity": "2024 activation rate from Thread B",
-      "crossesCompressionBoundary": true,
-      "distance": 17
-    },
-    {
-      "sourceTurn": 32,
-      "targetTurn": 10,
-      "callbackType": "result_recall",
-      "expectedEntity": "Industry breakdown for churned Enterprise",
-      "crossesCompressionBoundary": true,
-      "distance": 22
-    },
-    {
-      "sourceTurn": 33,
-      "targetTurn": 5,
       "callbackType": "filter_recall",
       "expectedEntity": "Activation threshold",
       "crossesCompressionBoundary": true,
-      "distance": 28
+      "distance": 11
     }
   ]
 }

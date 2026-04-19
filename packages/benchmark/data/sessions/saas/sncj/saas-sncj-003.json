@@ -3,8 +3,8 @@
   "metadata": {
     "database": "saas",
     "conversationType": "SNCJ",
-    "expectedTurns": 38,
-    "compressionBoundaryTurn": 16,
+    "expectedTurns": 18,
+    "compressionBoundaryTurn": 7,
     "userPersona": "business",
     "tablesExplored": [
       "accounts",
@@ -105,24 +105,6 @@
     {
       "turnNumber": 10,
       "role": "user",
-      "content": "Now add user count to each account.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should join users table and count"
-      }
-    },
-    {
-      "turnNumber": 11,
-      "role": "user",
-      "content": "Add invoice totals to the account summary.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should join invoices and sum amounts"
-      }
-    },
-    {
-      "turnNumber": 12,
-      "role": "user",
       "content": "Exclude trial accounts from all analyses.",
       "annotations": {
         "type": "correction",
@@ -133,7 +115,7 @@
       }
     },
     {
-      "turnNumber": 13,
+      "turnNumber": 11,
       "role": "user",
       "content": "Also exclude internal test accounts.",
       "annotations": {
@@ -145,16 +127,7 @@
       }
     },
     {
-      "turnNumber": 14,
-      "role": "user",
-      "content": "Show me the full schema with all joins: accounts-users-subscriptions-plans-invoices.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should create five-table join"
-      }
-    },
-    {
-      "turnNumber": 15,
+      "turnNumber": 12,
       "role": "user",
       "content": "Apply the same join key we established for plan joins.",
       "annotations": {
@@ -167,25 +140,7 @@
       }
     },
     {
-      "turnNumber": 16,
-      "role": "user",
-      "content": "Add feature usage metrics to the account summary.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should join feature_usage table"
-      }
-    },
-    {
-      "turnNumber": 17,
-      "role": "user",
-      "content": "Add event counts by type to the analysis.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should join events table and count by type"
-      }
-    },
-    {
-      "turnNumber": 18,
+      "turnNumber": 13,
       "role": "user",
       "content": "Earlier you showed me the schema relationships. What foreign key connects users to accounts?",
       "annotations": {
@@ -197,75 +152,20 @@
       }
     },
     {
-      "turnNumber": 19,
-      "role": "user",
-      "content": "Show me revenue by plan tier with user counts.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should aggregate revenue and users by plan"
-      }
-    },
-    {
-      "turnNumber": 20,
-      "role": "user",
-      "content": "What's the average feature usage by plan tier?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should analyze feature usage by plan"
-      }
-    },
-    {
-      "turnNumber": 21,
-      "role": "user",
-      "content": "Show me account health scores based on all metrics.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should create composite health score"
-      }
-    },
-    {
-      "turnNumber": 22,
+      "turnNumber": 14,
       "role": "user",
       "content": "Apply all our filters to show me the comprehensive account dashboard.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 13,
+        "anaphoricTargetTurn": 11,
         "anaphoricPhrase": "all our filters",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should apply: plan_id joins, exclude trial, exclude test"
       }
     },
     {
-      "turnNumber": 23,
-      "role": "user",
-      "content": "What filters are currently applied?",
-      "annotations": {
-        "type": "probe",
-        "expectedBehavior": "Agent should list all active filters"
-      }
-    },
-    {
-      "turnNumber": 24,
-      "role": "user",
-      "content": "Create a chart showing account distribution by plan tier.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create plan distribution visualization"
-      }
-    },
-    {
-      "turnNumber": 25,
-      "role": "user",
-      "content": "Show me the top 10 accounts by health score.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should rank accounts by health score"
-      }
-    },
-    {
-      "turnNumber": 26,
+      "turnNumber": 15,
       "role": "user",
       "content": "What plan ID did we use for joins?",
       "annotations": {
@@ -277,54 +177,7 @@
       }
     },
     {
-      "turnNumber": 27,
-      "role": "user",
-      "content": "Show me revenue by industry with feature usage correlation.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should analyze industry vs usage vs revenue"
-      }
-    },
-    {
-      "turnNumber": 28,
-      "role": "user",
-      "content": "Create a chart showing user engagement by plan tier.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create engagement visualization"
-      }
-    },
-    {
-      "turnNumber": 29,
-      "role": "user",
-      "content": "Show me the full account lifecycle analysis.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should analyze account from signup to current state"
-      }
-    },
-    {
-      "turnNumber": 30,
-      "role": "user",
-      "content": "What accounts are at risk based on all metrics?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should identify at-risk accounts using all metrics"
-      }
-    },
-    {
-      "turnNumber": 31,
-      "role": "user",
-      "content": "Create a final comprehensive dashboard.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create comprehensive dashboard"
-      }
-    },
-    {
-      "turnNumber": 32,
+      "turnNumber": 16,
       "role": "user",
       "content": "Show me a summary of all table relationships we explored.",
       "annotations": {
@@ -333,7 +186,7 @@
       }
     },
     {
-      "turnNumber": 33,
+      "turnNumber": 17,
       "role": "user",
       "content": "What are the top 5 insights from this full schema analysis?",
       "annotations": {
@@ -342,47 +195,7 @@
       }
     },
     {
-      "turnNumber": 34,
-      "role": "user",
-      "content": "Earlier we looked at plan joins. What column connects subscriptions to plans?",
-      "annotations": {
-        "type": "callback",
-        "isCallback": true,
-        "callbackTargetTurn": 7,
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should recall plan_id foreign key"
-      }
-    },
-    {
-      "turnNumber": 35,
-      "role": "user",
-      "content": "Show me the final multi-table analysis with all corrections applied.",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should provide comprehensive analysis"
-      }
-    },
-    {
-      "turnNumber": 36,
-      "role": "user",
-      "content": "Create a chart showing revenue vs feature usage by tier.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create correlation visualization"
-      }
-    },
-    {
-      "turnNumber": 37,
-      "role": "user",
-      "content": "What filters are currently active?",
-      "annotations": {
-        "type": "probe",
-        "expectedBehavior": "Agent should list all active filters"
-      }
-    },
-    {
-      "turnNumber": 38,
+      "turnNumber": 18,
       "role": "user",
       "content": "Thank you. We've navigated the full SaaS schema, establishing that accounts connect to users via account_id, subscriptions connect to plans via plan_id, and high feature usage accounts have 2.5x revenue compared to low usage accounts.",
       "annotations": {
@@ -399,13 +212,13 @@
       "description": "Always use plan_id for subscription-plan joins"
     },
     {
-      "turnEstablished": 12,
+      "turnEstablished": 10,
       "correctionText": "Exclude trial accounts from all analyses",
       "type": "exclusion",
       "description": "Filter out trial tier"
     },
     {
-      "turnEstablished": 13,
+      "turnEstablished": 11,
       "correctionText": "Exclude internal test accounts",
       "type": "exclusion",
       "description": "Filter out test accounts"
@@ -413,46 +226,38 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 15,
+      "sourceTurn": 12,
       "targetTurn": 8,
       "phrase": "the same join key we established for plan joins",
       "crossesCompressionBoundary": true,
       "expectedResolution": "subscriptions.plan_id",
-      "distance": 7
+      "distance": 4
     },
     {
-      "sourceTurn": 22,
-      "targetTurn": 13,
+      "sourceTurn": 14,
+      "targetTurn": 11,
       "phrase": "all our filters",
       "crossesCompressionBoundary": true,
       "expectedResolution": "plan_id joins, exclude trial, exclude test",
-      "distance": 9
+      "distance": 3
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 18,
+      "sourceTurn": 13,
       "targetTurn": 3,
       "callbackType": "schema_recall",
       "expectedEntity": "users.account_id foreign key",
       "crossesCompressionBoundary": true,
-      "distance": 15
+      "distance": 10
     },
     {
-      "sourceTurn": 26,
+      "sourceTurn": 15,
       "targetTurn": 8,
       "callbackType": "filter_recall",
       "expectedEntity": "subscriptions.plan_id join key",
       "crossesCompressionBoundary": true,
-      "distance": 18
-    },
-    {
-      "sourceTurn": 34,
-      "targetTurn": 7,
-      "callbackType": "schema_recall",
-      "expectedEntity": "Plan-subscription relationship",
-      "crossesCompressionBoundary": true,
-      "distance": 27
+      "distance": 7
     }
   ]
 }

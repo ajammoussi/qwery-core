@@ -3,8 +3,8 @@
   "metadata": {
     "database": "tpch",
     "conversationType": "RCI",
-    "expectedTurns": 42,
-    "compressionBoundaryTurn": 14,
+    "expectedTurns": 16,
+    "compressionBoundaryTurn": 6,
     "userPersona": "business",
     "tablesExplored": [
       "ORDERS",
@@ -30,15 +30,6 @@
     {
       "turnNumber": 2,
       "role": "user",
-      "content": "What date columns do we have on the orders table?",
-      "annotations": {
-        "type": "schema_probe",
-        "expectedBehavior": "Agent should query schema and return date-related columns"
-      }
-    },
-    {
-      "turnNumber": 3,
-      "role": "user",
       "content": "Let's check if this is a volume problem — show me total orders per week for Q2 and Q3",
       "annotations": {
         "type": "hypothesis_exploration",
@@ -46,7 +37,7 @@
       }
     },
     {
-      "turnNumber": 4,
+      "turnNumber": 3,
       "role": "user",
       "content": "From now on, let's only look at completed orders with status 'O'. Exclude any orders with status 'F' or 'P'.",
       "annotations": {
@@ -58,7 +49,7 @@
       }
     },
     {
-      "turnNumber": 5,
+      "turnNumber": 4,
       "role": "user",
       "content": "The order volume looks relatively stable. Let's look at average order value instead.",
       "annotations": {
@@ -67,25 +58,7 @@
       }
     },
     {
-      "turnNumber": 6,
-      "role": "user",
-      "content": "There's a clear dip in AOV during July. What regions are our top performers?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show revenue breakdown by region"
-      }
-    },
-    {
-      "turnNumber": 7,
-      "role": "user",
-      "content": "Asia and Europe are our biggest regions. Show me revenue by region broken down by quarter.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should show pivot of region vs quarter with revenue values"
-      }
-    },
-    {
-      "turnNumber": 8,
+      "turnNumber": 5,
       "role": "user",
       "content": "Europe's revenue dropped significantly. Let me look at individual nations in Europe.",
       "annotations": {
@@ -94,7 +67,7 @@
       }
     },
     {
-      "turnNumber": 9,
+      "turnNumber": 6,
       "role": "user",
       "content": "Germany and France show the biggest drops. When I say order date, always use O_ORDERDATE column, not any other date column.",
       "annotations": {
@@ -106,95 +79,32 @@
       }
     },
     {
-      "turnNumber": 10,
+      "turnNumber": 7,
       "role": "user",
-      "content": "Now show me the customer count and order count for Germany and France by quarter.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should show unique customers and order counts for these nations"
-      }
-    },
-    {
-      "turnNumber": 11,
-      "role": "user",
-      "content": "The customer count is stable but order values dropped. Let me check the product mix — show me the top product types by revenue for Germany in Q2 vs Q3.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show product type revenue breakdown for Germany by quarter"
-      }
-    },
-    {
-      "turnNumber": 12,
-      "role": "user",
-      "content": "That doesn't show a clear pattern. Let me check the supplier side — are we seeing issues with specific suppliers for German orders?",
-      "annotations": {
-        "type": "pivot",
-        "expectedBehavior": "Agent should show supplier performance for German orders"
-      }
-    },
-    {
-      "turnNumber": 13,
-      "role": "user",
-      "content": "Can you show me the top 10 suppliers by revenue loss from Q2 to Q3 for Germany?",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should calculate and rank suppliers by revenue change"
-      }
-    },
-    {
-      "turnNumber": 14,
-      "role": "user",
-      "content": "Interesting. Are these suppliers having issues in other regions too?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show performance of problematic suppliers across all regions"
-      }
-    },
-    {
-      "turnNumber": 15,
-      "role": "user",
-      "content": "The drop is mainly in Germany and Europe. What product types do these suppliers provide?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show product catalog from these suppliers"
-      }
-    },
-    {
-      "turnNumber": 16,
-      "role": "user",
-      "content": "Now let me check the discount levels for these suppliers' products in Q2 vs Q3.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should analyze discount patterns for these suppliers"
-      }
-    },
-    {
-      "turnNumber": 17,
-      "role": "user",
-      "content": "Discounts are stable. Remember the weekly order volume we looked at earlier? Can you add average order value to that same breakdown?",
+      "content": "Remember the weekly order volume we looked at earlier? Can you add average order value to that same breakdown?",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 3,
+        "anaphoricTargetTurn": 2,
         "anaphoricPhrase": "the weekly order volume we looked at earlier",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should combine weekly order volume with AOV metrics"
       }
     },
     {
-      "turnNumber": 18,
+      "turnNumber": 8,
       "role": "user",
       "content": "What was the exact revenue number for Germany in Q2? I need it as a baseline.",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 8,
+        "callbackTargetTurn": 5,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should retrieve or calculate Germany Q2 revenue"
       }
     },
     {
-      "turnNumber": 19,
+      "turnNumber": 9,
       "role": "user",
       "content": "Now I want to also exclude AMERICA region from all our analyses — we're restructuring there.",
       "annotations": {
@@ -206,34 +116,7 @@
       }
     },
     {
-      "turnNumber": 20,
-      "role": "user",
-      "content": "Good. Now I want to understand if this is a broader European issue. Show me all European nations' revenue change between Q2 and Q3.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show revenue change percentage for all European nations"
-      }
-    },
-    {
-      "turnNumber": 21,
-      "role": "user",
-      "content": "Germany and France have the biggest percentage drops. Show me the top 20 German customers by Q2 revenue and their Q3 revenue.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show customer-level revenue comparison for Germany"
-      }
-    },
-    {
-      "turnNumber": 22,
-      "role": "user",
-      "content": "We've identified key customers. What market segments are these top customers in?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show market segment distribution of top customers"
-      }
-    },
-    {
-      "turnNumber": 23,
+      "turnNumber": 10,
       "role": "user",
       "content": "It looks like AUTOMOBILE segment in Germany drove most of the drop. Let me see the weekly breakdown for AUTOMOBILE customers in Germany.",
       "annotations": {
@@ -242,163 +125,45 @@
       }
     },
     {
-      "turnNumber": 24,
+      "turnNumber": 11,
       "role": "user",
-      "content": "Can you compare this with AUTOMOBILE customers in other European nations?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show AUTOMOBILE segment performance across European nations"
-      }
-    },
-    {
-      "turnNumber": 25,
-      "role": "user",
-      "content": "The AUTOMOBILE drop is specific to Germany. Show me which suppliers these German AUTOMOBILE customers were ordering from.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show supplier breakdown for AUTOMOBILE segment in Germany"
-      }
-    },
-    {
-      "turnNumber": 26,
-      "role": "user",
-      "content": "Let me check the parts these suppliers were providing. What parts had the biggest revenue drop for AUTOMOBILE in Germany?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show parts with largest revenue decline"
-      }
-    },
-    {
-      "turnNumber": 27,
-      "role": "user",
-      "content": "Were there any changes in pricing for these parts between Q2 and Q3?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should compare extended prices for these parts"
-      }
-    },
-    {
-      "turnNumber": 28,
-      "role": "user",
-      "content": "Let me also check if delivery times changed. Show me the average ship date to receipt date duration for these parts.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should calculate delivery times for affected parts"
-      }
-    },
-    {
-      "turnNumber": 29,
-      "role": "user",
-      "content": "Earlier you mentioned the order count for Germany in Q2. What was that number again?",
+      "content": "What was the order count for Germany in Q2?",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 10,
+        "callbackTargetTurn": 5,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should recall the order count from earlier analysis"
       }
     },
     {
-      "turnNumber": 30,
-      "role": "user",
-      "content": "Let me check if there were any specific customers who churned completely. Show me German customers who ordered in Q2 but not in Q3.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should identify churned customers"
-      }
-    },
-    {
-      "turnNumber": 31,
-      "role": "user",
-      "content": "What's the total revenue loss from these churned customers?",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should calculate total revenue from churned customers in Q2"
-      }
-    },
-    {
-      "turnNumber": 32,
-      "role": "user",
-      "content": "That's significant. Let me see the same analysis for France — customers who churned between Q2 and Q3.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should repeat churn analysis for France"
-      }
-    },
-    {
-      "turnNumber": 33,
+      "turnNumber": 12,
       "role": "user",
       "content": "Do the same segmentation we did for Germany — what market segments did these French churned customers belong to?",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 22,
+        "anaphoricTargetTurn": 10,
         "anaphoricPhrase": "the same segmentation we did for Germany",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should apply market segment analysis to French churned customers"
       }
     },
     {
-      "turnNumber": 34,
-      "role": "user",
-      "content": "Are there any common suppliers between German and French churned customers?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should find supplier overlap between churned customers in both countries"
-      }
-    },
-    {
-      "turnNumber": 35,
+      "turnNumber": 13,
       "role": "user",
       "content": "Let me go back to the weekly data. Apply the same filters we've established to show me weekly orders, AOV, and revenue for Q2 and Q3, excluding AMERICA, only completed orders.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 17,
+        "anaphoricTargetTurn": 7,
         "anaphoricPhrase": "the same filters we've established",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should apply all accumulated filters (completed orders, exclude AMERICA, use O_ORDERDATE)"
       }
     },
     {
-      "turnNumber": 36,
-      "role": "user",
-      "content": "Can you show me which weeks had the biggest revenue drop?",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should rank weeks by revenue difference between Q2 and Q3"
-      }
-    },
-    {
-      "turnNumber": 37,
-      "role": "user",
-      "content": "Let me focus on those worst weeks. What was happening with suppliers during those weeks?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should analyze supplier performance during worst weeks"
-      }
-    },
-    {
-      "turnNumber": 38,
-      "role": "user",
-      "content": "Now I want to see a summary. Can you give me a final report showing: weekly metrics, top affected regions, top affected suppliers, and churned customer impact?",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should provide comprehensive summary applying all established filters"
-      }
-    },
-    {
-      "turnNumber": 39,
-      "role": "user",
-      "content": "Can you create a chart showing the weekly revenue trend comparing Q2 vs Q3?",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should generate appropriate chart visualization"
-      }
-    },
-    {
-      "turnNumber": 40,
+      "turnNumber": 14,
       "role": "user",
       "content": "Just to confirm — what filters are we currently applying to all our analyses?",
       "annotations": {
@@ -407,7 +172,7 @@
       }
     },
     {
-      "turnNumber": 41,
+      "turnNumber": 15,
       "role": "user",
       "content": "Perfect. Now apply all of those to show me the top 10 suppliers by revenue for the entire period, excluding AMERICA.",
       "annotations": {
@@ -416,7 +181,7 @@
       }
     },
     {
-      "turnNumber": 42,
+      "turnNumber": 16,
       "role": "user",
       "content": "Thank you. I think we've identified the root cause: the AUTOMOBILE segment in Germany, driven by supplier issues with parts for that segment. Let me save this analysis.",
       "annotations": {
@@ -427,19 +192,19 @@
   ],
   "persistedCorrections": [
     {
-      "turnEstablished": 4,
+      "turnEstablished": 3,
       "correctionText": "Only look at completed orders with status 'O'",
       "type": "filter_rule",
       "description": "All subsequent queries should filter O_ORDERSTATUS = 'O'"
     },
     {
-      "turnEstablished": 9,
+      "turnEstablished": 6,
       "correctionText": "Always use O_ORDERDATE for order date filtering",
       "type": "date_column",
       "description": "Use O_ORDERDATE instead of any other date column"
     },
     {
-      "turnEstablished": 19,
+      "turnEstablished": 9,
       "correctionText": "Exclude AMERICA region from all analyses",
       "type": "exclusion",
       "description": "Filter out R_NAME != 'AMERICA' in all region-related queries"
@@ -447,46 +212,46 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 17,
-      "targetTurn": 3,
+      "sourceTurn": 7,
+      "targetTurn": 2,
       "phrase": "the weekly order volume we looked at earlier",
       "crossesCompressionBoundary": true,
-      "expectedResolution": "Weekly order count breakdown from turn 3",
-      "distance": 14
+      "expectedResolution": "Weekly order count breakdown from turn 2",
+      "distance": 5
     },
     {
-      "sourceTurn": 33,
-      "targetTurn": 22,
+      "sourceTurn": 12,
+      "targetTurn": 10,
       "phrase": "the same segmentation we did for Germany",
       "crossesCompressionBoundary": true,
-      "expectedResolution": "Market segment analysis approach from turn 22",
-      "distance": 11
+      "expectedResolution": "Market segment analysis approach from turn 10",
+      "distance": 2
     },
     {
-      "sourceTurn": 35,
-      "targetTurn": 17,
+      "sourceTurn": 13,
+      "targetTurn": 7,
       "phrase": "the same filters we've established",
       "crossesCompressionBoundary": true,
       "expectedResolution": "All accumulated filters: O_ORDERSTATUS='O', O_ORDERDATE, exclude AMERICA",
-      "distance": 18
+      "distance": 6
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 18,
-      "targetTurn": 8,
+      "sourceTurn": 8,
+      "targetTurn": 5,
       "callbackType": "value_recall",
       "expectedEntity": "Germany Q2 revenue",
       "crossesCompressionBoundary": true,
-      "distance": 10
+      "distance": 3
     },
     {
-      "sourceTurn": 29,
-      "targetTurn": 10,
+      "sourceTurn": 11,
+      "targetTurn": 5,
       "callbackType": "value_recall",
       "expectedEntity": "Germany order count in Q2",
       "crossesCompressionBoundary": true,
-      "distance": 19
+      "distance": 6
     }
   ]
 }

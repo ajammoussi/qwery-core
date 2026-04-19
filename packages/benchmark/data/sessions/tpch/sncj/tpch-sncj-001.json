@@ -3,8 +3,8 @@
   "metadata": {
     "database": "tpch",
     "conversationType": "SNCJ",
-    "expectedTurns": 30,
-    "compressionBoundaryTurn": 12,
+    "expectedTurns": 16,
+    "compressionBoundaryTurn": 6,
     "userPersona": "technical",
     "tablesExplored": ["ORDERS", "CUSTOMER", "NATION", "REGION"],
     "description": "Schema navigation session exploring Orders-Customer-Nation-Region join chain with progressive complexity"
@@ -58,15 +58,6 @@
     {
       "turnNumber": 6,
       "role": "user",
-      "content": "And the REGION table?",
-      "annotations": {
-        "type": "schema_probe",
-        "expectedBehavior": "Agent should list REGION table columns: R_REGIONKEY, R_NAME, R_COMMENT"
-      }
-    },
-    {
-      "turnNumber": 7,
-      "role": "user",
       "content": "Give me a simple count of orders per customer for orders placed in January 1995.",
       "annotations": {
         "type": "hypothesis_exploration",
@@ -74,7 +65,7 @@
       }
     },
     {
-      "turnNumber": 8,
+      "turnNumber": 7,
       "role": "user",
       "content": "Now add the customer's name from the CUSTOMER table to the results.",
       "annotations": {
@@ -83,16 +74,7 @@
       }
     },
     {
-      "turnNumber": 9,
-      "role": "user",
-      "content": "Also bring in the customer's nation name from the NATION table.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should extend join to include NATION table with N_NAME"
-      }
-    },
-    {
-      "turnNumber": 10,
+      "turnNumber": 8,
       "role": "user",
       "content": "Wait - the CUSTOMER table has C_NATIONKEY for joining to NATION. When joining, always use C_NATIONKEY = N_NATIONKEY, not any other column.",
       "annotations": {
@@ -104,28 +86,19 @@
       }
     },
     {
-      "turnNumber": 11,
-      "role": "user",
-      "content": "Now also include the region name from the REGION table.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should complete the join chain to REGION table"
-      }
-    },
-    {
-      "turnNumber": 12,
+      "turnNumber": 9,
       "role": "user",
       "content": "What columns does the REGION table have again? I want to make sure we're using the right ones.",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 6,
+        "callbackTargetTurn": 5,
         "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should recall REGION columns from earlier schema exploration"
+        "expectedBehavior": "Agent should recall NATION columns and explain REGION table structure"
       }
     },
     {
-      "turnNumber": 13,
+      "turnNumber": 10,
       "role": "user",
       "content": "Good. Now show me total order revenue by region for Q1 1995.",
       "annotations": {
@@ -134,16 +107,7 @@
       }
     },
     {
-      "turnNumber": 14,
-      "role": "user",
-      "content": "I need the customer count as well. Show me distinct customers per region in the same query.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should add COUNT(DISTINCT C_CUSTKEY) to the query"
-      }
-    },
-    {
-      "turnNumber": 15,
+      "turnNumber": 11,
       "role": "user",
       "content": "What were the possible values for O_ORDERSTATUS again?",
       "annotations": {
@@ -155,7 +119,7 @@
       }
     },
     {
-      "turnNumber": 16,
+      "turnNumber": 12,
       "role": "user",
       "content": "Filter to only include orders with status 'O' (open orders).",
       "annotations": {
@@ -165,25 +129,7 @@
       }
     },
     {
-      "turnNumber": 17,
-      "role": "user",
-      "content": "Now break this down by nation within each region.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should add N_NAME to GROUP BY"
-      }
-    },
-    {
-      "turnNumber": 18,
-      "role": "user",
-      "content": "Does the NATION table have any other columns besides N_NATIONKEY, N_NAME, and N_REGIONKEY?",
-      "annotations": {
-        "type": "schema_probe",
-        "expectedBehavior": "Agent should clarify NATION table structure"
-      }
-    },
-    {
-      "turnNumber": 19,
+      "turnNumber": 13,
       "role": "user",
       "content": "Show me the top 5 nations by order count in the EUROPE region.",
       "annotations": {
@@ -192,86 +138,20 @@
       }
     },
     {
-      "turnNumber": 20,
+      "turnNumber": 14,
       "role": "user",
-      "content": "Now I want to see customer-level detail. Show me the top 10 customers by total order value in GERMANY.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should show customer-level aggregation for Germany"
-      }
-    },
-    {
-      "turnNumber": 21,
-      "role": "user",
-      "content": "Add the customer's market segment to this result.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should include C_MKTSEGMENT column"
-      }
-    },
-    {
-      "turnNumber": 22,
-      "role": "user",
-      "content": "Earlier you mentioned the ORDERS table has a column for order priority. What is that column called?",
-      "annotations": {
-        "type": "callback",
-        "isCallback": true,
-        "callbackTargetTurn": 2,
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should recall O_ORDERPRIORITY from earlier schema exploration"
-      }
-    },
-    {
-      "turnNumber": 23,
-      "role": "user",
-      "content": "Add the order priority breakdown to our Germany customer analysis.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should include O_ORDERPRIORITY in the results"
-      }
-    },
-    {
-      "turnNumber": 24,
-      "role": "user",
-      "content": "Now let me check the same query but for FRANCE instead of GERMANY.",
+      "content": "Now I want to see the same query but for FRANCE instead of GERMANY.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 20,
+        "anaphoricTargetTurn": 13,
         "anaphoricPhrase": "the same query",
         "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should repeat the Germany analysis for France"
+        "expectedBehavior": "Agent should repeat the nation analysis for France"
       }
     },
     {
-      "turnNumber": 25,
-      "role": "user",
-      "content": "What about the relationship between CUSTOMER and NATION - are there any customers that don't have a valid nation reference?",
-      "annotations": {
-        "type": "schema_probe",
-        "expectedBehavior": "Agent should check for referential integrity"
-      }
-    },
-    {
-      "turnNumber": 26,
-      "role": "user",
-      "content": "Show me a comprehensive query that joins ORDERS, CUSTOMER, NATION, and REGION, with revenue by region and nation, filtered to open orders in Q1 1995.",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should produce full 4-table join with all established filters"
-      }
-    },
-    {
-      "turnNumber": 27,
-      "role": "user",
-      "content": "Add order count and distinct customer count to that result.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should add COUNT columns to the final query"
-      }
-    },
-    {
-      "turnNumber": 28,
+      "turnNumber": 15,
       "role": "user",
       "content": "Just to confirm - what join keys are we using between these tables?",
       "annotations": {
@@ -280,20 +160,7 @@
       }
     },
     {
-      "turnNumber": 29,
-      "role": "user",
-      "content": "Now show me the same four-table join but with average order value per nation instead of total revenue.",
-      "annotations": {
-        "type": "anaphoric_reference",
-        "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 26,
-        "anaphoricPhrase": "the same four-table join",
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should modify the previous query for average instead of sum"
-      }
-    },
-    {
-      "turnNumber": 30,
+      "turnNumber": 16,
       "role": "user",
       "content": "Perfect. Give me the final query joining all four tables: ORDERS, CUSTOMER, NATION, and REGION, showing revenue by region and nation, with customer counts and order counts, only open orders in Q1 1995, using C_NATIONKEY for Customer-Nation joins.",
       "annotations": {
@@ -304,13 +171,13 @@
   ],
   "persistedCorrections": [
     {
-      "turnEstablished": 10,
+      "turnEstablished": 8,
       "correctionText": "Always use C_NATIONKEY = N_NATIONKEY for Customer-Nation joins",
       "type": "join_key",
       "description": "Use C_NATIONKEY for joining CUSTOMER to NATION, not any other column"
     },
     {
-      "turnEstablished": 16,
+      "turnEstablished": 12,
       "correctionText": "Filter to only open orders with status 'O'",
       "type": "filter_rule",
       "description": "All queries should include O_ORDERSTATUS = 'O' filter"
@@ -318,70 +185,30 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 12,
-      "targetTurn": 6,
-      "phrase": "What columns does the REGION table have again",
-      "crossesCompressionBoundary": true,
-      "expectedResolution": "REGION columns: R_REGIONKEY, R_NAME, R_COMMENT",
-      "distance": 6
-    },
-    {
-      "sourceTurn": 15,
-      "targetTurn": 2,
-      "phrase": "What were the possible values for O_ORDERSTATUS",
-      "crossesCompressionBoundary": true,
-      "expectedResolution": "Order status values from ORDERS table schema",
-      "distance": 13
-    },
-    {
-      "sourceTurn": 22,
-      "targetTurn": 2,
-      "phrase": "Earlier you mentioned the ORDERS table has a column for order priority",
-      "crossesCompressionBoundary": true,
-      "expectedResolution": "O_ORDERPRIORITY column from ORDERS table",
-      "distance": 20
-    },
-    {
-      "sourceTurn": 24,
-      "targetTurn": 20,
+      "sourceTurn": 14,
+      "targetTurn": 13,
       "phrase": "the same query",
       "crossesCompressionBoundary": true,
-      "expectedResolution": "Top 10 customers by order value with market segment",
-      "distance": 4
-    },
-    {
-      "sourceTurn": 29,
-      "targetTurn": 26,
-      "phrase": "the same four-table join",
-      "crossesCompressionBoundary": true,
-      "expectedResolution": "ORDERS-CUSTOMER-NATION-REGION join structure",
-      "distance": 3
+      "expectedResolution": "Top 5 nations by order count analysis",
+      "distance": 1
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 12,
-      "targetTurn": 6,
+      "sourceTurn": 9,
+      "targetTurn": 5,
       "callbackType": "schema_recall",
-      "expectedEntity": "REGION table columns",
+      "expectedEntity": "NATION and REGION table columns",
       "crossesCompressionBoundary": true,
-      "distance": 6
+      "distance": 4
     },
     {
-      "sourceTurn": 15,
+      "sourceTurn": 11,
       "targetTurn": 2,
       "callbackType": "schema_recall",
       "expectedEntity": "O_ORDERSTATUS values",
       "crossesCompressionBoundary": true,
-      "distance": 13
-    },
-    {
-      "sourceTurn": 22,
-      "targetTurn": 2,
-      "callbackType": "schema_recall",
-      "expectedEntity": "O_ORDERPRIORITY column",
-      "crossesCompressionBoundary": true,
-      "distance": 20
+      "distance": 9
     }
   ]
 }

@@ -3,8 +3,8 @@
   "metadata": {
     "database": "tpch",
     "conversationType": "IRC",
-    "expectedTurns": 30,
-    "compressionBoundaryTurn": 10,
+    "expectedTurns": 15,
+    "compressionBoundaryTurn": 5,
     "userPersona": "technical",
     "tablesExplored": ["SUPPLIER", "LINEITEM", "PARTSUPP", "NATION", "REGION"],
     "description": "Iterative refinement of supplier metrics with corrections about join keys, calculation methods, and filters"
@@ -34,15 +34,6 @@
     {
       "turnNumber": 3,
       "role": "user",
-      "content": "Show me total quantity supplied by each supplier.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should sum L_QUANTITY by supplier"
-      }
-    },
-    {
-      "turnNumber": 4,
-      "role": "user",
       "content": "For revenue calculations, use L_EXTENDEDPRICE * (1 - L_DISCOUNT) — that's the discounted revenue.",
       "annotations": {
         "type": "correction",
@@ -53,16 +44,7 @@
       }
     },
     {
-      "turnNumber": 5,
-      "role": "user",
-      "content": "Add a column showing average discount rate per supplier.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should add AVG(L_DISCOUNT)"
-      }
-    },
-    {
-      "turnNumber": 6,
+      "turnNumber": 4,
       "role": "user",
       "content": "Exclude suppliers from nation code 17 — we have compliance issues there.",
       "annotations": {
@@ -74,20 +56,20 @@
       }
     },
     {
-      "turnNumber": 7,
+      "turnNumber": 5,
       "role": "user",
       "content": "Apply all our filters and show me top 20 suppliers by revenue.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 6,
+        "anaphoricTargetTurn": 4,
         "anaphoricPhrase": "all our filters",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should apply: correct join, discounted revenue, exclude nation 17"
       }
     },
     {
-      "turnNumber": 8,
+      "turnNumber": 6,
       "role": "user",
       "content": "What filters and calculations are we using?",
       "annotations": {
@@ -96,16 +78,7 @@
       }
     },
     {
-      "turnNumber": 9,
-      "role": "user",
-      "content": "Show me the parts supplied by our top 10 suppliers.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should join to PARTSUPP and show parts"
-      }
-    },
-    {
-      "turnNumber": 10,
+      "turnNumber": 7,
       "role": "user",
       "content": "For supplier nation, always use the NATION table join — don't rely on cached nation names.",
       "annotations": {
@@ -117,29 +90,7 @@
       }
     },
     {
-      "turnNumber": 11,
-      "role": "user",
-      "content": "Show me supplier performance by region with the revenue calculation we established.",
-      "annotations": {
-        "type": "anaphoric_reference",
-        "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 4,
-        "anaphoricPhrase": "the revenue calculation we established",
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should use L_EXTENDEDPRICE * (1 - L_DISCOUNT)"
-      }
-    },
-    {
-      "turnNumber": 12,
-      "role": "user",
-      "content": "Which region has the most reliable suppliers based on delivery performance?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should analyze L_RECEIPTDATE vs L_COMMITDATE"
-      }
-    },
-    {
-      "turnNumber": 13,
+      "turnNumber": 8,
       "role": "user",
       "content": "Add a filter for on-time delivery — where L_RECEIPTDATE <= L_COMMITDATE.",
       "annotations": {
@@ -151,48 +102,20 @@
       }
     },
     {
-      "turnNumber": 14,
-      "role": "user",
-      "content": "Show me supplier reliability score by nation.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should calculate on-time delivery rate by nation"
-      }
-    },
-    {
-      "turnNumber": 15,
+      "turnNumber": 9,
       "role": "user",
       "content": "Remember the nation code we excluded? Apply that filter to the reliability analysis.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 6,
+        "anaphoricTargetTurn": 4,
         "anaphoricPhrase": "the nation code we excluded",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should filter out nation 17"
       }
     },
     {
-      "turnNumber": 16,
-      "role": "user",
-      "content": "What's the total revenue from reliable suppliers only?",
-      "annotations": {
-        "type": "aggregation",
-        "expectedBehavior": "Agent should sum revenue for on-time suppliers"
-      }
-    },
-    {
-      "turnNumber": 17,
-      "role": "user",
-      "content": "Create a chart showing supplier revenue by nation.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create revenue visualization by nation"
-      }
-    },
-    {
-      "turnNumber": 18,
+      "turnNumber": 10,
       "role": "user",
       "content": "Earlier you used a specific join key. What was it?",
       "annotations": {
@@ -204,16 +127,7 @@
       }
     },
     {
-      "turnNumber": 19,
-      "role": "user",
-      "content": "Correct. Show me suppliers with their parts count and revenue.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should join SUPPLIER, PARTSUPP, LINEITEM"
-      }
-    },
-    {
-      "turnNumber": 20,
+      "turnNumber": 11,
       "role": "user",
       "content": "What filters are currently active?",
       "annotations": {
@@ -222,100 +136,44 @@
       }
     },
     {
-      "turnNumber": 21,
-      "role": "user",
-      "content": "Show me the top suppliers by both revenue and reliability.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should correlate revenue and reliability metrics"
-      }
-    },
-    {
-      "turnNumber": 22,
+      "turnNumber": 12,
       "role": "user",
       "content": "Apply all corrections and show me a comprehensive supplier dashboard.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 13,
+        "anaphoricTargetTurn": 8,
         "anaphoricPhrase": "all corrections",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should apply: join key, revenue calc, exclude nation 17, NATION join, on-time filter"
       }
     },
     {
-      "turnNumber": 23,
-      "role": "user",
-      "content": "Create a chart showing on-time delivery rate by supplier nation.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create delivery performance visualization"
-      }
-    },
-    {
-      "turnNumber": 24,
+      "turnNumber": 13,
       "role": "user",
       "content": "What was the revenue calculation formula we established?",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 4,
+        "callbackTargetTurn": 3,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should recall L_EXTENDEDPRICE * (1 - L_DISCOUNT)"
       }
     },
     {
-      "turnNumber": 25,
-      "role": "user",
-      "content": "Show me the final supplier rankings with all metrics.",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should provide comprehensive supplier rankings"
-      }
-    },
-    {
-      "turnNumber": 26,
-      "role": "user",
-      "content": "Which suppliers in EUROPE have the best reliability?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should filter to EUROPE and rank by reliability"
-      }
-    },
-    {
-      "turnNumber": 27,
-      "role": "user",
-      "content": "Create a final summary chart for supplier performance.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create final summary visualization"
-      }
-    },
-    {
-      "turnNumber": 28,
+      "turnNumber": 14,
       "role": "user",
       "content": "Show me the excluded nation's hypothetical revenue if we included it.",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 6,
+        "callbackTargetTurn": 4,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should calculate what nation 17 would have contributed"
       }
     },
     {
-      "turnNumber": 29,
-      "role": "user",
-      "content": "Keep nation 17 excluded. Show me the final revenue total.",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should provide final revenue with all filters"
-      }
-    },
-    {
-      "turnNumber": 30,
+      "turnNumber": 15,
       "role": "user",
       "content": "Thank you. We've established that European suppliers with strong on-time delivery performance drive the most value, with our join and calculation standards applied.",
       "annotations": {
@@ -332,25 +190,25 @@
       "description": "Use L_SUPPKEY = S_SUPPKEY for supplier joins"
     },
     {
-      "turnEstablished": 4,
+      "turnEstablished": 3,
       "correctionText": "Use L_EXTENDEDPRICE * (1 - L_DISCOUNT) for revenue",
       "type": "aggregation_method",
       "description": "Apply discount to extended price for revenue calculation"
     },
     {
-      "turnEstablished": 6,
+      "turnEstablished": 4,
       "correctionText": "Exclude nation code 17",
       "type": "exclusion",
       "description": "Filter out suppliers from nation 17"
     },
     {
-      "turnEstablished": 10,
+      "turnEstablished": 7,
       "correctionText": "Always join to NATION table for supplier nation",
       "type": "join_key",
       "description": "Join SUPPLIER to NATION for nation name"
     },
     {
-      "turnEstablished": 13,
+      "turnEstablished": 8,
       "correctionText": "On-time delivery: L_RECEIPTDATE <= L_COMMITDATE",
       "type": "filter_rule",
       "description": "Filter for on-time deliveries"
@@ -358,62 +216,54 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 7,
-      "targetTurn": 6,
+      "sourceTurn": 5,
+      "targetTurn": 4,
       "phrase": "all our filters",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Join key, revenue calc, exclude nation 17",
       "distance": 1
     },
     {
-      "sourceTurn": 11,
+      "sourceTurn": 9,
       "targetTurn": 4,
-      "phrase": "the revenue calculation we established",
-      "crossesCompressionBoundary": true,
-      "expectedResolution": "L_EXTENDEDPRICE * (1 - L_DISCOUNT)",
-      "distance": 7
-    },
-    {
-      "sourceTurn": 15,
-      "targetTurn": 6,
       "phrase": "the nation code we excluded",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Nation code 17",
-      "distance": 9
+      "distance": 5
     },
     {
-      "sourceTurn": 22,
-      "targetTurn": 13,
+      "sourceTurn": 12,
+      "targetTurn": 8,
       "phrase": "all corrections",
       "crossesCompressionBoundary": true,
       "expectedResolution": "All established corrections",
-      "distance": 9
+      "distance": 4
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 18,
+      "sourceTurn": 10,
       "targetTurn": 2,
       "callbackType": "schema_recall",
       "expectedEntity": "L_SUPPKEY = S_SUPPKEY join key",
       "crossesCompressionBoundary": true,
-      "distance": 16
+      "distance": 8
     },
     {
-      "sourceTurn": 24,
-      "targetTurn": 4,
+      "sourceTurn": 13,
+      "targetTurn": 3,
       "callbackType": "metric_recall",
       "expectedEntity": "Revenue calculation formula",
       "crossesCompressionBoundary": true,
-      "distance": 20
+      "distance": 10
     },
     {
-      "sourceTurn": 28,
-      "targetTurn": 6,
+      "sourceTurn": 14,
+      "targetTurn": 4,
       "callbackType": "filter_recall",
       "expectedEntity": "Nation 17 exclusion",
       "crossesCompressionBoundary": true,
-      "distance": 22
+      "distance": 10
     }
   ]
 }

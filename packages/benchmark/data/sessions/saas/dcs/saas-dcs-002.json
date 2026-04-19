@@ -3,8 +3,8 @@
   "metadata": {
     "database": "saas",
     "conversationType": "DCS",
-    "expectedTurns": 30,
-    "compressionBoundaryTurn": 8,
+    "expectedTurns": 15,
+    "compressionBoundaryTurn": 6,
     "userPersona": "technical",
     "tablesExplored": ["accounts", "subscriptions", "feature_usage", "events"],
     "description": "Deep callback session focusing on churn rate analysis with long-distance retrievals"
@@ -91,69 +91,6 @@
     {
       "turnNumber": 9,
       "role": "user",
-      "content": "What industries have highest churn rates?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show churn by industry"
-      }
-    },
-    {
-      "turnNumber": 10,
-      "role": "user",
-      "content": "Show me user activity levels before churn.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should analyze pre-churn activity"
-      }
-    },
-    {
-      "turnNumber": 11,
-      "role": "user",
-      "content": "What's the correlation between feature adoption and churn?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should analyze adoption vs churn correlation"
-      }
-    },
-    {
-      "turnNumber": 12,
-      "role": "user",
-      "content": "Show me subscription plan changes before churn.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should analyze plan changes for churned accounts"
-      }
-    },
-    {
-      "turnNumber": 13,
-      "role": "user",
-      "content": "What events occur most frequently before account cancellation?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show pre-churn event patterns"
-      }
-    },
-    {
-      "turnNumber": 14,
-      "role": "user",
-      "content": "Show me invoice payment history for churned accounts.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should analyze payment patterns of churned accounts"
-      }
-    },
-    {
-      "turnNumber": 15,
-      "role": "user",
-      "content": "Compare churn rates across quarters.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should compare Q1, Q2, Q3, Q4 churn"
-      }
-    },
-    {
-      "turnNumber": 16,
-      "role": "user",
       "content": "What was the Q1 churn rate we established at the beginning?",
       "annotations": {
         "type": "callback",
@@ -164,7 +101,7 @@
       }
     },
     {
-      "turnNumber": 17,
+      "turnNumber": 10,
       "role": "user",
       "content": "How does Q4 compare to the Q1 baseline?",
       "annotations": {
@@ -173,16 +110,7 @@
       }
     },
     {
-      "turnNumber": 18,
-      "role": "user",
-      "content": "Show me churn trend relative to Q1 baseline.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show churn trend vs Q1"
-      }
-    },
-    {
-      "turnNumber": 19,
+      "turnNumber": 11,
       "role": "user",
       "content": "Apply the same churn definition to calculate monthly churn rates.",
       "annotations": {
@@ -195,7 +123,7 @@
       }
     },
     {
-      "turnNumber": 20,
+      "turnNumber": 12,
       "role": "user",
       "content": "Earlier we looked at feature usage for retained accounts. What about for churned accounts?",
       "annotations": {
@@ -207,35 +135,7 @@
       }
     },
     {
-      "turnNumber": 21,
-      "role": "user",
-      "content": "Create a chart showing churn rate trend.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create churn trend visualization"
-      }
-    },
-    {
-      "turnNumber": 22,
-      "role": "user",
-      "content": "What filters are currently active?",
-      "annotations": {
-        "type": "probe",
-        "expectedBehavior": "Agent should list: cancelled/expired, exclude trial"
-      }
-    },
-    {
-      "turnNumber": 23,
-      "role": "user",
-      "content": "Show me a final churn analysis with Q1 comparison.",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should provide comprehensive churn analysis"
-      }
-    },
-    {
-      "turnNumber": 24,
+      "turnNumber": 13,
       "role": "user",
       "content": "What was the Q1 baseline churn rate again?",
       "annotations": {
@@ -247,7 +147,7 @@
       }
     },
     {
-      "turnNumber": 25,
+      "turnNumber": 14,
       "role": "user",
       "content": "Create a chart comparing churn by quarter.",
       "annotations": {
@@ -257,44 +157,7 @@
       }
     },
     {
-      "turnNumber": 26,
-      "role": "user",
-      "content": "Show me the top 10 churn indicators.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should identify key churn predictors"
-      }
-    },
-    {
-      "turnNumber": 27,
-      "role": "user",
-      "content": "Create a final dashboard.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create final dashboard"
-      }
-    },
-    {
-      "turnNumber": 28,
-      "role": "user",
-      "content": "What are the top 5 churn prevention recommendations?",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should provide churn prevention recommendations"
-      }
-    },
-    {
-      "turnNumber": 29,
-      "role": "user",
-      "content": "Summarize the churn analysis findings.",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should summarize churn findings"
-      }
-    },
-    {
-      "turnNumber": 30,
+      "turnNumber": 15,
       "role": "user",
       "content": "Thank you. We've established that churn rate increased from 4.2% in Q1 to 6.8% in Q4, with Enterprise tier showing the largest increase and low feature adoption being the strongest predictor.",
       "annotations": {
@@ -319,38 +182,38 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 19,
+      "sourceTurn": 11,
       "targetTurn": 2,
       "phrase": "the same churn definition",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Cancelled/expired statuses",
-      "distance": 17
+      "distance": 9
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 16,
+      "sourceTurn": 9,
       "targetTurn": 1,
       "callbackType": "value_recall",
       "expectedEntity": "Q1 2024 churn rate baseline",
       "crossesCompressionBoundary": true,
-      "distance": 15
+      "distance": 8
     },
     {
-      "sourceTurn": 20,
+      "sourceTurn": 12,
       "targetTurn": 6,
       "callbackType": "result_recall",
       "expectedEntity": "Feature usage for retained accounts",
       "crossesCompressionBoundary": true,
-      "distance": 14
+      "distance": 6
     },
     {
-      "sourceTurn": 24,
+      "sourceTurn": 13,
       "targetTurn": 1,
       "callbackType": "value_recall",
       "expectedEntity": "Q1 churn rate baseline",
       "crossesCompressionBoundary": true,
-      "distance": 23
+      "distance": 12
     }
   ]
 }

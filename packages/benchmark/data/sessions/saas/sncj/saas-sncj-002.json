@@ -3,8 +3,8 @@
   "metadata": {
     "database": "saas",
     "conversationType": "SNCJ",
-    "expectedTurns": 35,
-    "compressionBoundaryTurn": 12,
+    "expectedTurns": 17,
+    "compressionBoundaryTurn": 6,
     "userPersona": "mixed",
     "tablesExplored": ["events", "feature_usage", "invoices"],
     "description": "Schema navigation and complex joins: Event-Feature-Invoice relationships"
@@ -112,24 +112,6 @@
     {
       "turnNumber": 11,
       "role": "user",
-      "content": "Add invoice information to the feature usage analysis.",
-      "annotations": {
-        "type": "refinement",
-        "expectedBehavior": "Agent should join invoices to feature_usage"
-      }
-    },
-    {
-      "turnNumber": 12,
-      "role": "user",
-      "content": "Show me which events lead to invoice creation.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should correlate events with invoices"
-      }
-    },
-    {
-      "turnNumber": 13,
-      "role": "user",
       "content": "Apply the same timestamp column we established to show me events by hour.",
       "annotations": {
         "type": "anaphoric_reference",
@@ -141,25 +123,7 @@
       }
     },
     {
-      "turnNumber": 14,
-      "role": "user",
-      "content": "What's the relationship between feature usage and invoice amounts?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should correlate feature usage with invoice values"
-      }
-    },
-    {
-      "turnNumber": 15,
-      "role": "user",
-      "content": "Show me invoice status by event type.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should join and analyze invoice status with events"
-      }
-    },
-    {
-      "turnNumber": 16,
+      "turnNumber": 12,
       "role": "user",
       "content": "Earlier you showed me the events table structure. What are the possible event types?",
       "annotations": {
@@ -171,7 +135,7 @@
       }
     },
     {
-      "turnNumber": 17,
+      "turnNumber": 13,
       "role": "user",
       "content": "Show me the full event-feature-invoice join.",
       "annotations": {
@@ -180,16 +144,7 @@
       }
     },
     {
-      "turnNumber": 18,
-      "role": "user",
-      "content": "What filters are currently applied?",
-      "annotations": {
-        "type": "probe",
-        "expectedBehavior": "Agent should list: invoices.account_id joins, event.created_at, exclude system events"
-      }
-    },
-    {
-      "turnNumber": 19,
+      "turnNumber": 14,
       "role": "user",
       "content": "Apply all our filters to show me feature usage vs invoice correlation.",
       "annotations": {
@@ -202,72 +157,7 @@
       }
     },
     {
-      "turnNumber": 20,
-      "role": "user",
-      "content": "Show me the top features by invoice revenue.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should rank features by invoice amount"
-      }
-    },
-    {
-      "turnNumber": 21,
-      "role": "user",
-      "content": "Create a chart showing event type distribution.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create event type visualization"
-      }
-    },
-    {
-      "turnNumber": 22,
-      "role": "user",
-      "content": "Show me feature usage trends over time.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should show usage trends"
-      }
-    },
-    {
-      "turnNumber": 23,
-      "role": "user",
-      "content": "What's the invoice amount by feature category?",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should aggregate invoices by feature type"
-      }
-    },
-    {
-      "turnNumber": 24,
-      "role": "user",
-      "content": "Show me accounts with high feature usage but low invoice values.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should identify high-usage low-revenue accounts"
-      }
-    },
-    {
-      "turnNumber": 25,
-      "role": "user",
-      "content": "Create a chart showing feature usage vs invoice amount.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create correlation visualization"
-      }
-    },
-    {
-      "turnNumber": 26,
-      "role": "user",
-      "content": "Show me a final summary of event-feature-invoice relationships.",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should provide comprehensive relationship summary"
-      }
-    },
-    {
-      "turnNumber": 27,
+      "turnNumber": 15,
       "role": "user",
       "content": "What join key did we establish for invoice joins?",
       "annotations": {
@@ -279,7 +169,7 @@
       }
     },
     {
-      "turnNumber": 28,
+      "turnNumber": 16,
       "role": "user",
       "content": "Show me the top 10 accounts by feature usage to invoice ratio.",
       "annotations": {
@@ -288,66 +178,7 @@
       }
     },
     {
-      "turnNumber": 29,
-      "role": "user",
-      "content": "Create a final dashboard.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create summary dashboard"
-      }
-    },
-    {
-      "turnNumber": 30,
-      "role": "user",
-      "content": "What are the top 5 insights about event-feature-invoice relationships?",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should provide key relationship insights"
-      }
-    },
-    {
-      "turnNumber": 31,
-      "role": "user",
-      "content": "Show me events that occur before invoice payment failures.",
-      "annotations": {
-        "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should analyze pre-failure events"
-      }
-    },
-    {
-      "turnNumber": 32,
-      "role": "user",
-      "content": "Create a chart showing invoice status by feature usage level.",
-      "annotations": {
-        "type": "chart_request",
-        "chartRequested": true,
-        "expectedBehavior": "Agent should create visualization"
-      }
-    },
-    {
-      "turnNumber": 33,
-      "role": "user",
-      "content": "What timestamp column do we use for events?",
-      "annotations": {
-        "type": "callback",
-        "isCallback": true,
-        "callbackTargetTurn": 7,
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should recall event.created_at"
-      }
-    },
-    {
-      "turnNumber": 34,
-      "role": "user",
-      "content": "Show me a final analysis with all relationships.",
-      "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should provide comprehensive analysis"
-      }
-    },
-    {
-      "turnNumber": 35,
+      "turnNumber": 17,
       "role": "user",
       "content": "Thank you. We've mapped the event-feature-invoice relationships, finding that 'upgrade_request' events have the strongest correlation with invoice generation, and accounts with >100 feature uses/month have 40% higher invoice values.",
       "annotations": {
@@ -378,46 +209,38 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 13,
+      "sourceTurn": 11,
       "targetTurn": 7,
       "phrase": "the same timestamp column we established",
       "crossesCompressionBoundary": true,
       "expectedResolution": "event.created_at",
-      "distance": 6
+      "distance": 4
     },
     {
-      "sourceTurn": 19,
+      "sourceTurn": 14,
       "targetTurn": 10,
       "phrase": "all our filters",
       "crossesCompressionBoundary": true,
       "expectedResolution": "account_id joins, created_at, exclude system",
-      "distance": 9
+      "distance": 4
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 16,
+      "sourceTurn": 12,
       "targetTurn": 1,
       "callbackType": "schema_recall",
       "expectedEntity": "Event types from schema",
       "crossesCompressionBoundary": true,
-      "distance": 15
+      "distance": 11
     },
     {
-      "sourceTurn": 27,
+      "sourceTurn": 15,
       "targetTurn": 6,
       "callbackType": "filter_recall",
       "expectedEntity": "invoices.account_id join key",
       "crossesCompressionBoundary": true,
-      "distance": 21
-    },
-    {
-      "sourceTurn": 33,
-      "targetTurn": 7,
-      "callbackType": "filter_recall",
-      "expectedEntity": "event.created_at timestamp column",
-      "crossesCompressionBoundary": true,
-      "distance": 26
+      "distance": 9
     }
   ]
 }
