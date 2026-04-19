@@ -16,14 +16,18 @@
   "dependencies": {
     "@qwery/agent-factory-sdk": "workspace:*",
     "@qwery/domain": "workspace:*",
-    "@qwery/repository-in-memory": "workspace:*",
+    "@qwery/repository-file": "workspace:*",
     "@qwery/shared": "workspace:*",
     "uuid": "^11.0.3"
+  },
+  "peerDependencies": {
+    "ai": "^6.0.0"
   },
   "devDependencies": {
     "@qwery/tsconfig": "workspace:*",
     "@swc/core": "^1.11.0",
     "@types/node": "^20.19.0",
+    "ai": "^6.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.0"
   },

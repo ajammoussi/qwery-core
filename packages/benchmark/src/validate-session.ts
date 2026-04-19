@@ -5,7 +5,9 @@ import type { BenchmarkSession } from './types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-async function validateSession(filePath: string): Promise<{ valid: boolean; errors: string[] }> {
+async function validateSession(
+  filePath: string,
+): Promise<{ valid: boolean; errors: string[] }> {
   const errors: string[] = [];
 
   try {

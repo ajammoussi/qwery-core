@@ -2,17 +2,24 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Repositories } from '@qwery/domain/repositories';
 import { DatasourceKind } from '@qwery/domain/entities';
 import { runAgentToCompletion } from '@qwery/agent-factory-sdk/agents/run-agent-to-completion';
+import type { UIMessage } from '@qwery/agent-factory-sdk';
 import type {
   BenchmarkSession,
   BenchmarkResult,
   TurnResult,
   ToolCallResult,
   CompressionMethod,
+  StoredMessage,
+  StoredUsage,
+  AssistantMessageDetail,
+  MessagePartDetail,
 } from './types.js';
 import {
   createEmptyResult,
   calculateMetrics,
   saveResult,
+  convertMessageToStored,
+  convertUsageToStored,
 } from './session-loader.js';
 import { Roles } from '@qwery/domain/common/roles';
 
@@ -25,18 +32,14 @@ export type BenchmarkConfig = {
   repositories?: Repositories;
 };
 
-type ConversationMessage = {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-};
-
 type ToolMetadataEvent = {
   type?: string;
   toolName?: string;
+  toolCallId?: string;
   toolInput?: Record<string, unknown>;
   toolOutput?: unknown;
   error?: string;
+  executionTimeMs?: number;
 };
 
 const BENCHMARK_USER_ID = '11111111-1111-4111-8111-111111111111';
@@ -73,7 +76,8 @@ async function seedBenchmarkContext(repositories: Repositories): Promise<void> {
     });
   }
 
-  const existingProject = await repositories.project.findById(BENCHMARK_PROJECT_ID);
+  const existingProject =
+    await repositories.project.findById(BENCHMARK_PROJECT_ID);
   if (!existingProject) {
     await repositories.project.create({
       id: BENCHMARK_PROJECT_ID,
@@ -93,6 +97,9 @@ async function seedBenchmarkContext(repositories: Repositories): Promise<void> {
 export async function createBenchmarkRepositories(
   storageDir: string,
 ): Promise<Repositories> {
+  const path = await import('path');
+
+  const repositoryPackage = '@qwery/repository-file';
   const {
     UserRepository,
     ConversationRepository,
@@ -103,9 +110,15 @@ export async function createBenchmarkRepositories(
     MessageRepository,
     UsageRepository,
     TodoRepository,
-  } = await import('@qwery/repository-in-memory');
+    setStorageDir,
+  } = await import(repositoryPackage);
 
-  void storageDir;
+  const absoluteStorageDir =
+    storageDir.startsWith('/') || storageDir.match(/^[A-Za-z]:/)
+      ? storageDir
+      : path.resolve(process.cwd(), storageDir);
+
+  setStorageDir(absoluteStorageDir);
 
   const repositories: Repositories = {
     user: new UserRepository(),
@@ -124,6 +137,102 @@ export async function createBenchmarkRepositories(
   return repositories;
 }
 
+function extractToolCallsFromParts(
+  parts: MessagePartDetail[],
+): ToolCallResult[] {
+  const toolCalls: ToolCallResult[] = [];
+
+  for (const part of parts) {
+    if (typeof part.type === 'string' && part.type.startsWith('tool-')) {
+      const toolPart = part as {
+        type: string;
+        toolCallId?: string;
+        toolName?: string;
+        input?: Record<string, unknown>;
+        output?: unknown;
+        errorText?: string;
+        state?: string;
+        isError?: boolean;
+      };
+
+      const existingCall = toolCalls.find(
+        (tc) => tc.toolCallId === toolPart.toolCallId,
+      );
+
+      if (existingCall) {
+        if (toolPart.output !== undefined) {
+          existingCall.toolOutput = toolPart.output;
+          existingCall.success = !toolPart.isError;
+        }
+        if (toolPart.errorText) {
+          existingCall.error = toolPart.errorText;
+          existingCall.success = false;
+        }
+      } else if (toolPart.toolName) {
+        toolCalls.push({
+          toolName: toolPart.toolName,
+          toolCallId: toolPart.toolCallId,
+          toolInput: toolPart.input ?? {},
+          toolOutput: toolPart.output,
+          executionTimeMs: 0,
+          success:
+            toolPart.state === 'output-available' ||
+            (toolPart.output !== undefined && !toolPart.isError),
+          error: toolPart.errorText,
+        });
+      }
+    }
+  }
+
+  return toolCalls;
+}
+
+function extractTextFromParts(parts: MessagePartDetail[]): string {
+  const textParts: string[] = [];
+
+  for (const part of parts) {
+    if (part.type === 'text') {
+      textParts.push((part as { text: string }).text);
+    }
+  }
+
+  return textParts.join('\n');
+}
+
+function extractMetricsFromParts(parts: MessagePartDetail[]): {
+  cost: number;
+  tokens: { input: number; output: number; reasoning: number; cached: number };
+} {
+  let cost = 0;
+  let tokens = { input: 0, output: 0, reasoning: 0, cached: 0 };
+
+  for (const part of parts) {
+    if (part.type === 'step-finish') {
+      const stepFinish = part as {
+        type: 'step-finish';
+        cost?: number;
+        tokens?: {
+          input: number;
+          output: number;
+          reasoning?: number;
+          cache?: { read: number; write: number };
+        };
+      };
+      if (stepFinish.cost !== undefined) {
+        cost += stepFinish.cost;
+      }
+      if (stepFinish.tokens) {
+        tokens.input += stepFinish.tokens.input;
+        tokens.output += stepFinish.tokens.output;
+        tokens.reasoning += stepFinish.tokens.reasoning ?? 0;
+        tokens.cached += stepFinish.tokens.cache?.read ?? 0;
+      }
+    }
+  }
+
+  return { cost, tokens };
+}
+
 export async function runSession(
   session: BenchmarkSession,
   config: BenchmarkConfig,
@@ -131,6 +240,7 @@ export async function runSession(
   const compressionMethod =
     config.compressionMethod || 'baseline-no-compression';
   const result = createEmptyResult(session, compressionMethod);
+
   const repositories =
     config.repositories ??
     (await createBenchmarkRepositories(config.storageDir || 'qwery.db'));
@@ -156,17 +266,23 @@ export async function runSession(
 
   await repositories.conversation.create(conversation);
 
-  const conversationMessages: ConversationMessage[] = [];
+  const conversationMessages: UIMessage[] = [];
+  let previousTurnMessageCount = 0;
 
   for (const turn of session.turns) {
     const turnStart = performance.now();
 
+    const userMessageId = uuidv4();
     conversationMessages.push({
-      id: uuidv4(),
+      id: userMessageId,
       role: 'user',
-      content: turn.content,
+      parts: [{ type: 'text', text: turn.content }],
     });
 
+    const toolCallMap = new Map<
+      string,
+      { input?: Record<string, unknown>; startTime: number }
+    >();
     const accumulatedToolCalls: ToolCallResult[] = [];
 
     const abortController = new AbortController();
@@ -175,11 +291,7 @@ export async function runSession(
       const agentResult = await runAgentToCompletion({
         conversationId,
         conversationSlug,
-        messages: conversationMessages.map((m) => ({
-          id: m.id,
-          role: m.role,
-          parts: [{ type: 'text', text: m.content }],
-        })),
+        messages: conversationMessages,
         agentId: 'query',
         model: config.model,
         repositories,
@@ -190,8 +302,14 @@ export async function runSession(
           const event = meta as unknown as ToolMetadataEvent;
 
           if (event.type === 'tool-input-available') {
+            const callId = event.toolCallId ?? uuidv4();
+            toolCallMap.set(callId, {
+              input: event.toolInput,
+              startTime: performance.now(),
+            });
             accumulatedToolCalls.push({
               toolName: event.toolName ?? 'unknown',
+              toolCallId: callId,
               toolInput: event.toolInput ?? {},
               toolOutput: null,
               executionTimeMs: 0,
@@ -204,6 +322,14 @@ export async function runSession(
             if (call) {
               call.toolOutput = event.toolOutput;
               call.success = true;
+              const toolInfo = Array.from(toolCallMap.entries()).find(
+                ([, v]) => call.toolInput === v.input,
+              );
+              if (toolInfo) {
+                call.executionTimeMs = Math.round(
+                  performance.now() - toolInfo[1].startTime,
+                );
+              }
             }
           } else if (event.type === 'tool-output-error') {
             const call = accumulatedToolCalls.find(
@@ -212,6 +338,14 @@ export async function runSession(
             if (call) {
               call.error = event.error;
               call.success = false;
+              const toolInfo = Array.from(toolCallMap.entries()).find(
+                ([, v]) => call.toolInput === v.input,
+              );
+              if (toolInfo) {
+                call.executionTimeMs = Math.round(
+                  performance.now() - toolInfo[1].startTime,
+                );
+              }
             }
           }
         },
@@ -220,24 +354,82 @@ export async function runSession(
       const turnEnd = performance.now();
       const responseTimeMs = Math.round(turnEnd - turnStart);
 
-      const agentResponse = agentResult.text || '';
-      conversationMessages.push({
-        id: uuidv4(),
-        role: 'assistant',
-        content: agentResponse,
-      });
+      const finishedMessages = agentResult.messages;
+
+      const assistantMessages: AssistantMessageDetail[] = [];
+      let agentResponse = '';
+      let totalCost = 0;
+      let inputTokens = agentResult.usage?.promptTokens ?? 0;
+      let outputTokens = agentResult.usage?.completionTokens ?? 0;
+      let reasoningTokens = 0;
+      let cachedInputTokens = 0;
+
+      for (const msg of finishedMessages) {
+        if (msg.role === 'assistant') {
+          const parts = (msg.parts ?? []) as MessagePartDetail[];
+          const metrics = extractMetricsFromParts(parts);
+          totalCost += metrics.cost;
+          inputTokens += metrics.tokens.input;
+          outputTokens += metrics.tokens.output;
+          reasoningTokens += metrics.tokens.reasoning;
+          cachedInputTokens += metrics.tokens.cached;
+
+          const toolCallsFromParts = extractToolCallsFromParts(parts);
+          for (const tc of toolCallsFromParts) {
+            const existingIdx = accumulatedToolCalls.findIndex(
+              (atc) =>
+                atc.toolName === tc.toolName &&
+                atc.toolCallId === tc.toolCallId,
+            );
+            if (existingIdx === -1) {
+              accumulatedToolCalls.push(tc);
+            } else {
+              accumulatedToolCalls[existingIdx] = tc;
+            }
+          }
+
+          const msgMetadata = (msg.metadata as Record<string, unknown>) ?? {};
+
+          assistantMessages.push({
+            messageId: msg.id,
+            parts,
+            metadata: msgMetadata,
+          });
+
+          const textContent = extractTextFromParts(parts);
+          if (textContent) {
+            agentResponse = agentResponse
+              ? `${agentResponse}\n${textContent}`
+              : textContent;
+          }
+        }
+      }
 
       const turnResult: TurnResult = {
         turnNumber: turn.turnNumber,
         userMessage: turn.content,
+        assistantMessages,
         agentResponse,
         toolCalls: accumulatedToolCalls,
         responseTimeMs,
-        inputTokens: agentResult.usage?.promptTokens ?? 0,
-        outputTokens: agentResult.usage?.completionTokens ?? 0,
+        inputTokens,
+        outputTokens,
+        reasoningTokens,
+        cachedInputTokens,
+        cost: totalCost,
       };
 
       result.turns.push(turnResult);
+
+      conversationMessages.length = 0;
+      for (const msg of finishedMessages) {
+        conversationMessages.push({
+          id: msg.id,
+          role: msg.role as 'user' | 'assistant',
+          parts: msg.parts,
+          metadata: msg.metadata,
+        });
+      }
     } catch (error) {
       const turnEnd = performance.now();
       const errorMessage =
@@ -247,15 +439,39 @@ export async function runSession(
       const turnResult: TurnResult = {
         turnNumber: turn.turnNumber,
         userMessage: turn.content,
+        assistantMessages: [],
         agentResponse: '',
         toolCalls: accumulatedToolCalls,
         responseTimeMs: Math.round(turnEnd - turnStart),
         inputTokens: 0,
         outputTokens: 0,
+        reasoningTokens: 0,
+        cachedInputTokens: 0,
+        cost: 0,
       };
 
       result.turns.push(turnResult);
     }
+  }
+
+  try {
+    const dbMessages =
+      await repositories.message.findByConversationId(conversationId);
+    result.messages = dbMessages.map(convertMessageToStored);
+  } catch (error) {
+    result.errors.push(
+      `Failed to retrieve messages: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  try {
+    const dbUsages =
+      await repositories.usage.findByConversationId(conversationId);
+    result.usages = dbUsages.map(convertUsageToStored);
+  } catch (error) {
+    result.errors.push(
+      `Failed to retrieve usages: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   result.completedAt = new Date().toISOString();

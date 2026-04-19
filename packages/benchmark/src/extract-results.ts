@@ -38,11 +38,40 @@ async function generateReport(compressionMethod?: CompressionMethod) {
         totalToolCalls: number;
         totalInputTokens: number;
         totalOutputTokens: number;
+        totalReasoningTokens: number;
+        totalCachedInputTokens: number;
+        totalCost: number;
         avgResponseTimeMs: number;
         successRate: number;
       };
-      byDatabase: Record<string, { sessions: number; turns: number; toolCalls: number; inputTokens: number; outputTokens: number; avgResponseTimeMs: number }>
-      byType: Record<string, { sessions: number; turns: number; toolCalls: number; inputTokens: number; outputTokens: number; avgResponseTimeMs: number }>
+      byDatabase: Record<
+        string,
+        {
+          sessions: number;
+          turns: number;
+          toolCalls: number;
+          inputTokens: number;
+          outputTokens: number;
+          reasoningTokens: number;
+          cachedInputTokens: number;
+          cost: number;
+          avgResponseTimeMs: number;
+        }
+      >;
+      byType: Record<
+        string,
+        {
+          sessions: number;
+          turns: number;
+          toolCalls: number;
+          inputTokens: number;
+          outputTokens: number;
+          reasoningTokens: number;
+          cachedInputTokens: number;
+          cost: number;
+          avgResponseTimeMs: number;
+        }
+      >;
       sessions: BenchmarkResult[];
     } = {
       compressionMethod: method,
@@ -52,6 +81,9 @@ async function generateReport(compressionMethod?: CompressionMethod) {
         totalToolCalls: 0,
         totalInputTokens: 0,
         totalOutputTokens: 0,
+        totalReasoningTokens: 0,
+        totalCachedInputTokens: 0,
+        totalCost: 0,
         avgResponseTimeMs: 0,
         successRate: 0,
       },
@@ -67,6 +99,9 @@ async function generateReport(compressionMethod?: CompressionMethod) {
         toolCalls: 0,
         inputTokens: 0,
         outputTokens: 0,
+        reasoningTokens: 0,
+        cachedInputTokens: 0,
+        cost: 0,
         avgResponseTimeMs: 0,
       };
 
@@ -85,6 +120,11 @@ async function generateReport(compressionMethod?: CompressionMethod) {
             report.summary.totalInputTokens += result.metrics.totalInputTokens;
             report.summary.totalOutputTokens +=
               result.metrics.totalOutputTokens;
+            report.summary.totalReasoningTokens +=
+              result.metrics.totalReasoningTokens ?? 0;
+            report.summary.totalCachedInputTokens +=
+              result.metrics.totalCachedInputTokens ?? 0;
+            report.summary.totalCost += result.metrics.totalCost ?? 0;
 
             report.byDatabase[db].sessions++;
             report.byDatabase[db].turns += result.metrics.totalTurns;
@@ -93,6 +133,11 @@ async function generateReport(compressionMethod?: CompressionMethod) {
               result.metrics.totalInputTokens;
             report.byDatabase[db].outputTokens +=
               result.metrics.totalOutputTokens;
+            report.byDatabase[db].reasoningTokens +=
+              result.metrics.totalReasoningTokens ?? 0;
+            report.byDatabase[db].cachedInputTokens +=
+              result.metrics.totalCachedInputTokens ?? 0;
+            report.byDatabase[db].cost += result.metrics.totalCost ?? 0;
 
             if (!report.byType[type]) {
               report.byType[type] = {
@@ -101,6 +146,9 @@ async function generateReport(compressionMethod?: CompressionMethod) {
                 toolCalls: 0,
                 inputTokens: 0,
                 outputTokens: 0,
+                reasoningTokens: 0,
+                cachedInputTokens: 0,
+                cost: 0,
                 avgResponseTimeMs: 0,
               };
             }
@@ -110,6 +158,11 @@ async function generateReport(compressionMethod?: CompressionMethod) {
             report.byType[type].inputTokens += result.metrics.totalInputTokens;
             report.byType[type].outputTokens +=
               result.metrics.totalOutputTokens;
+            report.byType[type].reasoningTokens +=
+              result.metrics.totalReasoningTokens ?? 0;
+            report.byType[type].cachedInputTokens +=
+              result.metrics.totalCachedInputTokens ?? 0;
+            report.byType[type].cost += result.metrics.totalCost ?? 0;
           }
         } catch {
           // Directory doesn't exist
@@ -165,6 +218,13 @@ async function generateReport(compressionMethod?: CompressionMethod) {
     console.log(`Total Tool Calls: ${report.summary.totalToolCalls}`);
     console.log(`Total Input Tokens: ${report.summary.totalInputTokens}`);
     console.log(`Total Output Tokens: ${report.summary.totalOutputTokens}`);
+    console.log(
+      `Total Reasoning Tokens: ${report.summary.totalReasoningTokens}`,
+    );
+    console.log(
+      `Total Cached Input Tokens: ${report.summary.totalCachedInputTokens}`,
+    );
+    console.log(`Total Cost: $${report.summary.totalCost.toFixed(4)}`);
     console.log(`Avg Response Time: ${report.summary.avgResponseTimeMs}ms`);
     console.log(
       `Success Rate: ${(report.summary.successRate * 100).toFixed(1)}%`,
