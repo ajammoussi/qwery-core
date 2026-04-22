@@ -3,8 +3,8 @@
   "metadata": {
     "database": "tpch",
     "conversationType": "RCI",
-    "expectedTurns": 16,
-    "compressionBoundaryTurn": 6,
+    "expectedTurns": 38,
+    "compressionBoundaryTurn": 16,
     "userPersona": "business",
     "tablesExplored": ["CUSTOMER", "ORDERS", "LINEITEM", "NATION", "REGION"],
     "description": "Customer segment analysis investigating declining order values in specific market segments"
@@ -22,6 +22,15 @@
     {
       "turnNumber": 2,
       "role": "user",
+      "content": "What customer segments do we have in our data?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should return C_MKTSEGMENT values"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
       "content": "Show me the average order value by market segment.",
       "annotations": {
         "type": "hypothesis_exploration",
@@ -29,7 +38,7 @@
       }
     },
     {
-      "turnNumber": 3,
+      "turnNumber": 4,
       "role": "user",
       "content": "For this analysis, only include orders from 1995 onwards.",
       "annotations": {
@@ -41,7 +50,7 @@
       }
     },
     {
-      "turnNumber": 4,
+      "turnNumber": 5,
       "role": "user",
       "content": "AUTOMOBILE segment has the highest AOV. Let me see the trend over time — show me monthly AOV by segment.",
       "annotations": {
@@ -50,7 +59,7 @@
       }
     },
     {
-      "turnNumber": 5,
+      "turnNumber": 6,
       "role": "user",
       "content": "HOUSEHOLD segment shows declining AOV. When I say order date, I mean O_ORDERDATE column specifically.",
       "annotations": {
@@ -62,7 +71,34 @@
       }
     },
     {
-      "turnNumber": 6,
+      "turnNumber": 7,
+      "role": "user",
+      "content": "Let me focus on HOUSEHOLD segment. Show me order distribution by total price ranges.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should bucket orders by price ranges"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "There are fewer high-value orders. Show me customers in HOUSEHOLD segment who have reduced their spending.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare customer spending over time"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Which regions are these declining HOUSEHOLD customers from?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show regional distribution of declining customers"
+      }
+    },
+    {
+      "turnNumber": 10,
       "role": "user",
       "content": "Exclude ASIA region from this analysis — we're already investigating that separately.",
       "annotations": {
@@ -74,20 +110,34 @@
       }
     },
     {
-      "turnNumber": 7,
+      "turnNumber": 11,
       "role": "user",
-      "content": "Remember when we looked at monthly AOV by segment? Can you show me that again but only for HOUSEHOLD and AUTOMOBILE?",
+      "content": "Show me the top HOUSEHOLD customers outside ASIA and their order history.",
       "annotations": {
-        "type": "anaphoric_reference",
-        "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 4,
-        "anaphoricPhrase": "Remember when we looked at monthly AOV by segment?",
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should recreate monthly AOV for HOUSEHOLD and AUTOMOBILE"
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show customer order history"
       }
     },
     {
-      "turnNumber": 8,
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Let me see the product categories these declining customers used to order.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show product types ordered by declining customers"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Are these customers still ordering but buying cheaper products?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare order values and product mix over time"
+      }
+    },
+    {
+      "turnNumber": 14,
       "role": "user",
       "content": "Some customers stopped ordering entirely. How many HOUSEHOLD customers from 1994 haven't ordered in 1995?",
       "annotations": {
@@ -96,32 +146,135 @@
       }
     },
     {
-      "turnNumber": 9,
+      "turnNumber": 15,
+      "role": "user",
+      "content": "What's the total revenue we lost from these churned HOUSEHOLD customers?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should sum revenue from churned customers"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Let me check if there's a pattern with order priorities. Show me the order priority distribution for HOUSEHOLD segment.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show O_ORDERPRIORITY distribution"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Are there specific nations where HOUSEHOLD customers have churned more?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show churn by nation for HOUSEHOLD segment"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Remember when we looked at monthly AOV by segment? Can you show me that again but only for HOUSEHOLD and AUTOMOBILE?",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 5,
+        "anaphoricPhrase": "Remember when we looked at monthly AOV by segment?",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recreate monthly AOV for HOUSEHOLD and AUTOMOBILE"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Let me compare with BUILDING segment. Show me BUILDING customers who increased their spending.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show customers with increasing spending in BUILDING"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "What products are these growing BUILDING customers ordering?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show product mix for growing BUILDING customers"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Interesting — they're ordering different product types. Let me see if HOUSEHOLD customers who stayed also shifted their product mix.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare product mix of retained HOUSEHOLD customers over time"
+      }
+    },
+    {
+      "turnNumber": 22,
       "role": "user",
       "content": "What was the average order value for HOUSEHOLD in January 1995?",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 4,
+        "callbackTargetTurn": 5,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should recall or recalculate January AOV for HOUSEHOLD"
       }
     },
     {
-      "turnNumber": 10,
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Let me check if this correlates with order size. Show me line item counts per order for HOUSEHOLD segment.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show distribution of items per order"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Orders are getting smaller in terms of items. What about discount levels?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze discount trends"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Higher discounts in recent months. Show me the correlation between discount and order value.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show relationship between discount and order size"
+      }
+    },
+    {
+      "turnNumber": 26,
       "role": "user",
       "content": "Apply all the filters we've established and show me a summary by segment.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 6,
+        "anaphoricTargetTurn": 10,
         "anaphoricPhrase": "all the filters we've established",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should apply: 1995+, O_ORDERDATE, exclude ASIA"
       }
     },
     {
-      "turnNumber": 11,
+      "turnNumber": 27,
+      "role": "user",
+      "content": "What's driving the HOUSEHOLD decline specifically?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should summarize findings"
+      }
+    },
+    {
+      "turnNumber": 28,
       "role": "user",
       "content": "Let me see the customer lifetime value for HOUSEHOLD customers who churned vs those who stayed.",
       "annotations": {
@@ -130,7 +283,44 @@
       }
     },
     {
-      "turnNumber": 12,
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Show me the acquisition date distribution for HOUSEHOLD customers.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show when customers first ordered"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Many churned customers were acquired in 1994. What was different about 1994 acquisition?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze 1994 customer acquisition patterns"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Let me see which acquisition channels (nations) had the worst retention.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show retention by nation"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Can you create a chart showing customer segments by order value distribution?",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create visualization"
+      }
+    },
+    {
+      "turnNumber": 33,
       "role": "user",
       "content": "What filters are currently active?",
       "annotations": {
@@ -139,7 +329,7 @@
       }
     },
     {
-      "turnNumber": 13,
+      "turnNumber": 34,
       "role": "user",
       "content": "Good. Show me top 20 HOUSEHOLD customers by total order value with all filters applied.",
       "annotations": {
@@ -148,19 +338,19 @@
       }
     },
     {
-      "turnNumber": 14,
+      "turnNumber": 35,
       "role": "user",
       "content": "Earlier we identified that HOUSEHOLD customers in AMERICA region were churning. Can you verify that?",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 8,
+        "callbackTargetTurn": 17,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should recall nation churn analysis"
       }
     },
     {
-      "turnNumber": 15,
+      "turnNumber": 36,
       "role": "user",
       "content": "Create a final report showing HOUSEHOLD segment performance metrics.",
       "annotations": {
@@ -170,7 +360,16 @@
       }
     },
     {
-      "turnNumber": 16,
+      "turnNumber": 37,
+      "role": "user",
+      "content": "Let me also compare with MACHINERY segment trends.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show MACHINERY segment analysis"
+      }
+    },
+    {
+      "turnNumber": 38,
       "role": "user",
       "content": "Thank you. We've identified that HOUSEHOLD segment decline is driven by customer churn, particularly those acquired in 1994, and they're not being replaced by new customers.",
       "annotations": {
@@ -181,19 +380,19 @@
   ],
   "persistedCorrections": [
     {
-      "turnEstablished": 3,
+      "turnEstablished": 4,
       "correctionText": "Only include orders from 1995 onwards",
       "type": "filter_rule",
       "description": "O_ORDERDATE >= '1995-01-01'"
     },
     {
-      "turnEstablished": 5,
+      "turnEstablished": 6,
       "correctionText": "Use O_ORDERDATE for date references",
       "type": "date_column",
       "description": "Always use O_ORDERDATE column for order dates"
     },
     {
-      "turnEstablished": 6,
+      "turnEstablished": 10,
       "correctionText": "Exclude ASIA region from analysis",
       "type": "exclusion",
       "description": "Filter out ASIA region customers"
@@ -201,38 +400,38 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 7,
-      "targetTurn": 4,
+      "sourceTurn": 18,
+      "targetTurn": 5,
       "phrase": "Remember when we looked at monthly AOV by segment?",
       "crossesCompressionBoundary": true,
-      "expectedResolution": "Monthly AOV breakdown by segment from turn 4",
-      "distance": 3
+      "expectedResolution": "Monthly AOV breakdown by segment from turn 5",
+      "distance": 13
     },
     {
-      "sourceTurn": 10,
-      "targetTurn": 6,
+      "sourceTurn": 26,
+      "targetTurn": 10,
       "phrase": "all the filters we've established",
       "crossesCompressionBoundary": true,
       "expectedResolution": "1995+, O_ORDERDATE, exclude ASIA",
-      "distance": 4
+      "distance": 16
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 9,
-      "targetTurn": 4,
+      "sourceTurn": 22,
+      "targetTurn": 5,
       "callbackType": "value_recall",
       "expectedEntity": "HOUSEHOLD January 1995 AOV",
       "crossesCompressionBoundary": true,
-      "distance": 5
+      "distance": 17
     },
     {
-      "sourceTurn": 14,
-      "targetTurn": 8,
+      "sourceTurn": 35,
+      "targetTurn": 17,
       "callbackType": "result_recall",
       "expectedEntity": "Nation churn analysis for HOUSEHOLD",
       "crossesCompressionBoundary": true,
-      "distance": 6
+      "distance": 18
     }
   ]
 }

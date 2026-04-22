@@ -3,8 +3,8 @@
   "metadata": {
     "database": "tpch",
     "conversationType": "IRC",
-    "expectedTurns": 15,
-    "compressionBoundaryTurn": 5,
+    "expectedTurns": 32,
+    "compressionBoundaryTurn": 12,
     "userPersona": "business",
     "tablesExplored": ["ORDERS", "LINEITEM", "CUSTOMER", "NATION", "REGION"],
     "description": "Iterative refinement of revenue breakdown by region with multiple explicit corrections"
@@ -34,6 +34,15 @@
     {
       "turnNumber": 3,
       "role": "user",
+      "content": "Also add a column for number of distinct customers per region.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add COUNT(DISTINCT customer) to results"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
       "content": "When I say region, I mean the customer's region, not the supplier's region. Please always use customer region.",
       "annotations": {
         "type": "correction",
@@ -44,7 +53,16 @@
       }
     },
     {
-      "turnNumber": 4,
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Now add a month-over-month growth percentage column.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should calculate MoM growth rate"
+      }
+    },
+    {
+      "turnNumber": 6,
       "role": "user",
       "content": "Exclude the AMERICA region from all our analyses — there's a data quality issue there.",
       "annotations": {
@@ -56,20 +74,20 @@
       }
     },
     {
-      "turnNumber": 5,
+      "turnNumber": 7,
       "role": "user",
       "content": "Apply the same filters we've established to show me top 10 customers by revenue.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 4,
+        "anaphoricTargetTurn": 6,
         "anaphoricPhrase": "the same filters we've established",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should apply: legacy customers, customer region, exclude AMERICA"
       }
     },
     {
-      "turnNumber": 6,
+      "turnNumber": 8,
       "role": "user",
       "content": "Just to confirm — what filters are we currently applying to this analysis?",
       "annotations": {
@@ -78,7 +96,25 @@
       }
     },
     {
-      "turnNumber": 7,
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Good. Now do the same breakdown but for Q4 only.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should filter to Q4 1995 with all established filters"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Show me the revenue by nation within each region.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add nation breakdown"
+      }
+    },
+    {
+      "turnNumber": 11,
       "role": "user",
       "content": "For date filtering, always use O_ORDERDATE column.",
       "annotations": {
@@ -90,7 +126,34 @@
       }
     },
     {
-      "turnNumber": 8,
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Let me see the average order value by region as well.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add AOV to the regional breakdown"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Which region has the highest AOV?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify top AOV region"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Show me the order count distribution by month for each region.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should show monthly order counts by region"
+      }
+    },
+    {
+      "turnNumber": 15,
       "role": "user",
       "content": "Remember the legacy cohort filter we established? Apply that to show customer acquisition dates.",
       "annotations": {
@@ -103,19 +166,65 @@
       }
     },
     {
-      "turnNumber": 9,
+      "turnNumber": 16,
+      "role": "user",
+      "content": "What's the total revenue for legacy customers vs new customers?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should compare legacy vs new customer revenue"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Create a chart showing revenue by region with all filters applied.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create visualization with all filters"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "What filters are currently active?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all filters"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Show me the top 5 customers in each region by revenue.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should show top customers per region"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "What's the retention rate for legacy customers by region?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate customer retention by region"
+      }
+    },
+    {
+      "turnNumber": 21,
       "role": "user",
       "content": "Earlier we excluded AMERICA. What would the numbers look like if we included it?",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 4,
+        "callbackTargetTurn": 6,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should show what AMERICA's contribution would be"
       }
     },
     {
-      "turnNumber": 10,
+      "turnNumber": 22,
       "role": "user",
       "content": "Keep AMERICA excluded. Show me the final revenue summary.",
       "annotations": {
@@ -124,32 +233,78 @@
       }
     },
     {
-      "turnNumber": 11,
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Add order priority breakdown to the summary.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add O_ORDERPRIORITY breakdown"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "What's the revenue by order priority for each region?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should show priority vs region pivot"
+      }
+    },
+    {
+      "turnNumber": 25,
       "role": "user",
       "content": "Apply all the corrections we've made to show me a final dashboard.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 7,
+        "anaphoricTargetTurn": 11,
         "anaphoricPhrase": "all the corrections we've made",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should apply: legacy customers, customer region, exclude AMERICA, use O_ORDERDATE"
       }
     },
     {
-      "turnNumber": 12,
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Create a chart showing the revenue trend over the 6 months.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create time series visualization"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Show me the growth rate by region month over month.",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate MoM growth by region"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Which regions are growing vs declining?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify growth trends"
+      }
+    },
+    {
+      "turnNumber": 29,
       "role": "user",
       "content": "What was the revenue for EUROPE in November?",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 10,
+        "callbackTargetTurn": 14,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should recall Europe November revenue"
       }
     },
     {
-      "turnNumber": 13,
+      "turnNumber": 30,
       "role": "user",
       "content": "Show me the top 10 nations by revenue with all filters.",
       "annotations": {
@@ -158,7 +313,7 @@
       }
     },
     {
-      "turnNumber": 14,
+      "turnNumber": 31,
       "role": "user",
       "content": "Create a final summary chart.",
       "annotations": {
@@ -168,7 +323,7 @@
       }
     },
     {
-      "turnNumber": 15,
+      "turnNumber": 32,
       "role": "user",
       "content": "Thank you. We've established that legacy customers in Europe and Asia drive most revenue, with Europe showing growth while Asia is declining.",
       "annotations": {
@@ -185,19 +340,19 @@
       "description": "Legacy cohort filter"
     },
     {
-      "turnEstablished": 3,
+      "turnEstablished": 4,
       "correctionText": "Always use customer region, not supplier region",
       "type": "column_preference",
       "description": "Use CUSTOMER's region for analysis"
     },
     {
-      "turnEstablished": 4,
+      "turnEstablished": 6,
       "correctionText": "Exclude AMERICA region from all analyses",
       "type": "exclusion",
       "description": "Filter out AMERICA region"
     },
     {
-      "turnEstablished": 7,
+      "turnEstablished": 11,
       "correctionText": "Use O_ORDERDATE for date filtering",
       "type": "date_column",
       "description": "Always use O_ORDERDATE column"
@@ -205,46 +360,46 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 5,
-      "targetTurn": 4,
+      "sourceTurn": 7,
+      "targetTurn": 6,
       "phrase": "the same filters we've established",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Legacy customers, customer region, exclude AMERICA",
       "distance": 1
     },
     {
-      "sourceTurn": 8,
+      "sourceTurn": 15,
       "targetTurn": 2,
       "phrase": "the legacy cohort filter we established",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Pre-1994 customers filter",
-      "distance": 6
+      "distance": 13
     },
     {
-      "sourceTurn": 11,
-      "targetTurn": 7,
+      "sourceTurn": 25,
+      "targetTurn": 11,
       "phrase": "all the corrections we've made",
       "crossesCompressionBoundary": true,
       "expectedResolution": "All established corrections",
-      "distance": 4
+      "distance": 14
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 9,
-      "targetTurn": 4,
+      "sourceTurn": 21,
+      "targetTurn": 6,
       "callbackType": "filter_recall",
       "expectedEntity": "AMERICA exclusion decision",
       "crossesCompressionBoundary": true,
-      "distance": 5
+      "distance": 15
     },
     {
-      "sourceTurn": 12,
-      "targetTurn": 10,
+      "sourceTurn": 29,
+      "targetTurn": 14,
       "callbackType": "value_recall",
       "expectedEntity": "Europe November revenue",
       "crossesCompressionBoundary": true,
-      "distance": 2
+      "distance": 15
     }
   ]
 }

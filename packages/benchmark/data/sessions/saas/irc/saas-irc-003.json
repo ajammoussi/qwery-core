@@ -3,8 +3,8 @@
   "metadata": {
     "database": "saas",
     "conversationType": "IRC",
-    "expectedTurns": 15,
-    "compressionBoundaryTurn": 5,
+    "expectedTurns": 30,
+    "compressionBoundaryTurn": 10,
     "userPersona": "mixed",
     "tablesExplored": ["invoices", "subscriptions", "accounts", "plans"],
     "description": "Iterative refinement of revenue by segment analysis with corrections"
@@ -34,6 +34,15 @@
     {
       "turnNumber": 3,
       "role": "user",
+      "content": "Add a column for invoice count per segment.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add invoice count to results"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
       "content": "When I say segment, I mean account industry. Use accounts.industry for segmentation.",
       "annotations": {
         "type": "correction",
@@ -44,7 +53,16 @@
       }
     },
     {
-      "turnNumber": 4,
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Now add average invoice amount by segment.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add average invoice amount"
+      }
+    },
+    {
+      "turnNumber": 6,
       "role": "user",
       "content": "Exclude 'Internal' accounts from all analyses — those are test accounts.",
       "annotations": {
@@ -56,20 +74,20 @@
       }
     },
     {
-      "turnNumber": 5,
+      "turnNumber": 7,
       "role": "user",
       "content": "Apply the same filters we've established to show me top accounts by revenue.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 4,
+        "anaphoricTargetTurn": 6,
         "anaphoricPhrase": "the same filters we've established",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should apply: paid invoices, use industry, exclude Internal"
       }
     },
     {
-      "turnNumber": 6,
+      "turnNumber": 8,
       "role": "user",
       "content": "Just to confirm — what filters are we currently applying?",
       "annotations": {
@@ -78,7 +96,16 @@
       }
     },
     {
-      "turnNumber": 7,
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Good. Now show me the same breakdown by quarter.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should show quarterly revenue by segment"
+      }
+    },
+    {
+      "turnNumber": 10,
       "role": "user",
       "content": "For invoice dates, always use invoice.billing_date.",
       "annotations": {
@@ -90,7 +117,34 @@
       }
     },
     {
-      "turnNumber": 8,
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Show me revenue by segment and plan tier.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add plan tier dimension"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Which segment has the highest average invoice?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify top segment by average"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Show me invoice distribution by month for each segment.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should show monthly invoice distribution"
+      }
+    },
+    {
+      "turnNumber": 14,
       "role": "user",
       "content": "Remember the paid invoice filter we established? Apply that to show collection rate by segment.",
       "annotations": {
@@ -103,41 +157,26 @@
       }
     },
     {
-      "turnNumber": 9,
+      "turnNumber": 15,
       "role": "user",
-      "content": "Earlier we excluded Internal accounts. What revenue did they generate?",
+      "content": "What's the total revenue by segment?",
       "annotations": {
-        "type": "callback",
-        "isCallback": true,
-        "callbackTargetTurn": 4,
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should show Internal account revenue"
+        "type": "aggregation",
+        "expectedBehavior": "Agent should show total revenue per segment"
       }
     },
     {
-      "turnNumber": 10,
+      "turnNumber": 16,
       "role": "user",
-      "content": "Keep Internal excluded. Show me the final revenue summary.",
+      "content": "Create a chart showing revenue by segment.",
       "annotations": {
-        "type": "final_query",
-        "expectedBehavior": "Agent should provide comprehensive summary"
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create visualization"
       }
     },
     {
-      "turnNumber": 11,
-      "role": "user",
-      "content": "Apply all the corrections we've made to show me a final dashboard.",
-      "annotations": {
-        "type": "anaphoric_reference",
-        "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 7,
-        "anaphoricPhrase": "all the corrections we've made",
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should apply all established corrections"
-      }
-    },
-    {
-      "turnNumber": 12,
+      "turnNumber": 17,
       "role": "user",
       "content": "What filters are currently active?",
       "annotations": {
@@ -146,19 +185,108 @@
       }
     },
     {
-      "turnNumber": 13,
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Show me the top 5 accounts in each segment by revenue.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should show top accounts per segment"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "What's the revenue growth rate by segment?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate growth rates"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Earlier we excluded Internal accounts. What revenue did they generate?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 6,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should show Internal account revenue"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Keep Internal excluded. Show me the final revenue summary.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide comprehensive summary"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Add plan tier breakdown to the summary.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add plan tier dimension"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "What's the revenue by plan tier?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should show revenue by tier"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Apply all the corrections we've made to show me a final dashboard.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 10,
+        "anaphoricPhrase": "all the corrections we've made",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply all established corrections"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Create a chart showing revenue trend by segment.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create trend visualization"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Show me the top 10 segments by revenue with all filters.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should show segment ranking with filters"
+      }
+    },
+    {
+      "turnNumber": 27,
       "role": "user",
       "content": "What was the revenue for Technology segment?",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 10,
+        "callbackTargetTurn": 12,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should recall Technology segment revenue"
       }
     },
     {
-      "turnNumber": 14,
+      "turnNumber": 28,
       "role": "user",
       "content": "Create a final dashboard visualization.",
       "annotations": {
@@ -168,7 +296,16 @@
       }
     },
     {
-      "turnNumber": 15,
+      "turnNumber": 29,
+      "role": "user",
+      "content": "What filters are currently active?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all active filters"
+      }
+    },
+    {
+      "turnNumber": 30,
       "role": "user",
       "content": "Thank you. We've established that Technology and Finance are our highest revenue segments, with Enterprise tier driving most revenue across all segments.",
       "annotations": {
@@ -185,19 +322,19 @@
       "description": "Filter to paid invoices only"
     },
     {
-      "turnEstablished": 3,
+      "turnEstablished": 4,
       "correctionText": "Use accounts.industry for segmentation",
       "type": "column_preference",
       "description": "Industry column for segment analysis"
     },
     {
-      "turnEstablished": 4,
+      "turnEstablished": 6,
       "correctionText": "Exclude Internal accounts from all analyses",
       "type": "exclusion",
       "description": "Filter out Internal accounts"
     },
     {
-      "turnEstablished": 7,
+      "turnEstablished": 10,
       "correctionText": "Use invoice.billing_date for invoice dates",
       "type": "date_column",
       "description": "Always use billing_date column"
@@ -205,46 +342,46 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 5,
-      "targetTurn": 4,
+      "sourceTurn": 7,
+      "targetTurn": 6,
       "phrase": "the same filters we've established",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Paid invoices, use industry, exclude Internal",
       "distance": 1
     },
     {
-      "sourceTurn": 8,
+      "sourceTurn": 14,
       "targetTurn": 2,
       "phrase": "the paid invoice filter we established",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Only paid invoices",
-      "distance": 6
+      "distance": 12
     },
     {
-      "sourceTurn": 11,
-      "targetTurn": 7,
+      "sourceTurn": 24,
+      "targetTurn": 10,
       "phrase": "all the corrections we've made",
       "crossesCompressionBoundary": true,
       "expectedResolution": "All established corrections",
-      "distance": 4
+      "distance": 14
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 9,
-      "targetTurn": 4,
+      "sourceTurn": 20,
+      "targetTurn": 6,
       "callbackType": "filter_recall",
       "expectedEntity": "Internal account exclusion decision",
       "crossesCompressionBoundary": true,
-      "distance": 5
+      "distance": 14
     },
     {
-      "sourceTurn": 13,
-      "targetTurn": 10,
+      "sourceTurn": 27,
+      "targetTurn": 12,
       "callbackType": "value_recall",
       "expectedEntity": "Technology segment revenue",
       "crossesCompressionBoundary": true,
-      "distance": 3
+      "distance": 15
     }
   ]
 }

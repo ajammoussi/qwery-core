@@ -3,8 +3,8 @@
   "metadata": {
     "database": "saas",
     "conversationType": "DCS",
-    "expectedTurns": 14,
-    "compressionBoundaryTurn": 5,
+    "expectedTurns": 32,
+    "compressionBoundaryTurn": 10,
     "userPersona": "business",
     "tablesExplored": ["accounts", "subscriptions", "invoices", "plans"],
     "description": "Deep callback session with early baseline establishment and long-distance callbacks"
@@ -73,6 +73,24 @@
     {
       "turnNumber": 7,
       "role": "user",
+      "content": "What's the average contract length by tier?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show contract length by tier"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Show me the geographic distribution of accounts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show accounts by region"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
       "content": "What's the subscription renewal rate?",
       "annotations": {
         "type": "hypothesis_exploration",
@@ -80,7 +98,97 @@
       }
     },
     {
-      "turnNumber": 8,
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Show me invoice payment success rates.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show payment success metrics"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "What's the distribution of account ages?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show account tenure distribution"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Show me user count distribution per account.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show users per account distribution"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "What's the revenue trend by quarter?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show quarterly revenue"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Show me the top 10 accounts by revenue.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should rank accounts by revenue"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "What industries do these top accounts represent?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show industries of top accounts"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Show me churned accounts by month.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show monthly churn counts"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "What's the MRR impact of churn?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate churned MRR"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Show me expansion MRR by month.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show expansion MRR trends"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "What's the net MRR growth rate?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate net MRR change"
+      }
+    },
+    {
+      "turnNumber": 20,
       "role": "user",
       "content": "What was that January 2024 MRR number we established at the start? I need it as a baseline.",
       "annotations": {
@@ -92,7 +200,7 @@
       }
     },
     {
-      "turnNumber": 9,
+      "turnNumber": 21,
       "role": "user",
       "content": "If January was our baseline, what percentage of that did we achieve in each subsequent month?",
       "annotations": {
@@ -101,7 +209,16 @@
       }
     },
     {
-      "turnNumber": 10,
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Show me the MRR growth trajectory relative to the baseline.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show MRR growth vs January baseline"
+      }
+    },
+    {
+      "turnNumber": 23,
       "role": "user",
       "content": "Remember the trial exclusion we established? Apply that to show me account count trends.",
       "annotations": {
@@ -114,7 +231,7 @@
       }
     },
     {
-      "turnNumber": 11,
+      "turnNumber": 24,
       "role": "user",
       "content": "Earlier you showed me revenue by tier. Can you show that again with the baseline comparison?",
       "annotations": {
@@ -126,7 +243,20 @@
       }
     },
     {
-      "turnNumber": 12,
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Do the same monthly MRR percentage we did for January baseline but starting from February.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 21,
+        "anaphoricPhrase": "Do the same monthly MRR percentage",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply same calculation with February baseline"
+      }
+    },
+    {
+      "turnNumber": 26,
       "role": "user",
       "content": "Create a chart showing MRR relative to January baseline.",
       "annotations": {
@@ -136,7 +266,25 @@
       }
     },
     {
-      "turnNumber": 13,
+      "turnNumber": 27,
+      "role": "user",
+      "content": "What filters are currently active?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list: exclude trial, use monthly_price"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Show me a final MRR summary with baseline comparison.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide comprehensive summary"
+      }
+    },
+    {
+      "turnNumber": 29,
       "role": "user",
       "content": "What was the January MRR again?",
       "annotations": {
@@ -148,7 +296,26 @@
       }
     },
     {
-      "turnNumber": 14,
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Create a final dashboard.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create final dashboard"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "What are the top 5 insights from this analysis?",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide key insights"
+      }
+    },
+    {
+      "turnNumber": 32,
       "role": "user",
       "content": "Thank you. We've established that MRR grew 23% from the January baseline of $2.1M to $2.6M in December, driven primarily by Enterprise tier expansion.",
       "annotations": {
@@ -173,38 +340,46 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 10,
+      "sourceTurn": 23,
       "targetTurn": 2,
       "phrase": "the trial exclusion we established",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Exclude trial accounts filter",
-      "distance": 8
+      "distance": 21
+    },
+    {
+      "sourceTurn": 25,
+      "targetTurn": 21,
+      "phrase": "Do the same monthly MRR percentage",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Monthly MRR as % of baseline calculation",
+      "distance": 4
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 8,
+      "sourceTurn": 20,
       "targetTurn": 1,
       "callbackType": "value_recall",
       "expectedEntity": "January 2024 MRR baseline",
       "crossesCompressionBoundary": true,
-      "distance": 7
+      "distance": 19
     },
     {
-      "sourceTurn": 11,
+      "sourceTurn": 24,
       "targetTurn": 5,
       "callbackType": "result_recall",
       "expectedEntity": "Revenue by tier data",
       "crossesCompressionBoundary": true,
-      "distance": 6
+      "distance": 19
     },
     {
-      "sourceTurn": 13,
+      "sourceTurn": 29,
       "targetTurn": 1,
       "callbackType": "value_recall",
       "expectedEntity": "January MRR baseline",
       "crossesCompressionBoundary": true,
-      "distance": 12
+      "distance": 28
     }
   ]
 }

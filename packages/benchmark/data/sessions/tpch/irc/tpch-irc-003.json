@@ -3,8 +3,8 @@
   "metadata": {
     "database": "tpch",
     "conversationType": "IRC",
-    "expectedTurns": 14,
-    "compressionBoundaryTurn": 5,
+    "expectedTurns": 28,
+    "compressionBoundaryTurn": 14,
     "userPersona": "business",
     "tablesExplored": ["CUSTOMER", "ORDERS", "LINEITEM", "NATION", "REGION"],
     "description": "Iterative refinement of customer analytics with corrections about date columns, region filters, and exclusions"
@@ -34,6 +34,15 @@
     {
       "turnNumber": 3,
       "role": "user",
+      "content": "Add a column showing the average order value for each segment.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add AOV per segment"
+      }
+    },
+    {
+      "turnNumber": 4,
+      "role": "user",
       "content": "Only look at customers from EUROPE and ASIA regions — we're focusing our analysis there.",
       "annotations": {
         "type": "correction",
@@ -44,7 +53,16 @@
       }
     },
     {
-      "turnNumber": 4,
+      "turnNumber": 5,
+      "role": "user",
+      "content": "Show me the top 10 customers by total spend with these filters.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should show top customers with Europe/Asia and O_ORDERDATE filters"
+      }
+    },
+    {
+      "turnNumber": 6,
       "role": "user",
       "content": "Exclude customers who have fewer than 3 orders — they're not representative.",
       "annotations": {
@@ -56,20 +74,20 @@
       }
     },
     {
-      "turnNumber": 5,
+      "turnNumber": 7,
       "role": "user",
       "content": "Apply the same filters we've established to show customer count by nation.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 4,
+        "anaphoricTargetTurn": 6,
         "anaphoricPhrase": "the same filters we've established",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should apply: O_ORDERDATE, EUROPE/ASIA only, >=3 orders"
       }
     },
     {
-      "turnNumber": 6,
+      "turnNumber": 8,
       "role": "user",
       "content": "What filters are currently active?",
       "annotations": {
@@ -78,7 +96,25 @@
       }
     },
     {
-      "turnNumber": 7,
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Good. Now show me the spending trend by quarter for each segment.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should aggregate by quarter and segment"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Which segment has the highest average order value?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify top AOV segment"
+      }
+    },
+    {
+      "turnNumber": 11,
       "role": "user",
       "content": "I need to exclude the MACHINERY segment — we're divesting that business line.",
       "annotations": {
@@ -90,7 +126,16 @@
       }
     },
     {
-      "turnNumber": 8,
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Show me customer acquisition by month.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should show new customers by month"
+      }
+    },
+    {
+      "turnNumber": 13,
       "role": "user",
       "content": "For acquisition dates, use C_ACCTBAL date column to determine when they became active.",
       "annotations": {
@@ -102,32 +147,91 @@
       }
     },
     {
-      "turnNumber": 9,
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Show me the revenue breakdown by nation within each region.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should show nation-level breakdown"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Remember the region filter we set? Apply that to the nation breakdown.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 4,
+        "anaphoricPhrase": "the region filter we set",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply EUROPE and ASIA filter"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "What's the total revenue for all filtered customers?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should sum revenue with all filters"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Create a chart showing spending by segment.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create segment visualization"
+      }
+    },
+    {
+      "turnNumber": 18,
       "role": "user",
       "content": "Earlier we excluded MACHINERY. What percentage of revenue would that have been?",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 7,
+        "callbackTargetTurn": 11,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should calculate MACHINERY's excluded share"
       }
     },
     {
-      "turnNumber": 10,
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Keep MACHINERY excluded. Show me customer lifetime value by nation.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should calculate LTV by nation with exclusions"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "What's the order frequency for top 10% of customers?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze order frequency for high-value customers"
+      }
+    },
+    {
+      "turnNumber": 21,
       "role": "user",
       "content": "Apply all our corrections and show me a final summary dashboard.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 8,
+        "anaphoricTargetTurn": 13,
         "anaphoricPhrase": "all our corrections",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should apply: O_ORDERDATE, EUROPE/ASIA, >=3 orders, exclude MACHINERY, use C_ACCTBAL"
       }
     },
     {
-      "turnNumber": 11,
+      "turnNumber": 22,
       "role": "user",
       "content": "What filters are we using?",
       "annotations": {
@@ -136,7 +240,26 @@
       }
     },
     {
-      "turnNumber": 12,
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Show me the top 5 nations by customer count with all filters.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should show nations ranking with all filters"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Create a chart showing revenue distribution by nation.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create nation revenue visualization"
+      }
+    },
+    {
+      "turnNumber": 25,
       "role": "user",
       "content": "What was the date column we established for orders?",
       "annotations": {
@@ -148,7 +271,7 @@
       }
     },
     {
-      "turnNumber": 13,
+      "turnNumber": 26,
       "role": "user",
       "content": "Show me the final revenue by segment and quarter.",
       "annotations": {
@@ -157,7 +280,17 @@
       }
     },
     {
-      "turnNumber": 14,
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Create a final summary chart with all our filters applied.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create final visualization"
+      }
+    },
+    {
+      "turnNumber": 28,
       "role": "user",
       "content": "Thank you. We've established that European BUILDING and HOUSEHOLD customers drive most revenue, with strong Q4 performance.",
       "annotations": {
@@ -174,25 +307,25 @@
       "description": "Always use O_ORDERDATE column"
     },
     {
-      "turnEstablished": 3,
+      "turnEstablished": 4,
       "correctionText": "Only EUROPE and ASIA regions",
       "type": "filter_rule",
       "description": "Filter to EUROPE and ASIA regions only"
     },
     {
-      "turnEstablished": 4,
+      "turnEstablished": 6,
       "correctionText": "Exclude customers with fewer than 3 orders",
       "type": "filter_rule",
       "description": "HAVING COUNT(*) >= 3"
     },
     {
-      "turnEstablished": 7,
+      "turnEstablished": 11,
       "correctionText": "Exclude MACHINERY segment",
       "type": "exclusion",
       "description": "Filter out MACHINERY market segment"
     },
     {
-      "turnEstablished": 8,
+      "turnEstablished": 13,
       "correctionText": "Use C_ACCTBAL for acquisition timing",
       "type": "date_column",
       "description": "Use account balance date as acquisition proxy"
@@ -200,38 +333,46 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 5,
-      "targetTurn": 4,
+      "sourceTurn": 7,
+      "targetTurn": 6,
       "phrase": "the same filters we've established",
       "crossesCompressionBoundary": true,
       "expectedResolution": "O_ORDERDATE, EUROPE/ASIA, >=3 orders",
       "distance": 1
     },
     {
-      "sourceTurn": 10,
-      "targetTurn": 8,
+      "sourceTurn": 15,
+      "targetTurn": 4,
+      "phrase": "the region filter we set",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "EUROPE and ASIA regions only",
+      "distance": 11
+    },
+    {
+      "sourceTurn": 21,
+      "targetTurn": 13,
       "phrase": "all our corrections",
       "crossesCompressionBoundary": true,
       "expectedResolution": "All established corrections",
-      "distance": 2
+      "distance": 8
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 9,
-      "targetTurn": 7,
+      "sourceTurn": 18,
+      "targetTurn": 11,
       "callbackType": "filter_recall",
       "expectedEntity": "MACHINERY exclusion decision",
       "crossesCompressionBoundary": true,
-      "distance": 2
+      "distance": 7
     },
     {
-      "sourceTurn": 12,
+      "sourceTurn": 25,
       "targetTurn": 2,
       "callbackType": "schema_recall",
       "expectedEntity": "O_ORDERDATE date column",
       "crossesCompressionBoundary": true,
-      "distance": 10
+      "distance": 23
     }
   ]
 }

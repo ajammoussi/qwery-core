@@ -3,8 +3,8 @@
   "metadata": {
     "database": "tpch",
     "conversationType": "PTA",
-    "expectedTurns": 15,
-    "compressionBoundaryTurn": 6,
+    "expectedTurns": 35,
+    "compressionBoundaryTurn": 15,
     "userPersona": "business",
     "tablesExplored": [
       "NATION",
@@ -31,6 +31,16 @@
     {
       "turnNumber": 2,
       "role": "user",
+      "content": "Show me total revenue by region for 1995, along with order counts and average order value.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show regional metrics: revenue, orders, AOV"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
       "content": "For regional analysis, always join through NATION to REGION — never use region directly on customer or supplier.",
       "annotations": {
         "type": "correction",
@@ -42,7 +52,17 @@
       }
     },
     {
-      "turnNumber": 3,
+      "turnNumber": 4,
+      "role": "user",
+      "content": "Which region has the highest average order value?",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should identify region with highest AOV"
+      }
+    },
+    {
+      "turnNumber": 5,
       "role": "user",
       "content": "Now let's switch to Thread B. I want to analyze product mix. Show me the top 20 parts by revenue.",
       "annotations": {
@@ -52,7 +72,7 @@
       }
     },
     {
-      "turnNumber": 4,
+      "turnNumber": 6,
       "role": "user",
       "content": "For product analysis, always use L_EXTENDEDPRICE for revenue, not L_QUANTITY times P_RETAILPRICE.",
       "annotations": {
@@ -65,7 +85,37 @@
       }
     },
     {
-      "turnNumber": 5,
+      "turnNumber": 7,
+      "role": "user",
+      "content": "What part brands are represented in the top revenue parts?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show brand distribution for top parts"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Back to Thread A. Show me month-over-month revenue growth by region.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show regional MoM revenue growth"
+      }
+    },
+    {
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Thread B: Show me product mix change — which parts gained or lost revenue share between Q1 and Q2?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show revenue share changes by part"
+      }
+    },
+    {
+      "turnNumber": 10,
       "role": "user",
       "content": "Cross-reference: Do specific regions from Thread A drive the product mix changes in Thread B?",
       "annotations": {
@@ -75,34 +125,74 @@
       }
     },
     {
-      "turnNumber": 6,
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Thread A: Which nations within each region contribute most to revenue?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show nation-level revenue within regions"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Thread B: What's the product size distribution (P_SIZE) in our top revenue parts?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show size distribution for top parts"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Thread A: What's the customer concentration in each region?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show customer distribution by region"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Thread B: Show me the supplier concentration for top parts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show supplier distribution for top parts"
+      }
+    },
+    {
+      "turnNumber": 15,
       "role": "user",
       "content": "Thread A: Earlier you showed me regional AOV. What was the highest AOV region again?",
       "annotations": {
         "type": "callback",
         "threadContext": "A",
         "isCallback": true,
-        "callbackTargetTurn": 2,
+        "callbackTargetTurn": 4,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should recall highest AOV region from Thread A"
       }
     },
     {
-      "turnNumber": 7,
+      "turnNumber": 16,
       "role": "user",
       "content": "Show me the same for the other thread.",
       "annotations": {
         "type": "anaphoric_reference",
         "threadContext": "B",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 6,
+        "anaphoricTargetTurn": 15,
         "anaphoricPhrase": "the same for the other thread",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should identify highest revenue part for Thread B"
       }
     },
     {
-      "turnNumber": 8,
+      "turnNumber": 17,
       "role": "user",
       "content": "That's not right — I wanted to know the top product's revenue. Let me clarify: what's the highest revenue part from Thread B?",
       "annotations": {
@@ -114,35 +204,7 @@
       }
     },
     {
-      "turnNumber": 9,
-      "role": "user",
-      "content": "Thread A: Remember to join through NATION to get REGION.",
-      "annotations": {
-        "type": "anaphoric_reference",
-        "threadContext": "A",
-        "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 2,
-        "anaphoricPhrase": "Remember to join through NATION to get REGION",
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should confirm NATION->REGION join approach for Thread A"
-      }
-    },
-    {
-      "turnNumber": 10,
-      "role": "user",
-      "content": "Thread B: Remember to use L_EXTENDEDPRICE for revenue calculations.",
-      "annotations": {
-        "type": "anaphoric_reference",
-        "threadContext": "B",
-        "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 4,
-        "anaphoricPhrase": "Remember to use L_EXTENDEDPRICE",
-        "crossesCompressionBoundary": true,
-        "expectedBehavior": "Agent should confirm L_EXTENDEDPRICE usage for Thread B"
-      }
-    },
-    {
-      "turnNumber": 11,
+      "turnNumber": 18,
       "role": "user",
       "content": "Thread A: Exclude 'AMERICA' region from analysis — we're reorganizing operations there.",
       "annotations": {
@@ -155,7 +217,7 @@
       }
     },
     {
-      "turnNumber": 12,
+      "turnNumber": 19,
       "role": "user",
       "content": "Thread B: Exclude parts from brand 'Brand#55' — those are being discontinued.",
       "annotations": {
@@ -168,7 +230,129 @@
       }
     },
     {
-      "turnNumber": 13,
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Thread A: Re-run the regional analysis without AMERICA.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should recalculate regional metrics excluding AMERICA"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Thread B: Re-run the product analysis without Brand#55.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should recalculate product metrics excluding Brand#55"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Thread A: Remember to join through NATION to get REGION.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "A",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 3,
+        "anaphoricPhrase": "Remember to join through NATION to get REGION",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should confirm NATION->REGION join approach for Thread A"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Thread B: Remember to use L_EXTENDEDPRICE for revenue calculations.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "B",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 6,
+        "anaphoricPhrase": "Remember to use L_EXTENDEDPRICE",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should confirm L_EXTENDEDPRICE usage for Thread B"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Cross-reference: How does the regional product mix from Thread A compare to the overall product mix from Thread B?",
+      "annotations": {
+        "type": "aggregation",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should compare regional vs overall product distribution"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Thread A: Deepen — show me customer market segments by region.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should show market segment distribution by region"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Thread B: Deepen — show me parts by container type.",
+      "annotations": {
+        "type": "refinement",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should show part distribution by container type"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Apply the same container analysis to Thread A.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "threadContext": "A",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 26,
+        "anaphoricPhrase": "the same container analysis",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply container analysis to regional orders"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Thread A: Which regions have the most diverse customer base?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "A",
+        "expectedBehavior": "Agent should measure customer diversity by region"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Thread B: Which parts have the widest supplier base?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should identify parts with most suppliers"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Cross-reference: Do regions with diverse customer bases order parts with diverse supplier bases?",
+      "annotations": {
+        "type": "aggregation",
+        "threadContext": "cross_reference",
+        "expectedBehavior": "Agent should correlate regional diversity with part diversity"
+      }
+    },
+    {
+      "turnNumber": 31,
       "role": "user",
       "content": "Thread A: From now on, only look at orders with line item count above 5.",
       "annotations": {
@@ -181,7 +365,20 @@
       }
     },
     {
-      "turnNumber": 14,
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Thread B: From now on, only look at parts ordered more than 100 times.",
+      "annotations": {
+        "type": "correction",
+        "threadContext": "B",
+        "isCorrection": true,
+        "establishesFilter": "Parts ordered >100 times (Thread B)",
+        "correctionType": "explicit",
+        "expectedBehavior": "Agent should filter for popular parts in Thread B"
+      }
+    },
+    {
+      "turnNumber": 33,
       "role": "user",
       "content": "Final synthesis: Provide a comprehensive summary of regional performance and product mix findings.",
       "annotations": {
@@ -191,7 +388,7 @@
       }
     },
     {
-      "turnNumber": 15,
+      "turnNumber": 34,
       "role": "user",
       "content": "Thread A: Confirm all active filters for this thread.",
       "annotations": {
@@ -199,74 +396,98 @@
         "threadContext": "A",
         "expectedBehavior": "Agent should list: NATION->REGION join, exclude AMERICA, >5 line items"
       }
+    },
+    {
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Thread B: Confirm all active filters for this thread.",
+      "annotations": {
+        "type": "probe",
+        "threadContext": "B",
+        "expectedBehavior": "Agent should list: use L_EXTENDEDPRICE, exclude Brand#55, >100 orders"
+      }
     }
   ],
   "persistedCorrections": [
     {
-      "turnEstablished": 2,
+      "turnEstablished": 3,
       "correctionText": "Join through NATION to REGION for Thread A",
       "type": "join_key",
       "description": "Always use NATION as intermediate for REGION joins in Thread A"
     },
     {
-      "turnEstablished": 4,
+      "turnEstablished": 6,
       "correctionText": "Use L_EXTENDEDPRICE for revenue in Thread B",
       "type": "column_preference",
       "description": "Use L_EXTENDEDPRICE for Thread B revenue calculations"
     },
     {
-      "turnEstablished": 11,
+      "turnEstablished": 18,
       "correctionText": "Exclude AMERICA region for Thread A",
       "type": "exclusion",
       "description": "Filter out AMERICA region for Thread A only"
     },
     {
-      "turnEstablished": 12,
+      "turnEstablished": 19,
       "correctionText": "Exclude Brand#55 parts for Thread B",
       "type": "exclusion",
       "description": "Filter out Brand#55 parts for Thread B only"
     },
     {
-      "turnEstablished": 13,
+      "turnEstablished": 31,
       "correctionText": "Only orders with >5 line items for Thread A",
       "type": "filter_rule",
       "description": "Filter for multi-item orders in Thread A"
+    },
+    {
+      "turnEstablished": 32,
+      "correctionText": "Only parts ordered >100 times for Thread B",
+      "type": "filter_rule",
+      "description": "Filter for popular parts in Thread B"
     }
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 7,
-      "targetTurn": 6,
+      "sourceTurn": 16,
+      "targetTurn": 15,
       "phrase": "the same for the other thread",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Apply highest-value analysis to Thread B products",
       "distance": 1
     },
     {
-      "sourceTurn": 9,
-      "targetTurn": 2,
+      "sourceTurn": 22,
+      "targetTurn": 3,
       "phrase": "Remember to join through NATION to get REGION",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Use NATION->REGION join for Thread A",
-      "distance": 7
+      "distance": 19
     },
     {
-      "sourceTurn": 10,
-      "targetTurn": 4,
+      "sourceTurn": 23,
+      "targetTurn": 6,
       "phrase": "Remember to use L_EXTENDEDPRICE",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Use L_EXTENDEDPRICE for Thread B revenue",
-      "distance": 6
+      "distance": 17
+    },
+    {
+      "sourceTurn": 27,
+      "targetTurn": 26,
+      "phrase": "the same container analysis",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Apply container analysis to Thread A regional orders",
+      "distance": 1
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 6,
-      "targetTurn": 2,
+      "sourceTurn": 15,
+      "targetTurn": 4,
       "callbackType": "value_recall",
       "expectedEntity": "Highest AOV region from Thread A",
       "crossesCompressionBoundary": true,
-      "distance": 4
+      "distance": 11
     }
   ]
 }

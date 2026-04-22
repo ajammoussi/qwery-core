@@ -3,8 +3,8 @@
   "metadata": {
     "database": "tpch",
     "conversationType": "DCS",
-    "expectedTurns": 13,
-    "compressionBoundaryTurn": 6,
+    "expectedTurns": 32,
+    "compressionBoundaryTurn": 15,
     "userPersona": "business",
     "tablesExplored": [
       "ORDERS",
@@ -15,7 +15,7 @@
       "SUPPLIER",
       "PART"
     ],
-    "description": "Deep callback session with revenue baseline callback after buffer - tests RRA with distance"
+    "description": "Deep callback session with revenue baseline callback after 20-turn buffer - tests RRA with maximum distance"
   },
   "turns": [
     {
@@ -80,6 +80,15 @@
     {
       "turnNumber": 7,
       "role": "user",
+      "content": "Let me check the parts table structure. What columns do we have?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should describe PART table schema"
+      }
+    },
+    {
+      "turnNumber": 8,
+      "role": "user",
       "content": "Show me the distribution of parts by container type.",
       "annotations": {
         "type": "buffer_turn",
@@ -87,7 +96,16 @@
       }
     },
     {
-      "turnNumber": 8,
+      "turnNumber": 9,
+      "role": "user",
+      "content": "Which brands have the most parts?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show parts count by brand"
+      }
+    },
+    {
+      "turnNumber": 10,
       "role": "user",
       "content": "Let me look at suppliers from GERMANY specifically. What's their total supply volume?",
       "annotations": {
@@ -96,7 +114,133 @@
       }
     },
     {
-      "turnNumber": 9,
+      "turnNumber": 11,
+      "role": "user",
+      "content": "What's the average account balance for German suppliers?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show average ACCTBAL for German suppliers"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Show me suppliers who have urgent status flags.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should query supplier status"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Let me check customer demographics. Show me customer segments by market segment.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show C_MKTSEGMENT distribution"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "What's the geographic distribution of customers by nation?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show customer count by nation"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Now let me pivot back to orders. Show me order priority distribution.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show O_ORDERPRIORITY breakdown"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
+      "content": "How many orders are there in each priority level?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should count orders by priority"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Let me check the lineitem table. What's the average quantity per line item?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should calculate average L_QUANTITY"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Show me the discount distribution across line items.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show L_DISCOUNT distribution"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "What's the relationship between discount and quantity?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should analyze discount vs quantity correlation"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Let me check return rates. How many line items have return flags?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should count items with L_RETURNFLAG"
+      }
+    },
+    {
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Show me the breakdown of return flags by type.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show L_RETURNFLAG values distribution"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "What's the line status distribution?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show L_LINESTATUS breakdown"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Let me check ship modes. What shipping modes do we have?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show unique L_SHIPMODE values"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Which ship mode is most common?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should count orders by ship mode"
+      }
+    },
+    {
+      "turnNumber": 25,
       "role": "user",
       "content": "What was that baseline revenue number for EUROPE I asked about at the beginning? I need to compare it with current performance.",
       "annotations": {
@@ -108,7 +252,7 @@
       }
     },
     {
-      "turnNumber": 10,
+      "turnNumber": 26,
       "role": "user",
       "content": "Good. Now show me Europe revenue excluding the low priority orders as we established.",
       "annotations": {
@@ -117,7 +261,16 @@
       }
     },
     {
-      "turnNumber": 11,
+      "turnNumber": 27,
+      "role": "user",
+      "content": "What's the percentage difference from the baseline?",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should calculate difference from original baseline"
+      }
+    },
+    {
+      "turnNumber": 28,
       "role": "user",
       "content": "Break this down by quarter using our fiscal year definition.",
       "annotations": {
@@ -126,7 +279,16 @@
       }
     },
     {
-      "turnNumber": 12,
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Which quarter had the highest revenue for Europe?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify top performing quarter"
+      }
+    },
+    {
+      "turnNumber": 30,
       "role": "user",
       "content": "Show me the top 5 European nations by revenue with our filters applied.",
       "annotations": {
@@ -135,7 +297,17 @@
       }
     },
     {
-      "turnNumber": 13,
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Create a chart comparing Europe revenue with and without the low priority orders.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create comparison visualization"
+      }
+    },
+    {
+      "turnNumber": 32,
       "role": "user",
       "content": "Summarize: baseline Europe revenue, filtered revenue, and the top 3 contributing nations.",
       "annotations": {
@@ -161,12 +333,12 @@
   "anaphoricReferences": [],
   "callbacks": [
     {
-      "sourceTurn": 9,
+      "sourceTurn": 25,
       "targetTurn": 2,
       "callbackType": "value_recall",
       "expectedEntity": "Europe 1995 revenue baseline",
       "crossesCompressionBoundary": true,
-      "distance": 7
+      "distance": 23
     }
   ]
 }

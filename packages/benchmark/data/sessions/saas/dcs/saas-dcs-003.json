@@ -3,8 +3,8 @@
   "metadata": {
     "database": "saas",
     "conversationType": "DCS",
-    "expectedTurns": 15,
-    "compressionBoundaryTurn": 6,
+    "expectedTurns": 32,
+    "compressionBoundaryTurn": 12,
     "userPersona": "mixed",
     "tablesExplored": ["feature_usage", "accounts", "events", "users"],
     "description": "Deep callback session with feature usage baseline and long-distance callbacks"
@@ -91,6 +91,69 @@
     {
       "turnNumber": 9,
       "role": "user",
+      "content": "Show me user activity patterns by day of week.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show weekly activity patterns"
+      }
+    },
+    {
+      "turnNumber": 10,
+      "role": "user",
+      "content": "What's the correlation between feature usage and retention?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze usage vs retention correlation"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Show me feature usage by industry.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show usage by industry"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "What's the average session length?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should calculate session duration"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Show me feature usage trend over time.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show usage trends"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Which features have declining usage?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify declining features"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Show me accounts with low feature engagement.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should identify low-engagement accounts"
+      }
+    },
+    {
+      "turnNumber": 16,
+      "role": "user",
       "content": "What was the January baseline feature usage we established?",
       "annotations": {
         "type": "callback",
@@ -101,7 +164,7 @@
       }
     },
     {
-      "turnNumber": 10,
+      "turnNumber": 17,
       "role": "user",
       "content": "How does current feature usage compare to the January baseline?",
       "annotations": {
@@ -110,7 +173,16 @@
       }
     },
     {
-      "turnNumber": 11,
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Show me feature usage growth relative to January baseline.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show usage growth vs baseline"
+      }
+    },
+    {
+      "turnNumber": 19,
       "role": "user",
       "content": "Apply the same active user definition to show me user engagement trends.",
       "annotations": {
@@ -123,7 +195,7 @@
       }
     },
     {
-      "turnNumber": 12,
+      "turnNumber": 20,
       "role": "user",
       "content": "Earlier we looked at feature adoption by tier. What was the Enterprise adoption rate?",
       "annotations": {
@@ -135,7 +207,35 @@
       }
     },
     {
-      "turnNumber": 13,
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Create a chart showing feature usage trend.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create usage trend visualization"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "What filters are currently active?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list: 30-day activity, exclude trial"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Show me a final feature usage summary with baseline comparison.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide comprehensive usage summary"
+      }
+    },
+    {
+      "turnNumber": 24,
       "role": "user",
       "content": "What was the January baseline again?",
       "annotations": {
@@ -147,7 +247,7 @@
       }
     },
     {
-      "turnNumber": 14,
+      "turnNumber": 25,
       "role": "user",
       "content": "Create a chart comparing monthly usage to baseline.",
       "annotations": {
@@ -157,7 +257,63 @@
       }
     },
     {
-      "turnNumber": 15,
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Show me the top 10 accounts by feature engagement.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should rank accounts by engagement"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Create a final dashboard.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create final dashboard"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "What are the top 5 recommendations for improving feature adoption?",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide adoption recommendations"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Show me feature usage by user role.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show usage by role"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Create a chart showing usage by feature type.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create feature type visualization"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Summarize the feature usage findings.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should summarize usage findings"
+      }
+    },
+    {
+      "turnNumber": 32,
       "role": "user",
       "content": "Thank you. We've established that average feature usage increased 35% from the January baseline of 12 events/account to 16.2 events/account in December, with collaboration features showing the strongest growth.",
       "annotations": {
@@ -182,38 +338,38 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 11,
+      "sourceTurn": 19,
       "targetTurn": 2,
       "phrase": "the same active user definition",
       "crossesCompressionBoundary": true,
       "expectedResolution": "30-day activity window",
-      "distance": 9
+      "distance": 17
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 9,
+      "sourceTurn": 16,
       "targetTurn": 1,
       "callbackType": "value_recall",
       "expectedEntity": "January 2024 feature usage baseline",
       "crossesCompressionBoundary": true,
-      "distance": 8
+      "distance": 15
     },
     {
-      "sourceTurn": 12,
+      "sourceTurn": 20,
       "targetTurn": 7,
       "callbackType": "value_recall",
       "expectedEntity": "Enterprise feature adoption rate",
       "crossesCompressionBoundary": true,
-      "distance": 5
+      "distance": 13
     },
     {
-      "sourceTurn": 13,
+      "sourceTurn": 24,
       "targetTurn": 1,
       "callbackType": "value_recall",
       "expectedEntity": "January usage baseline",
       "crossesCompressionBoundary": true,
-      "distance": 12
+      "distance": 23
     }
   ]
 }

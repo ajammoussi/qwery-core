@@ -3,8 +3,8 @@
   "metadata": {
     "database": "tpch",
     "conversationType": "DCS",
-    "expectedTurns": 14,
-    "compressionBoundaryTurn": 6,
+    "expectedTurns": 33,
+    "compressionBoundaryTurn": 12,
     "userPersona": "business",
     "tablesExplored": [
       "ORDERS",
@@ -16,7 +16,7 @@
       "PART",
       "PARTSUPP"
     ],
-    "description": "Deep callback session with filter rule callback after buffer - tests RRA for constraint persistence"
+    "description": "Deep callback session with filter rule callback after 18-turn buffer - tests RRA for constraint persistence"
   },
   "turns": [
     {
@@ -72,6 +72,15 @@
     {
       "turnNumber": 6,
       "role": "user",
+      "content": "Show me the parts supplied by this top supplier.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show parts from top supplier"
+      }
+    },
+    {
+      "turnNumber": 7,
+      "role": "user",
       "content": "What's the supply cost distribution for parts?",
       "annotations": {
         "type": "buffer_turn",
@@ -79,7 +88,7 @@
       }
     },
     {
-      "turnNumber": 7,
+      "turnNumber": 8,
       "role": "user",
       "content": "Let me check which parts have the most suppliers.",
       "annotations": {
@@ -88,16 +97,61 @@
       }
     },
     {
-      "turnNumber": 8,
+      "turnNumber": 9,
       "role": "user",
-      "content": "Show me order priority breakdown.",
+      "content": "What's the average quantity available for parts?",
       "annotations": {
         "type": "buffer_turn",
-        "expectedBehavior": "Agent should show O_ORDERPRIORITY distribution"
+        "expectedBehavior": "Agent should calculate average PS_AVAILQTY"
       }
     },
     {
-      "turnNumber": 9,
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Show me parts that have limited availability (less than 100 units).",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should filter parts by PS_AVAILQTY < 100"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Which suppliers provide these limited availability parts?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show suppliers for scarce parts"
+      }
+    },
+    {
+      "turnNumber": 12,
+      "role": "user",
+      "content": "Let me switch to orders. What order statuses exist in the database?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show unique O_ORDERSTATUS values"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Count orders by status.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should count orders per status"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Show me the distribution of order priorities.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show O_ORDERPRIORITY breakdown"
+      }
+    },
+    {
+      "turnNumber": 15,
       "role": "user",
       "content": "What's the average total price for orders by priority?",
       "annotations": {
@@ -106,7 +160,52 @@
       }
     },
     {
-      "turnNumber": 10,
+      "turnNumber": 16,
+      "role": "user",
+      "content": "Which clerks handle the most orders?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show O_CLERK order counts"
+      }
+    },
+    {
+      "turnNumber": 17,
+      "role": "user",
+      "content": "Show me order volume by month for 1995.",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show monthly order counts"
+      }
+    },
+    {
+      "turnNumber": 18,
+      "role": "user",
+      "content": "What's the busiest day of the week for orders?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should analyze order day-of-week distribution"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Let me look at line items. What's the average discount by ship mode?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should show L_DISCOUNT by L_SHIPMODE"
+      }
+    },
+    {
+      "turnNumber": 20,
+      "role": "user",
+      "content": "Which products have the highest return rates?",
+      "annotations": {
+        "type": "buffer_turn",
+        "expectedBehavior": "Agent should analyze return rates by product"
+      }
+    },
+    {
+      "turnNumber": 21,
       "role": "user",
       "content": "Now I need to go back to the customer churn analysis we started with. Apply the account balance filter we established at the beginning to show inactive customers.",
       "annotations": {
@@ -118,7 +217,7 @@
       }
     },
     {
-      "turnNumber": 11,
+      "turnNumber": 22,
       "role": "user",
       "content": "How many customers does this give us?",
       "annotations": {
@@ -127,7 +226,7 @@
       }
     },
     {
-      "turnNumber": 12,
+      "turnNumber": 23,
       "role": "user",
       "content": "What's the total revenue we lost from these churned customers (using net revenue calculation)?",
       "annotations": {
@@ -136,7 +235,16 @@
       }
     },
     {
-      "turnNumber": 13,
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Which market segment did these churned customers belong to?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show C_MKTSEGMENT for inactive customers"
+      }
+    },
+    {
+      "turnNumber": 25,
       "role": "user",
       "content": "What's the geographic distribution of these churned customers?",
       "annotations": {
@@ -145,7 +253,71 @@
       }
     },
     {
-      "turnNumber": 14,
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Were these churned customers primarily ordering from specific suppliers?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show supplier distribution for churned customer orders"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Show me the top 10 churned customers by their historical revenue.",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should rank churned customers by past revenue"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "What product types were these top churned customers buying?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show product mix for top churned customers"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Compare the average order value of churned vs active customers.",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should compare AOV between customer groups"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Create a chart showing churned customer revenue by region.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should visualize churned revenue by region"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "What filters are currently applied to our churn analysis?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list: positive account balance, net revenue calculation"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Apply all filters and show me the final churned customer summary with top 5 accounts.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide summary with all established filters"
+      }
+    },
+    {
+      "turnNumber": 33,
       "role": "user",
       "content": "We've identified that positive-balance customers in the MACHINERY segment had the highest churn. Summarize with the filter context.",
       "annotations": {
@@ -171,12 +343,12 @@
   "anaphoricReferences": [],
   "callbacks": [
     {
-      "sourceTurn": 10,
+      "sourceTurn": 21,
       "targetTurn": 2,
       "callbackType": "filter_recall",
       "expectedEntity": "Positive account balance filter for customer analysis",
       "crossesCompressionBoundary": true,
-      "distance": 8
+      "distance": 19
     }
   ]
 }

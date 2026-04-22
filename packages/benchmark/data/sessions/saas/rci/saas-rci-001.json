@@ -3,8 +3,8 @@
   "metadata": {
     "database": "saas",
     "conversationType": "RCI",
-    "expectedTurns": 16,
-    "compressionBoundaryTurn": 6,
+    "expectedTurns": 42,
+    "compressionBoundaryTurn": 14,
     "userPersona": "business",
     "tablesExplored": [
       "accounts",
@@ -30,6 +30,15 @@
     {
       "turnNumber": 2,
       "role": "user",
+      "content": "What tables do we have that track account status and subscription history?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should show accounts, subscriptions, and plans tables schema"
+      }
+    },
+    {
+      "turnNumber": 3,
+      "role": "user",
       "content": "Show me all enterprise accounts that cancelled in Q4 2024.",
       "annotations": {
         "type": "hypothesis_exploration",
@@ -37,7 +46,7 @@
       }
     },
     {
-      "turnNumber": 3,
+      "turnNumber": 4,
       "role": "user",
       "content": "From now on, when I say 'churned', I mean accounts with subscription status 'cancelled' or 'expired'.",
       "annotations": {
@@ -49,7 +58,7 @@
       }
     },
     {
-      "turnNumber": 4,
+      "turnNumber": 5,
       "role": "user",
       "content": "Let me see the MRR (Monthly Recurring Revenue) we lost from these accounts.",
       "annotations": {
@@ -58,7 +67,16 @@
       }
     },
     {
-      "turnNumber": 5,
+      "turnNumber": 6,
+      "role": "user",
+      "content": "That's significant. Show me the tenure of these churned accounts — how long were they customers?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should calculate account age from created_at to cancellation date"
+      }
+    },
+    {
+      "turnNumber": 7,
       "role": "user",
       "content": "Most churned accounts were customers for less than 6 months. When analyzing dates, always use subscription.start_date for subscription start and subscription.end_date for subscription end.",
       "annotations": {
@@ -70,7 +88,16 @@
       }
     },
     {
-      "turnNumber": 6,
+      "turnNumber": 8,
+      "role": "user",
+      "content": "Let me check their feature usage patterns. Did these churned accounts use our key features?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should join feature_usage and analyze usage patterns for churned accounts"
+      }
+    },
+    {
+      "turnNumber": 9,
       "role": "user",
       "content": "Exclude accounts created before 2022 from this analysis — we're focusing on newer accounts.",
       "annotations": {
@@ -82,7 +109,16 @@
       }
     },
     {
-      "turnNumber": 7,
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Show me the top features used by churned vs retained enterprise accounts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare feature usage between churned and active accounts"
+      }
+    },
+    {
+      "turnNumber": 11,
       "role": "user",
       "content": "Churned accounts barely used the collaboration feature. What were their last events before churning?",
       "annotations": {
@@ -91,32 +127,59 @@
       }
     },
     {
-      "turnNumber": 8,
+      "turnNumber": 12,
       "role": "user",
-      "content": "Remember the feature usage we looked at earlier? Can you correlate user count with feature adoption?",
+      "content": "Many 'support_ticket' events near the end. Let me check invoice payment failures.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should check invoices table for failed payments"
+      }
+    },
+    {
+      "turnNumber": 13,
+      "role": "user",
+      "content": "Show me payment failure rates for churned vs retained accounts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should compare invoice status between churned and retained"
+      }
+    },
+    {
+      "turnNumber": 14,
+      "role": "user",
+      "content": "Payment failures don't explain it. Let me check user counts — did churned accounts have fewer users?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should count users per account for churned vs retained"
+      }
+    },
+    {
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Churned accounts had fewer active users. Remember the feature usage we looked at earlier? Can you correlate user count with feature adoption?",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 7,
+        "anaphoricTargetTurn": 10,
         "anaphoricPhrase": "the feature usage we looked at earlier",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should correlate user count with feature usage patterns"
       }
     },
     {
-      "turnNumber": 9,
+      "turnNumber": 16,
       "role": "user",
       "content": "What was the MRR loss number we calculated?",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 4,
+        "callbackTargetTurn": 5,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should recall the MRR loss figure"
       }
     },
     {
-      "turnNumber": 10,
+      "turnNumber": 17,
       "role": "user",
       "content": "Now exclude the 'trial' plan tier from all our analyses.",
       "annotations": {
@@ -128,41 +191,126 @@
       }
     },
     {
-      "turnNumber": 11,
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Show me the account industry breakdown for churned enterprise accounts.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show churned accounts by industry"
+      }
+    },
+    {
+      "turnNumber": 19,
+      "role": "user",
+      "content": "Tech and Finance had the most churn. What features did these industries use most?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze feature usage by industry"
+      }
+    },
+    {
+      "turnNumber": 20,
       "role": "user",
       "content": "Apply the same filters we've established to show me active vs churned account comparison.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 6,
+        "anaphoricTargetTurn": 9,
         "anaphoricPhrase": "the same filters we've established",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should apply: churned = cancelled/expired, accounts >= 2022, exclude trial"
       }
     },
     {
-      "turnNumber": 12,
+      "turnNumber": 21,
       "role": "user",
       "content": "What was the average tenure for churned accounts?",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 5,
+        "callbackTargetTurn": 6,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should recall the tenure analysis"
       }
     },
     {
-      "turnNumber": 13,
+      "turnNumber": 22,
       "role": "user",
-      "content": "What filters are we currently applying?",
+      "content": "Show me the monthly churn trend throughout 2024.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show monthly churn counts"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Churn spiked in October. What happened in October?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze October churned accounts specifically"
+      }
+    },
+    {
+      "turnNumber": 24,
+      "role": "user",
+      "content": "Were there any product changes or outages recorded in events during October?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should check events for product-related events in October"
+      }
+    },
+    {
+      "turnNumber": 25,
+      "role": "user",
+      "content": "Let me see churn by account size — small, medium, large based on user count.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should bucket accounts by user count and show churn rates"
+      }
+    },
+    {
+      "turnNumber": 26,
+      "role": "user",
+      "content": "Small accounts churned most. What was their plan distribution?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show plan types for small churned accounts"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Do the same segmentation we did for enterprise accounts but for SMB accounts.",
+      "annotations": {
+        "type": "anaphoric_reference",
+        "isAnaphoricReference": true,
+        "anaphoricTargetTurn": 10,
+        "anaphoricPhrase": "the same segmentation we did for enterprise accounts",
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should apply similar analysis to SMB tier"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Let me see the correlation between last login date and churn.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should analyze user activity before churn"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Users stopped logging in weeks before churn. What filters are we currently applying?",
       "annotations": {
         "type": "probe",
         "expectedBehavior": "Agent should list: churned = cancelled/expired, use subscription dates, accounts >= 2022, exclude trial"
       }
     },
     {
-      "turnNumber": 14,
+      "turnNumber": 30,
       "role": "user",
       "content": "Good. Now apply all of those to show me a comprehensive churn summary.",
       "annotations": {
@@ -171,19 +319,115 @@
       }
     },
     {
-      "turnNumber": 15,
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Create a chart showing churn rate by month.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create visualization"
+      }
+    },
+    {
+      "turnNumber": 32,
+      "role": "user",
+      "content": "Show me the top 10 accounts by MRR that churned.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should rank churned accounts by revenue impact"
+      }
+    },
+    {
+      "turnNumber": 33,
+      "role": "user",
+      "content": "What industries were these high-value churned accounts from?",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should show industry of top churned accounts"
+      }
+    },
+    {
+      "turnNumber": 34,
       "role": "user",
       "content": "Earlier we identified Tech and Finance had most churn. What percentage of total churn MRR did they represent?",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 7,
+        "callbackTargetTurn": 18,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should calculate Tech+Finance share of churn MRR"
       }
     },
     {
-      "turnNumber": 16,
+      "turnNumber": 35,
+      "role": "user",
+      "content": "Show me the final churn analysis with recommendations.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide comprehensive summary with insights"
+      }
+    },
+    {
+      "turnNumber": 36,
+      "role": "user",
+      "content": "Create a chart showing feature usage comparison between churned and retained accounts.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create comparison visualization"
+      }
+    },
+    {
+      "turnNumber": 37,
+      "role": "user",
+      "content": "What's the retention rate for accounts that used the collaboration feature?",
+      "annotations": {
+        "type": "aggregation",
+        "expectedBehavior": "Agent should calculate retention for collaboration users"
+      }
+    },
+    {
+      "turnNumber": 38,
+      "role": "user",
+      "content": "What was the payment failure rate we found?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 13,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall payment failure comparison"
+      }
+    },
+    {
+      "turnNumber": 39,
+      "role": "user",
+      "content": "Create a final dashboard visualization.",
+      "annotations": {
+        "type": "chart_request",
+        "chartRequested": true,
+        "expectedBehavior": "Agent should create summary dashboard"
+      }
+    },
+    {
+      "turnNumber": 40,
+      "role": "user",
+      "content": "Just to confirm — what filters are we currently applying to all our analyses?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list all established filters"
+      }
+    },
+    {
+      "turnNumber": 41,
+      "role": "user",
+      "content": "Perfect. Show me the top 10 actions we should take based on this analysis.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should provide actionable recommendations"
+      }
+    },
+    {
+      "turnNumber": 42,
       "role": "user",
       "content": "Thank you. We've identified that enterprise churn in Q4 was driven by low feature adoption, particularly collaboration, with Tech and Finance industries being most affected. Small accounts with fewer users churned at higher rates.",
       "annotations": {
@@ -194,25 +438,25 @@
   ],
   "persistedCorrections": [
     {
-      "turnEstablished": 3,
+      "turnEstablished": 4,
       "correctionText": "Churned = subscription status IN ('cancelled', 'expired')",
       "type": "filter_rule",
       "description": "Both cancelled and expired count as churned"
     },
     {
-      "turnEstablished": 5,
+      "turnEstablished": 7,
       "correctionText": "Use subscription.start_date and subscription.end_date for subscription dates",
       "type": "date_column",
       "description": "Use subscription date columns, not account dates"
     },
     {
-      "turnEstablished": 6,
+      "turnEstablished": 9,
       "correctionText": "Exclude accounts created before 2022",
       "type": "filter_rule",
       "description": "Focus on newer accounts only"
     },
     {
-      "turnEstablished": 10,
+      "turnEstablished": 17,
       "correctionText": "Exclude 'trial' plan tier from all analyses",
       "type": "exclusion",
       "description": "Filter out trial plans"
@@ -220,46 +464,62 @@
   ],
   "anaphoricReferences": [
     {
-      "sourceTurn": 8,
-      "targetTurn": 7,
+      "sourceTurn": 15,
+      "targetTurn": 10,
       "phrase": "the feature usage we looked at earlier",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Feature usage comparison between churned and retained accounts",
-      "distance": 1
+      "distance": 5
     },
     {
-      "sourceTurn": 11,
-      "targetTurn": 6,
+      "sourceTurn": 20,
+      "targetTurn": 9,
       "phrase": "the same filters we've established",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Churned definition, accounts >= 2022",
-      "distance": 5
+      "distance": 11
+    },
+    {
+      "sourceTurn": 27,
+      "targetTurn": 10,
+      "phrase": "the same segmentation we did for enterprise accounts",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Feature usage segmentation analysis",
+      "distance": 17
     }
   ],
   "callbacks": [
     {
-      "sourceTurn": 9,
-      "targetTurn": 4,
+      "sourceTurn": 16,
+      "targetTurn": 5,
       "callbackType": "value_recall",
       "expectedEntity": "MRR loss from churned accounts",
       "crossesCompressionBoundary": true,
-      "distance": 5
+      "distance": 11
     },
     {
-      "sourceTurn": 12,
-      "targetTurn": 5,
+      "sourceTurn": 21,
+      "targetTurn": 6,
       "callbackType": "value_recall",
       "expectedEntity": "Average tenure of churned accounts",
       "crossesCompressionBoundary": true,
-      "distance": 7
+      "distance": 15
     },
     {
-      "sourceTurn": 15,
-      "targetTurn": 7,
+      "sourceTurn": 34,
+      "targetTurn": 18,
       "callbackType": "result_recall",
       "expectedEntity": "Tech and Finance churn breakdown",
       "crossesCompressionBoundary": true,
-      "distance": 8
+      "distance": 16
+    },
+    {
+      "sourceTurn": 38,
+      "targetTurn": 13,
+      "callbackType": "value_recall",
+      "expectedEntity": "Payment failure rate comparison",
+      "crossesCompressionBoundary": true,
+      "distance": 25
     }
   ]
 }

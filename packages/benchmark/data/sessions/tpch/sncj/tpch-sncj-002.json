@@ -3,8 +3,8 @@
   "metadata": {
     "database": "tpch",
     "conversationType": "SNCJ",
-    "expectedTurns": 17,
-    "compressionBoundaryTurn": 7,
+    "expectedTurns": 32,
+    "compressionBoundaryTurn": 13,
     "userPersona": "technical",
     "tablesExplored": ["SUPPLIER", "PART", "PARTSUPP", "LINEITEM"],
     "description": "Schema navigation session exploring Supplier-Part-PartSupp-Lineitem join chain for supply chain analysis"
@@ -49,6 +49,15 @@
     {
       "turnNumber": 5,
       "role": "user",
+      "content": "What columns does PARTSUPP have?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should list PARTSUPP columns: PS_PARTKEY, PS_SUPPKEY, PS_AVAILQTY, PS_SUPPLYCOST, PS_COMMENT"
+      }
+    },
+    {
+      "turnNumber": 6,
+      "role": "user",
       "content": "What about LINEITEM? What columns does it have?",
       "annotations": {
         "type": "schema_probe",
@@ -56,7 +65,7 @@
       }
     },
     {
-      "turnNumber": 6,
+      "turnNumber": 7,
       "role": "user",
       "content": "How do I join PART to SUPPLIER? What are the key relationships?",
       "annotations": {
@@ -65,7 +74,16 @@
       }
     },
     {
-      "turnNumber": 7,
+      "turnNumber": 8,
+      "role": "user",
+      "content": "How does LINEITEM connect to these tables?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should explain LINEITEM joins: L_PARTKEY = PART.P_PARTKEY, L_SUPPKEY = SUPPLIER.S_SUPPKEY"
+      }
+    },
+    {
+      "turnNumber": 9,
       "role": "user",
       "content": "Give me a simple count of parts supplied by each supplier.",
       "annotations": {
@@ -74,7 +92,25 @@
       }
     },
     {
-      "turnNumber": 8,
+      "turnNumber": 10,
+      "role": "user",
+      "content": "Add the supplier name to the results.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should include S_NAME in the output"
+      }
+    },
+    {
+      "turnNumber": 11,
+      "role": "user",
+      "content": "Now also show the total available quantity across all parts for each supplier.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should add SUM(PS_AVAILQTY) to the query"
+      }
+    },
+    {
+      "turnNumber": 12,
       "role": "user",
       "content": "The LINEITEM table has both L_PARTKEY and L_SUPPKEY. When joining LINEITEM to PART and SUPPLIER, always use L_PARTKEY for PART and L_SUPPKEY for SUPPLIER.",
       "annotations": {
@@ -86,9 +122,9 @@
       }
     },
     {
-      "turnNumber": 9,
+      "turnNumber": 13,
       "role": "user",
-      "content": "What columns did you say the PART table have? I want to double-check the part type column.",
+      "content": "What columns did you say the PART table has? I want to double-check the part type column.",
       "annotations": {
         "type": "callback",
         "isCallback": true,
@@ -98,7 +134,7 @@
       }
     },
     {
-      "turnNumber": 10,
+      "turnNumber": 14,
       "role": "user",
       "content": "Show me the total lineitem revenue by supplier for orders in 1995.",
       "annotations": {
@@ -107,19 +143,28 @@
       }
     },
     {
-      "turnNumber": 11,
+      "turnNumber": 15,
+      "role": "user",
+      "content": "Now add the part manufacturer (P_MFGR) to group by manufacturer and supplier.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join to PART and include P_MFGR in GROUP BY"
+      }
+    },
+    {
+      "turnNumber": 16,
       "role": "user",
       "content": "What were the columns in PARTSUPP again?",
       "annotations": {
         "type": "callback",
         "isCallback": true,
-        "callbackTargetTurn": 4,
+        "callbackTargetTurn": 5,
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should recall PARTSUPP columns from earlier"
       }
     },
     {
-      "turnNumber": 12,
+      "turnNumber": 17,
       "role": "user",
       "content": "Add the supply cost (PS_SUPPLYCOST) information to our revenue analysis.",
       "annotations": {
@@ -128,7 +173,16 @@
       }
     },
     {
-      "turnNumber": 13,
+      "turnNumber": 18,
+      "role": "user",
+      "content": "Show me the profit margin: revenue minus supply cost by supplier.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should calculate L_EXTENDEDPRICE - PS_SUPPLYCOST * L_QUANTITY"
+      }
+    },
+    {
+      "turnNumber": 19,
       "role": "user",
       "content": "What possible values does L_LINESTATUS have?",
       "annotations": {
@@ -137,7 +191,7 @@
       }
     },
     {
-      "turnNumber": 14,
+      "turnNumber": 20,
       "role": "user",
       "content": "Filter to only include line items with status 'O' (outstanding).",
       "annotations": {
@@ -147,7 +201,37 @@
       }
     },
     {
-      "turnNumber": 15,
+      "turnNumber": 21,
+      "role": "user",
+      "content": "Show me the top 10 suppliers by profit margin for parts manufactured by 'Manufacturer#1'.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should filter to specific manufacturer and rank by profit"
+      }
+    },
+    {
+      "turnNumber": 22,
+      "role": "user",
+      "content": "Add the part brand to this result.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should include P_BRAND in output"
+      }
+    },
+    {
+      "turnNumber": 23,
+      "role": "user",
+      "content": "Earlier you mentioned PS_AVAILQTY. What was the available quantity for each supplier again?",
+      "annotations": {
+        "type": "callback",
+        "isCallback": true,
+        "callbackTargetTurn": 11,
+        "crossesCompressionBoundary": true,
+        "expectedBehavior": "Agent should recall the available quantity calculation"
+      }
+    },
+    {
+      "turnNumber": 24,
       "role": "user",
       "content": "Show me a comparison of available quantity vs sold quantity by supplier.",
       "annotations": {
@@ -156,20 +240,74 @@
       }
     },
     {
-      "turnNumber": 16,
+      "turnNumber": 25,
       "role": "user",
       "content": "Now do the same analysis but for 'Manufacturer#1' brand 'Brand#23' parts only.",
       "annotations": {
         "type": "anaphoric_reference",
         "isAnaphoricReference": true,
-        "anaphoricTargetTurn": 15,
+        "anaphoricTargetTurn": 24,
         "anaphoricPhrase": "the same analysis",
         "crossesCompressionBoundary": true,
         "expectedBehavior": "Agent should apply the same comparison with brand filter"
       }
     },
     {
-      "turnNumber": 17,
+      "turnNumber": 26,
+      "role": "user",
+      "content": "What about the SUPPLIER table - does it have a region or nation reference?",
+      "annotations": {
+        "type": "schema_probe",
+        "expectedBehavior": "Agent should mention S_NATIONKEY column"
+      }
+    },
+    {
+      "turnNumber": 27,
+      "role": "user",
+      "content": "Show me the full supply chain query: join SUPPLIER, PART, PARTSUPP, and LINEITEM, showing revenue, cost, and profit by supplier and part type, only outstanding line items.",
+      "annotations": {
+        "type": "final_query",
+        "expectedBehavior": "Agent should produce 4-table join with all established filters"
+      }
+    },
+    {
+      "turnNumber": 28,
+      "role": "user",
+      "content": "Add the nation name for each supplier by joining through S_NATIONKEY.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join to NATION table via S_NATIONKEY"
+      }
+    },
+    {
+      "turnNumber": 29,
+      "role": "user",
+      "content": "Just to confirm - what are the join keys we're using between LINEITEM, PART, and SUPPLIER?",
+      "annotations": {
+        "type": "probe",
+        "expectedBehavior": "Agent should list: L_PARTKEY=P_PARTKEY, L_SUPPKEY=S_SUPPKEY"
+      }
+    },
+    {
+      "turnNumber": 30,
+      "role": "user",
+      "content": "Now show me revenue by part container type.",
+      "annotations": {
+        "type": "hypothesis_exploration",
+        "expectedBehavior": "Agent should group by P_CONTAINER"
+      }
+    },
+    {
+      "turnNumber": 31,
+      "role": "user",
+      "content": "Add supplier nation to that breakdown.",
+      "annotations": {
+        "type": "refinement",
+        "expectedBehavior": "Agent should join to NATION and include in GROUP BY"
+      }
+    },
+    {
+      "turnNumber": 32,
       "role": "user",
       "content": "Final query: join SUPPLIER, PART, PARTSUPP, and LINEITEM, show revenue and profit by supplier nation and part type, filter to outstanding items, using L_PARTKEY for PART joins and L_SUPPKEY for SUPPLIER joins.",
       "annotations": {
@@ -180,13 +318,13 @@
   ],
   "persistedCorrections": [
     {
-      "turnEstablished": 8,
+      "turnEstablished": 12,
       "correctionText": "Use L_PARTKEY for PART joins, L_SUPPKEY for SUPPLIER joins",
       "type": "join_key",
       "description": "Always use L_PARTKEY when joining LINEITEM to PART, and L_SUPPKEY when joining to SUPPLIER"
     },
     {
-      "turnEstablished": 14,
+      "turnEstablished": 20,
       "correctionText": "Filter to only outstanding line items with status 'O'",
       "type": "filter_rule",
       "description": "All queries should include L_LINESTATUS = 'O' filter"
@@ -194,8 +332,32 @@
   ],
   "anaphoricReferences": [
     {
+      "sourceTurn": 13,
+      "targetTurn": 3,
+      "phrase": "What columns did you say the PART table has",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "PART columns including P_TYPE",
+      "distance": 10
+    },
+    {
       "sourceTurn": 16,
-      "targetTurn": 15,
+      "targetTurn": 5,
+      "phrase": "What were the columns in PARTSUPP again",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "PARTSUPP columns: PS_PARTKEY, PS_SUPPKEY, PS_AVAILQTY, PS_SUPPLYCOST, PS_COMMENT",
+      "distance": 11
+    },
+    {
+      "sourceTurn": 23,
+      "targetTurn": 11,
+      "phrase": "Earlier you mentioned PS_AVAILQTY",
+      "crossesCompressionBoundary": true,
+      "expectedResolution": "Available quantity aggregation by supplier",
+      "distance": 12
+    },
+    {
+      "sourceTurn": 25,
+      "targetTurn": 24,
       "phrase": "the same analysis",
       "crossesCompressionBoundary": true,
       "expectedResolution": "Available vs sold quantity comparison by supplier",
@@ -204,20 +366,28 @@
   ],
   "callbacks": [
     {
-      "sourceTurn": 9,
+      "sourceTurn": 13,
       "targetTurn": 3,
       "callbackType": "schema_recall",
       "expectedEntity": "PART columns, specifically P_TYPE",
       "crossesCompressionBoundary": true,
-      "distance": 6
+      "distance": 10
     },
     {
-      "sourceTurn": 11,
-      "targetTurn": 4,
+      "sourceTurn": 16,
+      "targetTurn": 5,
       "callbackType": "schema_recall",
       "expectedEntity": "PARTSUPP columns",
       "crossesCompressionBoundary": true,
-      "distance": 7
+      "distance": 11
+    },
+    {
+      "sourceTurn": 23,
+      "targetTurn": 11,
+      "callbackType": "value_recall",
+      "expectedEntity": "PS_AVAILQTY totals by supplier",
+      "crossesCompressionBoundary": true,
+      "distance": 12
     }
   ]
 }
