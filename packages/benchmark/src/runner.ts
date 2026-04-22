@@ -18,8 +18,7 @@ import {
   createEmptyResult,
   calculateMetrics,
   saveResult,
-  convertMessageToStored,
-  convertUsageToStored,
+  enrichTurnsWithAnnotations,
 } from './session-loader.js';
 import { Roles } from '@qwery/domain/common/roles';
 
@@ -118,6 +117,8 @@ export async function createBenchmarkRepositories(
       ? storageDir
       : path.resolve(process.cwd(), storageDir);
 
+  // Keep all repository-file consumers aligned on the same storage root.
+  process.env.QWERY_STORAGE_DIR = absoluteStorageDir;
   setStorageDir(absoluteStorageDir);
 
   const repositories: Repositories = {
@@ -246,14 +247,11 @@ export async function runSession(
     (await createBenchmarkRepositories(config.storageDir || 'qwery.db'));
 
   const conversationId = uuidv4();
-  const conversationSlug = `${session.id}-${Date.now()}`;
-  result.conversationId = conversationId;
-  result.conversationSlug = conversationSlug;
 
   const conversation = {
     id: conversationId,
     title: session.metadata.description,
-    slug: conversationSlug,
+    slug: `${session.id}-${Date.now()}`,
     projectId: BENCHMARK_PROJECT_ID,
     taskId: '00000000-0000-0000-0000-000000000001',
     datasources: [config.datasourceId],
@@ -264,7 +262,10 @@ export async function runSession(
     isPublic: false,
   };
 
-  await repositories.conversation.create(conversation);
+  const savedConversation = await repositories.conversation.create(conversation);
+  const conversationSlug = savedConversation.slug;
+  result.conversationId = conversationId;
+  result.conversationSlug = conversationSlug;
 
   const conversationMessages: UIMessage[] = [];
   let previousTurnMessageCount = 0;
@@ -453,29 +454,32 @@ export async function runSession(
       result.turns.push(turnResult);
     }
   }
+    // 
+    //   try {
+    //     const dbMessages =
+    //       await repositories.message.findByConversationId(conversationId);
+    //     result.messages = dbMessages.map(convertMessageToStored);
+    //   } catch (error) {
+    //     result.errors.push(
+    //       `Failed to retrieve messages: ${error instanceof Error ? error.message : String(error)}`,
+    //     );
+    //   }
+    // 
+    //   try {
+    //     const dbUsages =
+    //       await repositories.usage.findByConversationId(conversationId);
+    //     result.usages = dbUsages.map(convertUsageToStored);
+    //   } catch (error) {
+    //     result.errors.push(
+    //       `Failed to retrieve usages: ${error instanceof Error ? error.message : String(error)}`,
+// );
+// } 
+// 
+// Enrich turns with session annotations
+result.turns = enrichTurnsWithAnnotations(result.turns, session);
 
-  try {
-    const dbMessages =
-      await repositories.message.findByConversationId(conversationId);
-    result.messages = dbMessages.map(convertMessageToStored);
-  } catch (error) {
-    result.errors.push(
-      `Failed to retrieve messages: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  try {
-    const dbUsages =
-      await repositories.usage.findByConversationId(conversationId);
-    result.usages = dbUsages.map(convertUsageToStored);
-  } catch (error) {
-    result.errors.push(
-      `Failed to retrieve usages: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  result.completedAt = new Date().toISOString();
-  result.metrics = calculateMetrics(result.turns);
+result.completedAt = new Date().toISOString();
+result.metrics = calculateMetrics(result.turns);
 
   await saveResult(result, compressionMethod);
 
@@ -488,11 +492,45 @@ export async function ensureDatasource(
   provider: string,
   config: Record<string, unknown>,
 ): Promise<string> {
+  const normalizedConfig: Record<string, unknown> = { ...config };
+  if (
+    typeof normalizedConfig.username !== 'string' &&
+    typeof normalizedConfig.user === 'string'
+  ) {
+    normalizedConfig.username = normalizedConfig.user;
+  }
+
   const existing = await repositories.datasource.findAll();
   const found = existing.find(
     (d: { id: string; name: string }) => d.name === name,
   );
   if (found) {
+    const foundDatasource = found as {
+      id: string;
+      datasource_provider: string;
+      datasource_driver: string;
+      config: Record<string, unknown>;
+      updatedAt: Date;
+      updatedBy: string;
+    };
+
+    const hasConfigChanged =
+      JSON.stringify(foundDatasource.config) !== JSON.stringify(normalizedConfig);
+    const hasProviderChanged =
+      foundDatasource.datasource_provider !== provider ||
+      foundDatasource.datasource_driver !== provider;
+
+    if (hasConfigChanged || hasProviderChanged) {
+      await repositories.datasource.update({
+        ...(found as unknown as Parameters<typeof repositories.datasource.update>[0]),
+        datasource_provider: provider,
+        datasource_driver: provider,
+        config: normalizedConfig,
+        updatedAt: new Date(),
+        updatedBy: BENCHMARK_USER_ID,
+      });
+    }
+
     return found.id;
   }
 
@@ -505,7 +543,7 @@ export async function ensureDatasource(
     datasource_provider: provider,
     datasource_driver: provider,
     datasource_kind: DatasourceKind.REMOTE,
-    config,
+    config: normalizedConfig,
     createdAt: new Date(),
     updatedAt: new Date(),
     createdBy: BENCHMARK_USER_ID,

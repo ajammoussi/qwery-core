@@ -19,6 +19,8 @@ async function generateReport(compressionMethod?: CompressionMethod) {
   const reportDir = join(__dirname, '..', 'data', 'reports');
 
   await mkdir(reportDir, { recursive: true });
+  // Note: Results structure updated to store messages and usage per-turn only
+  // (removed redundant arrays to reduce file size and simplify structure)
 
   const databases = ['tpch', 'saas'];
   const types = ['rci', 'irc', 'pta', 'dcs', 'sncj'];

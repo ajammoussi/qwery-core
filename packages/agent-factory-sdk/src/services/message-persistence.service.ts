@@ -71,9 +71,9 @@ export class MessagePersistenceService {
     const opts = options ?? {};
     let resolvedCreatedBy: string | null = null;
     try {
-      const conversation = await this.conversationRepository.findBySlug(
-        this.conversationSlug,
-      );
+      const conversation =
+        (await this.conversationRepository.findBySlug(this.conversationSlug)) ??
+        (await this.conversationRepository.findById(this.conversationSlug));
       if (conversation && conversation.createdBy?.trim()) {
         resolvedCreatedBy = conversation.createdBy;
       } else if (opts.createdBy?.trim()) {

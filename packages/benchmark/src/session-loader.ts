@@ -281,3 +281,18 @@ export function createEmptyResult(
     errors: [],
   };
 }
+
+export function enrichTurnsWithAnnotations(
+  turns: TurnResult[],
+  session: BenchmarkSession,
+): TurnResult[] {
+  return turns.map((turn) => {
+    const sessionTurn = session.turns.find(
+      (t) => t.turnNumber === turn.turnNumber,
+    );
+    return {
+      ...turn,
+      annotations: sessionTurn?.annotations,
+    };
+  });
+}

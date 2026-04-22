@@ -162,6 +162,8 @@ export interface TurnResult {
   reasoningTokens: number;
   cachedInputTokens: number;
   cost: number;
+  // Annotations from session schema
+  annotations?: TurnAnnotations;
 }
 
 export interface ToolCallResult {
@@ -201,8 +203,7 @@ export interface BenchmarkResult {
   startedAt: string;
   completedAt: string;
   turns: TurnResult[];
-  messages: StoredMessage[];
-  usages: StoredUsage[];
   metrics: SessionMetrics;
   errors: string[];
+  // Legacy fields removed: messages and usages arrays (redundant with per-turn data)
 }

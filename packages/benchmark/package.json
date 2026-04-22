@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "run": "node --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts",
-    "run:tpch": "node --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --db tpch",
-    "run:saas": "node --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --db saas",
-    "run:baseline": "node --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method baseline-no-compression",
-    "run:compression": "node --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method",
-    "extract": "node --experimental-specifier-resolution=node --loader ts-node/esm src/extract-results.ts",
-    "extract:baseline": "node --experimental-specifier-resolution=node --loader ts-node/esm src/extract-results.ts baseline-no-compression",
-    "validate": "node --experimental-specifier-resolution=node --loader ts-node/esm src/validate-session.ts",
+    "run": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts",
+    "run:tpch": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --db tpch",
+    "run:saas": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --db saas",
+    "run:baseline": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method baseline-no-compression",
+    "run:compression": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method",
+    "extract": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/extract-results.ts",
+    "extract:baseline": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/extract-results.ts baseline-no-compression",
+    "validate": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/validate-session.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
