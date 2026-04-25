@@ -162,6 +162,16 @@ Each result file contains:
     {
       "turnNumber": 1,
       "userMessage": "Revenue dropped...",
+      "assistantMessages": [
+        {
+          "messageId": "message-uuid",
+          "startedAt": "2024-01-01T00:00:05Z",
+          "completedAt": "2024-01-01T00:00:07Z",
+          "parts": [
+            { "type": "text", "text": "I'll analyze..." }
+          ]
+        }
+      ],
       "agentResponse": "I'll analyze...",
       "toolCalls": [
         {

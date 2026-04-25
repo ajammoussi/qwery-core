@@ -237,6 +237,8 @@ export function extractAssistantMessagesFromTurn(
     if (msg.role === 'assistant') {
       assistantMessages.push({
         messageId: msg.id,
+        startedAt: msg.createdAt,
+        completedAt: msg.updatedAt,
         parts: msg.content?.parts ?? [],
         metadata: msg.metadata,
       });
@@ -260,8 +262,6 @@ export function createEmptyResult(
     startedAt: new Date().toISOString(),
     completedAt: '',
     turns: [],
-    messages: [],
-    usages: [],
     metrics: {
       totalTurns: 0,
       totalInputTokens: 0,

@@ -146,6 +146,8 @@ export interface StoredUsage {
 
 export interface AssistantMessageDetail {
   messageId: string;
+  startedAt?: string;
+  completedAt?: string;
   parts: MessagePartDetail[];
   metadata?: Record<string, unknown>;
 }

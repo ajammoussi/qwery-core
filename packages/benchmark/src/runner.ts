@@ -15,8 +15,10 @@ import type {
   MessagePartDetail,
 } from './types.js';
 import {
+  convertMessageToStored,
   createEmptyResult,
   calculateMetrics,
+  extractAssistantMessagesFromTurn,
   saveResult,
   enrichTurnsWithAnnotations,
 } from './session-loader.js';
@@ -356,6 +358,35 @@ export async function runSession(
       const responseTimeMs = Math.round(turnEnd - turnStart);
 
       const finishedMessages = agentResult.messages;
+      const assistantMessageTimestamps = new Map<
+        string,
+        { startedAt?: string; completedAt?: string }
+      >();
+
+      try {
+        const persistedMessages = await repositories.message.findByConversationId(
+          conversationId,
+        );
+        const storedMessages = persistedMessages.map(convertMessageToStored);
+        const assistantMessagesFromStore = extractAssistantMessagesFromTurn(
+          storedMessages,
+          turn.turnNumber,
+          previousTurnMessageCount,
+        );
+
+        for (const assistantMessage of assistantMessagesFromStore) {
+          assistantMessageTimestamps.set(assistantMessage.messageId, {
+            startedAt: assistantMessage.startedAt,
+            completedAt: assistantMessage.completedAt,
+          });
+        }
+
+        previousTurnMessageCount = persistedMessages.length;
+      } catch (error) {
+        result.errors.push(
+          `Turn ${turn.turnNumber}: failed to retrieve persisted message timestamps: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
 
       const assistantMessages: AssistantMessageDetail[] = [];
       let agentResponse = '';
@@ -390,9 +421,22 @@ export async function runSession(
           }
 
           const msgMetadata = (msg.metadata as Record<string, unknown>) ?? {};
+          const persistedTimestamps = assistantMessageTimestamps.get(msg.id);
+
+          const metadataStartedAt =
+            typeof msgMetadata.createdAt === 'string'
+              ? msgMetadata.createdAt
+              : undefined;
+          const metadataCompletedAt =
+            typeof msgMetadata.updatedAt === 'string'
+              ? msgMetadata.updatedAt
+              : undefined;
 
           assistantMessages.push({
             messageId: msg.id,
+            startedAt: persistedTimestamps?.startedAt ?? metadataStartedAt,
+            completedAt:
+              persistedTimestamps?.completedAt ?? metadataCompletedAt,
             parts,
             metadata: msgMetadata,
           });
