@@ -99,6 +99,67 @@ async function copyTestCasesToData() {
   }
 }
 
+function parseIndices(indicesStr: string, maxLength: number): number[] {
+  const indices = new Set<number>();
+
+  const parts = indicesStr.split(',').map((p) => p.trim());
+
+  for (const part of parts) {
+    if (part.includes('-')) {
+      const rangeParts = part.split('-').map((p) => p.trim());
+      if (rangeParts.length !== 2) {
+        throw new Error(`Invalid range: ${part}`);
+      }
+
+      const [start, end] = rangeParts;
+      if (!start || !end) {
+        throw new Error(`Invalid range: ${part}`);
+      }
+
+      const startNum = parseInt(start, 10);
+      const endNum = parseInt(end, 10);
+
+      if (isNaN(startNum) || isNaN(endNum)) {
+        throw new Error(`Invalid range: ${part}`);
+      }
+
+      if (startNum < 1 || endNum < 1) {
+        throw new Error('Indices must be 1-based (start from 1)');
+      }
+
+      if (startNum > maxLength || endNum > maxLength) {
+        throw new Error(
+          `Index out of range. Max available: ${maxLength}, got ${Math.max(startNum, endNum)}`,
+        );
+      }
+
+      for (let i = Math.min(startNum, endNum); i <= Math.max(startNum, endNum); i++) {
+        indices.add(i - 1); // Convert to 0-based
+      }
+    } else {
+      const num = parseInt(part, 10);
+
+      if (isNaN(num)) {
+        throw new Error(`Invalid index: ${part}`);
+      }
+
+      if (num < 1) {
+        throw new Error('Indices must be 1-based (start from 1)');
+      }
+
+      if (num > maxLength) {
+        throw new Error(
+          `Index out of range. Max available: ${maxLength}, got ${num}`,
+        );
+      }
+
+      indices.add(num - 1); // Convert to 0-based
+    }
+  }
+
+  return Array.from(indices).sort((a, b) => a - b);
+}
+
 async function main() {
   await loadBenchmarkEnv();
 
@@ -135,6 +196,10 @@ async function main() {
         type: 'string',
         short: 'l',
       },
+      indices: {
+        type: 'string',
+        short: 'i',
+      },
     },
     allowPositional: true,
   });
@@ -149,10 +214,26 @@ async function main() {
   const storageDir = values['storage-dir'];
   const compressionMethod = values['compression-method'] as CompressionMethod;
   const limit = values.limit ? parseInt(values.limit, 10) : undefined;
+  const indicesStr = values.indices as string | undefined;
 
   console.log('Loading sessions...');
   const sessions = await loadAllSessions(database, type);
-  const sessionsToRun = limit ? sessions.slice(0, limit) : sessions;
+
+  let sessionsToRun = sessions;
+  if (indicesStr) {
+    try {
+      const selectedIndices = parseIndices(indicesStr, sessions.length);
+      sessionsToRun = selectedIndices.map((idx) => sessions[idx]!);
+      console.log(`Selected indices: ${indicesStr}`);
+    } catch (error) {
+      console.error(
+        `Error parsing indices: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      process.exit(1);
+    }
+  } else if (limit) {
+    sessionsToRun = sessions.slice(0, limit);
+  }
 
   console.log(
     `Found ${sessions.length} sessions, running ${sessionsToRun.length}`,
