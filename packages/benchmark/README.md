@@ -91,12 +91,11 @@ The following compression methods are supported:
 
 ## CLI Options
 
+### Basic Commands
+
 ```bash
 # Run baseline (no compression) - DEFAULT
 pnpm run:baseline
-
-# Run with specific compression method
-pnpm run -- --compression-method llmlingua
 
 # Run only TPCH database
 pnpm run:tpch
@@ -104,22 +103,45 @@ pnpm run:tpch
 # Run only SaaS database
 pnpm run:saas
 
-# Run specific conversation type
-pnpm run -- --type rci
+# Run with specific compression method
+pnpm run -- --compression-method llmlingua
 
 # Run with custom model
 pnpm run -- --model "azure/gpt-4o"
+```
 
-# Limit number of sessions
+### Filtering & Selection
+
+```bash
+# Run specific conversation type
+pnpm run -- --type rci
+
+# Limit number of sessions (runs first N)
 pnpm run -- --limit 5
 
+# Run specific indices (4 and 5)
+pnpm run:baseline -- --db tpch --type rci --indices 4,5
+
+# Run a range (2 through 4)  
+pnpm run:baseline -- --db tpch --type rci --indices 2-4
+
+# Mix individual and ranges (1, 3, 5-7, 10)
+pnpm run:baseline -- --db tpch --type rci --indices 1,3,5-7,10
+
+# Run specific indices with different compression
+pnpm run -- --db saas --type irc --indices 1,2 --compression-method llmlingua
+```
+
+### Reporting & Validation
+
+```bash
 # Validate sessions without running
 pnpm validate
 
 # Extract reports
-pnpm extract                   # All methods
-pnpm extract:baseline          # Baseline only
-pnpm extract -- llmlingua     # Specific method
+pnpm extract                              # All methods
+pnpm extract:baseline                     # Baseline only
+pnpm extract baseline-no-compression      # Specific method (positional arg)
 ```
 
 ## Output Structure
