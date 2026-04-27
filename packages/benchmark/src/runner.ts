@@ -13,6 +13,7 @@ import type {
   StoredUsage,
   AssistantMessageDetail,
   MessagePartDetail,
+  CompactionEvent,
 } from './types.js';
 import {
   convertMessageToStored,
@@ -23,6 +24,9 @@ import {
   enrichTurnsWithAnnotations,
 } from './session-loader.js';
 import { Roles } from '@qwery/domain/common/roles';
+import { installStrategy } from './compaction/strategy.js';
+import type { LastCompaction } from './compaction/strategy.js';
+import { getStrategy } from './compaction/registry.js';
 
 export type BenchmarkConfig = {
   model?: string;
@@ -202,6 +206,59 @@ function extractTextFromParts(parts: MessagePartDetail[]): string {
   return textParts.join('\n');
 }
 
+function detectCompactionEvent(args: {
+  storedMessages: StoredMessage[];
+  scanFromIndex: number;
+  lastCompaction: LastCompaction;
+  preTokens: number | null;
+  turnNumber: number;
+  method: CompressionMethod;
+}): CompactionEvent | undefined {
+  const {
+    storedMessages,
+    scanFromIndex,
+    lastCompaction,
+    preTokens,
+    turnNumber,
+    method,
+  } = args;
+
+  let newSummary: StoredMessage | undefined;
+  for (let i = scanFromIndex; i < storedMessages.length; i++) {
+    const msg = storedMessages[i];
+    if (!msg || msg.role !== 'assistant') continue;
+    const meta = msg.metadata as { summary?: boolean } | undefined;
+    if (!meta?.summary) continue;
+    newSummary = msg;
+  }
+
+  // Strategies that don't persist a summary message (e.g. baseline) won't have
+  // newSummary; if neither signal is present, no compaction happened this turn.
+  if (!newSummary && !lastCompaction) {
+    return undefined;
+  }
+
+  const summaryText = newSummary
+    ? extractTextFromParts((newSummary.content?.parts ?? []) as MessagePartDetail[])
+    : undefined;
+
+  const summaryTokens =
+    newSummary?.metadata?.tokens?.output ??
+    (summaryText ? Math.ceil(summaryText.length / 3.6) : undefined);
+
+  return {
+    method,
+    triggeredAt: 'turn-boundary',
+    summaryText,
+    summaryTokens,
+    preCompactionTokens: preTokens ?? lastCompaction?.preCompactionTokens ?? undefined,
+    latencyMs:
+      lastCompaction && lastCompaction.turnNumber === turnNumber
+        ? Math.round(lastCompaction.latencyMs)
+        : 0,
+  };
+}
+
 function extractMetricsFromParts(parts: MessagePartDetail[]): {
   cost: number;
   tokens: { input: number; output: number; reasoning: number; cached: number };
@@ -248,6 +305,53 @@ export async function runSession(
     config.repositories ??
     (await createBenchmarkRepositories(config.storageDir || 'qwery.db'));
 
+  const strategy = getStrategy(compressionMethod);
+  const currentTurnRef = { value: 0 };
+  const { restore, lastCompactionRef, preTokensRef } = installStrategy(
+    strategy,
+    {
+      boundaryTurn: session.metadata.compressionBoundaryTurn,
+      currentTurnRef,
+    },
+  );
+
+  try {
+    return await runSessionWithStrategy({
+      session,
+      config,
+      compressionMethod,
+      result,
+      repositories,
+      currentTurnRef,
+      lastCompactionRef,
+      preTokensRef,
+    });
+  } finally {
+    restore();
+  }
+}
+
+async function runSessionWithStrategy(args: {
+  session: BenchmarkSession;
+  config: BenchmarkConfig;
+  compressionMethod: CompressionMethod;
+  result: BenchmarkResult;
+  repositories: Repositories;
+  currentTurnRef: { value: number };
+  lastCompactionRef: { value: LastCompaction };
+  preTokensRef: { value: number | null };
+}): Promise<BenchmarkResult> {
+  const {
+    session,
+    config,
+    compressionMethod,
+    result,
+    repositories,
+    currentTurnRef,
+    lastCompactionRef,
+    preTokensRef,
+  } = args;
+
   const conversationId = uuidv4();
 
   const conversation = {
@@ -274,6 +378,7 @@ export async function runSession(
 
   for (const turn of session.turns) {
     const turnStart = performance.now();
+    currentTurnRef.value = turn.turnNumber;
 
     const userMessageId = uuidv4();
     conversationMessages.push({
@@ -363,6 +468,8 @@ export async function runSession(
         { startedAt?: string; completedAt?: string }
       >();
 
+      let compactionEvent: CompactionEvent | undefined;
+
       try {
         const persistedMessages = await repositories.message.findByConversationId(
           conversationId,
@@ -380,6 +487,18 @@ export async function runSession(
             completedAt: assistantMessage.completedAt,
           });
         }
+
+        compactionEvent = detectCompactionEvent({
+          storedMessages,
+          scanFromIndex: previousTurnMessageCount,
+          lastCompaction: lastCompactionRef.value,
+          preTokens: preTokensRef.value,
+          turnNumber: turn.turnNumber,
+          method: compressionMethod,
+        });
+        // Reset for the next turn so a stale latency doesn't leak forward.
+        lastCompactionRef.value = null;
+        preTokensRef.value = null;
 
         previousTurnMessageCount = persistedMessages.length;
       } catch (error) {
@@ -462,6 +581,7 @@ export async function runSession(
         reasoningTokens,
         cachedInputTokens,
         cost: totalCost,
+        compactionEvent,
       };
 
       result.turns.push(turnResult);

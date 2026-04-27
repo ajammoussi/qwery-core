@@ -166,6 +166,18 @@ export interface TurnResult {
   cost: number;
   // Annotations from session schema
   annotations?: TurnAnnotations;
+  // Populated when a compaction strategy ran during this turn
+  compactionEvent?: CompactionEvent;
+}
+
+export interface CompactionEvent {
+  method: CompressionMethod;
+  triggeredAt: 'turn-boundary' | 'token-overflow' | 'forced';
+  summaryText?: string;
+  structuredState?: Record<string, unknown>;
+  summaryTokens?: number;
+  preCompactionTokens?: number;
+  latencyMs: number;
 }
 
 export interface ToolCallResult {
@@ -193,6 +205,9 @@ export interface SessionMetrics {
   filterPersistenceRate: number | null;
   entityRecallAccuracy: number | null;
   referenceResolutionAccuracy: number | null;
+  // Strategy-level aggregates; null when no compaction event was observed
+  compressionRatio: number | null;
+  compactionLatencyMs: number | null;
 }
 
 export interface BenchmarkResult {

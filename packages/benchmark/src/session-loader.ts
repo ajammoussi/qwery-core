@@ -98,6 +98,15 @@ export function calculateMetrics(turns: TurnResult[]): SessionMetrics {
     0,
   );
 
+  const compactionTurn = turns.find((t) => t.compactionEvent);
+  const compactionLatencyMs = compactionTurn?.compactionEvent?.latencyMs ?? null;
+  const preTokens = compactionTurn?.compactionEvent?.preCompactionTokens;
+  const postTokens = compactionTurn?.compactionEvent?.summaryTokens;
+  const compressionRatio =
+    preTokens && postTokens
+      ? Math.round((postTokens / preTokens) * 1000) / 1000
+      : null;
+
   return {
     totalTurns,
     totalInputTokens,
@@ -117,6 +126,8 @@ export function calculateMetrics(turns: TurnResult[]): SessionMetrics {
     filterPersistenceRate: null,
     entityRecallAccuracy: null,
     referenceResolutionAccuracy: null,
+    compressionRatio,
+    compactionLatencyMs,
   };
 }
 
@@ -277,6 +288,8 @@ export function createEmptyResult(
       filterPersistenceRate: null,
       entityRecallAccuracy: null,
       referenceResolutionAccuracy: null,
+      compressionRatio: null,
+      compactionLatencyMs: null,
     },
     errors: [],
   };
