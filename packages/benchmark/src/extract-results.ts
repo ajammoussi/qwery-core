@@ -1,7 +1,7 @@
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
-import type { BenchmarkResult, CompressionMethod } from './types.js';
+import type { BenchmarkResult, CompressionMethod, ContextMode } from './types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -11,10 +11,11 @@ const COMPRESSION_METHODS: CompressionMethod[] = [
   'longllmlingua',
   'sliding-window',
   'summary-prose',
-  'entity-state',
 ];
 
-async function generateReport(compressionMethod?: CompressionMethod) {
+const CONTEXT_MODES: ContextMode[] = ['plain', '4zone'];
+
+async function generateReport(compressionMethod?: CompressionMethod, contextMode?: ContextMode) {
   const resultsBaseDir = join(__dirname, '..', 'data', 'results');
   const reportDir = join(__dirname, '..', 'data', 'reports');
 
@@ -29,11 +30,17 @@ async function generateReport(compressionMethod?: CompressionMethod) {
     ? [compressionMethod]
     : COMPRESSION_METHODS;
 
+  const contextModesToProcess = contextMode
+    ? [contextMode]
+    : CONTEXT_MODES;
+
   for (const method of methodsToProcess) {
-    const methodDir = join(resultsBaseDir, method);
+    for (const mode of contextModesToProcess) {
+      const methodDir = join(resultsBaseDir, method, mode);
 
     const report: {
       compressionMethod: CompressionMethod;
+      contextMode: ContextMode;
       summary: {
         totalSessions: number;
         totalTurns: number;
@@ -77,6 +84,7 @@ async function generateReport(compressionMethod?: CompressionMethod) {
       sessions: BenchmarkResult[];
     } = {
       compressionMethod: method,
+      contextMode: mode,
       summary: {
         totalSessions: 0,
         totalTurns: 0,
@@ -210,11 +218,11 @@ async function generateReport(compressionMethod?: CompressionMethod) {
 
     const reportPath = join(
       reportDir,
-      `benchmark-report-${method}-${new Date().toISOString().split('T')[0]}.json`,
+      `benchmark-report-${method}-${mode}-${new Date().toISOString().split('T')[0]}.json`,
     );
     await writeFile(reportPath, JSON.stringify(report, null, 2), 'utf-8');
 
-    console.log(`\n=== Benchmark Report: ${method} ===`);
+    console.log(`\n=== Benchmark Report: ${method} (${mode}) ===`);
     console.log(`Total Sessions: ${report.summary.totalSessions}`);
     console.log(`Total Turns: ${report.summary.totalTurns}`);
     console.log(`Total Tool Calls: ${report.summary.totalToolCalls}`);
@@ -257,8 +265,10 @@ async function generateReport(compressionMethod?: CompressionMethod) {
     }
 
     console.log(`\nReport saved to: ${reportPath}`);
+    }
   }
 }
 
 const methodArg = process.argv[2] as CompressionMethod | undefined;
-generateReport(methodArg).catch(console.error);
+const modeArg = process.argv[3] as ContextMode | undefined;
+generateReport(methodArg, modeArg).catch(console.error);

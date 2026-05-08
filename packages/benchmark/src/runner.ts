@@ -9,6 +9,7 @@ import type {
   TurnResult,
   ToolCallResult,
   CompressionMethod,
+  ContextMode,
   StoredMessage,
   StoredUsage,
   AssistantMessageDetail,
@@ -34,6 +35,7 @@ export type BenchmarkConfig = {
   datasourceId: string;
   storageDir?: string;
   compressionMethod?: CompressionMethod;
+  contextMode?: ContextMode;
   repositories?: Repositories;
 };
 
@@ -213,6 +215,7 @@ function detectCompactionEvent(args: {
   preTokens: number | null;
   turnNumber: number;
   method: CompressionMethod;
+  contextMode: ContextMode;
 }): CompactionEvent | undefined {
   const {
     storedMessages,
@@ -221,6 +224,7 @@ function detectCompactionEvent(args: {
     preTokens,
     turnNumber,
     method,
+    contextMode,
   } = args;
 
   let newSummary: StoredMessage | undefined;
@@ -248,6 +252,7 @@ function detectCompactionEvent(args: {
 
   return {
     method,
+    contextMode,
     triggeredAt: 'turn-boundary',
     summaryText,
     summaryTokens,
@@ -299,13 +304,14 @@ export async function runSession(
 ): Promise<BenchmarkResult> {
   const compressionMethod =
     config.compressionMethod || 'baseline-no-compression';
-  const result = createEmptyResult(session, compressionMethod);
+  const contextMode = config.contextMode || 'plain';
+  const result = createEmptyResult(session, compressionMethod, contextMode);
 
   const repositories =
     config.repositories ??
     (await createBenchmarkRepositories(config.storageDir || 'qwery.db'));
 
-  const strategy = getStrategy(compressionMethod);
+  const strategy = getStrategy(compressionMethod, contextMode);
   const currentTurnRef = { value: 0 };
   const { restore, lastCompactionRef, preTokensRef } = installStrategy(
     strategy,
@@ -320,6 +326,7 @@ export async function runSession(
       session,
       config,
       compressionMethod,
+      contextMode,
       result,
       repositories,
       currentTurnRef,
@@ -335,6 +342,7 @@ async function runSessionWithStrategy(args: {
   session: BenchmarkSession;
   config: BenchmarkConfig;
   compressionMethod: CompressionMethod;
+  contextMode: ContextMode;
   result: BenchmarkResult;
   repositories: Repositories;
   currentTurnRef: { value: number };
@@ -345,6 +353,7 @@ async function runSessionWithStrategy(args: {
     session,
     config,
     compressionMethod,
+    contextMode,
     result,
     repositories,
     currentTurnRef,
@@ -495,6 +504,7 @@ async function runSessionWithStrategy(args: {
           preTokens: preTokensRef.value,
           turnNumber: turn.turnNumber,
           method: compressionMethod,
+          contextMode,
         });
         // Reset for the next turn so a stale latency doesn't leak forward.
         lastCompactionRef.value = null;
@@ -645,7 +655,7 @@ result.turns = enrichTurnsWithAnnotations(result.turns, session);
 result.completedAt = new Date().toISOString();
 result.metrics = calculateMetrics(result.turns);
 
-  await saveResult(result, compressionMethod);
+  await saveResult(result, compressionMethod, contextMode);
 
   return result;
 }

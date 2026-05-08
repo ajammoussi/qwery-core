@@ -5,6 +5,7 @@ import type {
   ToolCallResult,
   SessionMetrics,
   CompressionMethod,
+  ContextMode,
   StoredMessage,
   StoredUsage,
   MessagePartDetail,
@@ -59,8 +60,9 @@ export async function loadAllSessions(
 export async function saveResult(
   result: BenchmarkResult,
   compressionMethod: CompressionMethod = 'baseline-no-compression',
+  contextMode: ContextMode = 'plain',
 ): Promise<string> {
-  const baseDir = join(__dirname, '..', 'data', 'results', compressionMethod);
+  const baseDir = join(__dirname, '..', 'data', 'results', compressionMethod, contextMode);
   const resultDir = join(
     baseDir,
     result.database,
@@ -262,12 +264,14 @@ export function extractAssistantMessagesFromTurn(
 export function createEmptyResult(
   session: BenchmarkSession,
   compressionMethod: CompressionMethod = 'baseline-no-compression',
+  contextMode: ContextMode = 'plain',
 ): BenchmarkResult {
   return {
     sessionId: session.id,
     database: session.metadata.database,
     conversationType: session.metadata.conversationType,
     compressionMethod,
+    contextMode,
     conversationId: '',
     conversationSlug: '',
     startedAt: new Date().toISOString(),
