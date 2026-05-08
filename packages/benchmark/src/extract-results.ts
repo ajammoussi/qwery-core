@@ -7,10 +7,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const COMPRESSION_METHODS: CompressionMethod[] = [
   'baseline-no-compression',
-  'llmlingua',
+  'llmlingua-2',
   'longllmlingua',
   'sliding-window',
-  'summary-prose',
+  'qwery-default',
   'entity-state',
 ];
 

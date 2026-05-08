@@ -7,8 +7,8 @@ import { makeBoundaryIsOverflow } from '../strategy.js';
  * deterministically at the session's compressionBoundaryTurn instead of relying
  * on the model's natural context-window overflow.
  */
-export const summaryProseStrategy: CompactionStrategy = {
-  name: 'summary-prose',
+export const qweryDefaultStrategy: CompactionStrategy = {
+  name: 'qwery-default',
   factory: (ctx, originals) => ({
     isOverflow: makeBoundaryIsOverflow(ctx),
     process: (input) => originals.process(input),

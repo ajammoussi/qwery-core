@@ -1,11 +1,11 @@
 import type { CompressionMethod } from '../types.js';
 import type { CompactionStrategy } from './strategy.js';
 import { baselineStrategy } from './strategies/baseline.js';
-import { summaryProseStrategy } from './strategies/summary-prose.js';
+import { qweryDefaultStrategy } from './strategies/qwery-default.js';
 
 const STRATEGIES: Partial<Record<CompressionMethod, CompactionStrategy>> = {
   'baseline-no-compression': baselineStrategy,
-  'summary-prose': summaryProseStrategy,
+  'qwery-default': qweryDefaultStrategy,
 };
 
 export function getStrategy(method: CompressionMethod): CompactionStrategy {
