@@ -9,7 +9,7 @@ import {
   createBenchmarkRepositories,
 } from './runner.js';
 import type { BenchmarkConfig } from './runner.js';
-import type { CompressionMethod } from './types.js';
+import type { CompressionMethod, ContextMode } from './types.js';
 
 type DatasourceConfig = {
   provider: string;
@@ -188,6 +188,10 @@ async function main() {
         short: 'c',
         default: 'baseline-no-compression',
       },
+      'context-mode': {
+        type: 'string',
+        default: 'plain',
+      },
       'copy-testcases': {
         type: 'boolean',
         default: true,
@@ -213,6 +217,7 @@ async function main() {
   const model = values.model;
   const storageDir = values['storage-dir'];
   const compressionMethod = values['compression-method'] as CompressionMethod;
+  const contextMode = values['context-mode'] as ContextMode;
   const limit = values.limit ? parseInt(values.limit, 10) : undefined;
   const indicesStr = values.indices as string | undefined;
 
@@ -241,6 +246,7 @@ async function main() {
   console.log(`Model: ${model}`);
   console.log(`Storage: ${storageDir}`);
   console.log(`Compression Method: ${compressionMethod}`);
+  console.log(`Context Mode: ${contextMode}`);
 
   const repositories = await createBenchmarkRepositories(storageDir!);
 
@@ -294,6 +300,7 @@ async function main() {
       datasourceId: datasourceIds[session.metadata.database] ?? '',
       storageDir,
       compressionMethod,
+      contextMode,
       repositories,
     };
 
@@ -336,7 +343,8 @@ async function main() {
   console.log(`Successful: ${successful}`);
   console.log(`Failed: ${failed}`);
   console.log(`Compression: ${compressionMethod}`);
-  console.log(`Results saved to: data/results/${compressionMethod}/`);
+  console.log(`Context Mode: ${contextMode}`);
+  console.log(`Results saved to: data/results/${compressionMethod}/${contextMode}/`);
 
   if (failed > 0) {
     console.log('\nFailed sessions:');

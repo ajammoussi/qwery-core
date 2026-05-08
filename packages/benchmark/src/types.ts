@@ -71,6 +71,8 @@ export type CompressionMethod =
   | 'qwery-default'
   | 'entity-state';
 
+export type ContextMode = 'plain' | '4zone';
+
 export type MessagePartDetail =
   | { type: 'text'; text: string; state?: 'streaming' | 'done' }
   | { type: 'reasoning'; text: string; state?: 'streaming' | 'done' }
@@ -172,6 +174,7 @@ export interface TurnResult {
 
 export interface CompactionEvent {
   method: CompressionMethod;
+  contextMode: ContextMode;
   triggeredAt: 'turn-boundary' | 'token-overflow' | 'forced';
   summaryText?: string;
   structuredState?: Record<string, unknown>;
@@ -215,6 +218,7 @@ export interface BenchmarkResult {
   database: string;
   conversationType: string;
   compressionMethod: CompressionMethod;
+  contextMode: ContextMode;
   conversationId: string;
   conversationSlug: string;
   startedAt: string;
