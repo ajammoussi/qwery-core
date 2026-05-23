@@ -241,29 +241,29 @@
     {
       "turnNumber": 24,
       "role": "user",
-      "content": "Show me accounts with high feature usage but low invoice values.",
+      "content": "Show me accounts with high feature usage but low active minutes.",
       "annotations": {
         "type": "hypothesis_exploration",
-        "expectedBehavior": "Agent should identify high-usage low-revenue accounts"
+        "expectedBehavior": "Agent should identify high-usage low-activity accounts"
       }
     },
     {
       "turnNumber": 25,
       "role": "user",
-      "content": "Create a chart showing feature usage vs invoice amount.",
+      "content": "Create a chart showing feature usage by account segment.",
       "annotations": {
         "type": "chart_request",
         "chartRequested": true,
-        "expectedBehavior": "Agent should create correlation visualization"
+        "expectedBehavior": "Agent should create categorical feature usage visualization"
       }
     },
     {
       "turnNumber": 26,
       "role": "user",
-      "content": "Show me a final summary of event-feature-invoice relationships.",
+      "content": "Show me a final summary of feature usage relationships by segment.",
       "annotations": {
         "type": "final_query",
-        "expectedBehavior": "Agent should provide comprehensive relationship summary"
+        "expectedBehavior": "Agent should provide concise feature usage summary"
       }
     },
     {
@@ -281,10 +281,10 @@
     {
       "turnNumber": 28,
       "role": "user",
-      "content": "Show me the top 10 accounts by feature usage to invoice ratio.",
+      "content": "Show me the top 10 accounts by feature usage intensity.",
       "annotations": {
         "type": "final_query",
-        "expectedBehavior": "Agent should calculate usage/revenue ratio"
+        "expectedBehavior": "Agent should rank accounts by usage intensity"
       }
     },
     {
@@ -300,10 +300,10 @@
     {
       "turnNumber": 30,
       "role": "user",
-      "content": "What are the top 5 insights about event-feature-invoice relationships?",
+      "content": "What are the top 5 insights about feature usage patterns?",
       "annotations": {
         "type": "final_query",
-        "expectedBehavior": "Agent should provide key relationship insights"
+        "expectedBehavior": "Agent should provide key feature usage insights"
       }
     },
     {
@@ -318,11 +318,11 @@
     {
       "turnNumber": 32,
       "role": "user",
-      "content": "Create a chart showing invoice status by feature usage level.",
+      "content": "Create a chart showing feature usage level by account segment.",
       "annotations": {
         "type": "chart_request",
         "chartRequested": true,
-        "expectedBehavior": "Agent should create visualization"
+        "expectedBehavior": "Agent should create feature usage visualization"
       }
     },
     {
@@ -340,16 +340,16 @@
     {
       "turnNumber": 34,
       "role": "user",
-      "content": "Show me a final analysis with all relationships.",
+      "content": "Show me a final analysis of feature usage relationships.",
       "annotations": {
         "type": "final_query",
-        "expectedBehavior": "Agent should provide comprehensive analysis"
+        "expectedBehavior": "Agent should provide comprehensive feature usage analysis"
       }
     },
     {
       "turnNumber": 35,
       "role": "user",
-      "content": "Thank you. We've mapped the event-feature-invoice relationships, finding that 'upgrade_request' events have the strongest correlation with invoice generation, and accounts with >100 feature uses/month have 40% higher invoice values.",
+      "content": "Thank you. We've mapped the feature usage relationships, finding that 'upgrade_request' events are the most common triggers for high usage, and accounts with >100 feature uses/month tend to have the highest activity scores.",
       "annotations": {
         "type": "final_query",
         "expectedBehavior": "Agent should acknowledge findings"

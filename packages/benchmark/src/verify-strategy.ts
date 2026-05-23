@@ -67,7 +67,7 @@ async function main() {
     );
   }
 
-  // 2. summary-prose: isOverflow fires once at boundary; preTokens captured; latency recorded
+  // 2. qwery-default: isOverflow fires once at boundary; preTokens captured; latency recorded
   {
     let processCalls = 0;
     const fakeProcess: typeof SessionCompaction.process = async () => {
@@ -77,7 +77,7 @@ async function main() {
     };
     SessionCompaction.process = fakeProcess;
 
-    const summary = getStrategy('summary-prose');
+    const summary = getStrategy('qwery-default');
     const turnRef = { value: 0 };
     const { restore, lastCompactionRef, preTokensRef } = installStrategy(
       summary,
@@ -90,8 +90,8 @@ async function main() {
       tokens: { input: 200, output: 0, reasoning: 0, cache: { read: 50, write: 0 } },
       model: { providerID: 'p', id: 'm', limit: { context: 1000, output: 100 } },
     });
-    record('summary-prose: isOverflow is false before boundaryTurn', before === false);
-    record('summary-prose: preTokensRef remains null before boundary', preTokensRef.value === null);
+    record('qwery-default: isOverflow is false before boundaryTurn', before === false);
+    record('qwery-default: preTokensRef remains null before boundary', preTokensRef.value === null);
 
     // At/after boundary: fires exactly once
     turnRef.value = 5;
@@ -99,9 +99,9 @@ async function main() {
       tokens: { input: 200, output: 0, reasoning: 0, cache: { read: 50, write: 0 } },
       model: { providerID: 'p', id: 'm', limit: { context: 1000, output: 100 } },
     });
-    record('summary-prose: isOverflow fires true at boundaryTurn', atBoundary === true);
+    record('qwery-default: isOverflow fires true at boundaryTurn', atBoundary === true);
     record(
-      'summary-prose: preTokensRef captures input + cache.read',
+      'qwery-default: preTokensRef captures input + cache.read',
       preTokensRef.value === 250,
     );
 
@@ -109,7 +109,7 @@ async function main() {
       tokens: { input: 999, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
       model: { providerID: 'p', id: 'm', limit: { context: 1000, output: 100 } },
     });
-    record('summary-prose: isOverflow does NOT fire twice', second === false);
+    record('qwery-default: isOverflow does NOT fire twice', second === false);
 
     // Now invoke process — should delegate to fakeProcess (the captured "production"), not return 'continue' from baseline
     await SessionCompaction.process({
@@ -121,30 +121,30 @@ async function main() {
       repositories: {} as ProcessInput['repositories'],
     });
     record(
-      'summary-prose: process delegates to original (fake) production process',
+      'qwery-default: process delegates to original (fake) production process',
       processCalls === 1,
     );
     record(
-      'summary-prose: lastCompactionRef populated after process',
+      'qwery-default: lastCompactionRef populated after process',
       lastCompactionRef.value !== null,
     );
     record(
-      'summary-prose: latency was measured',
+      'qwery-default: latency was measured',
       (lastCompactionRef.value?.latencyMs ?? 0) >= 5,
     );
     record(
-      'summary-prose: lastCompaction.preCompactionTokens carries the captured value',
+      'qwery-default: lastCompaction.preCompactionTokens carries the captured value',
       lastCompactionRef.value?.preCompactionTokens === 250,
     );
     record(
-      'summary-prose: lastCompaction.turnNumber matches currentTurnRef at process time',
+      'qwery-default: lastCompaction.turnNumber matches currentTurnRef at process time',
       lastCompactionRef.value?.turnNumber === 5,
     );
 
     restore();
     SessionCompaction.process = originalProcess;
     record(
-      'summary-prose: restore() reinstalls original isOverflow',
+      'qwery-default: restore() reinstalls original isOverflow',
       SessionCompaction.isOverflow === originalIsOverflow,
     );
   }
@@ -153,11 +153,11 @@ async function main() {
   {
     let threw = false;
     try {
-      getStrategy('llmlingua');
+      getStrategy('llmlingua-2');
     } catch {
       threw = true;
     }
-    record('registry: llmlingua throws (not implemented in phase 1)', threw);
+    record('registry: llmlingua-2 throws (not implemented in phase 1)', threw);
   }
 
   const failed = results.filter((r) => !r.ok);
