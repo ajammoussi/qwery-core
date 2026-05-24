@@ -86,8 +86,17 @@ The following compression methods are supported:
 | `llmlingua`               | Basic LLMLingua token compression         |
 | `longllmlingua`           | LongLLMLingua with question-aware scoring |
 | `sliding-window`          | Simple sliding window truncation          |
-| `summary-prose`           | Rolling prose summary of old turns        |
+| `qwery-default`           | Qwery's default compression strategy      |
 | `entity-state`            | Entity state block + active window        |
+
+## Context Modes
+
+Context modes control how the selected compression strategy is applied.
+
+| Mode    | Description |
+| ------- | ----------- |
+| `plain` | Run the base compression strategy as-is. |
+| `4zone` | Wrap the base strategy with the 4-zone context manager. |
 
 ## CLI Options
 
@@ -106,6 +115,9 @@ pnpm run:saas
 # Run with specific compression method
 pnpm run -- --compression-method llmlingua
 
+# Run with 4-zone context wrapper
+pnpm run -- --context-mode 4zone
+
 # Run with custom model
 pnpm run -- --model "azure/gpt-4o"
 ```
@@ -113,6 +125,8 @@ pnpm run -- --model "azure/gpt-4o"
 ### Filtering & Selection
 
 ```bash
+# Default context mode: plain (no 4-zone wrapper)
+
 # Run specific conversation type
 pnpm run -- --type rci
 
@@ -130,6 +144,9 @@ pnpm run:baseline -- --db tpch --type rci --indices 1,3,5-7,10
 
 # Run specific indices with different compression
 pnpm run -- --db saas --type irc --indices 1,2 --compression-method llmlingua
+
+# Run specific indices with 4-zone + compression
+pnpm run:compression -- llmlingua --db saas --type irc --indices 1,2 --context-mode 4zone
 ```
 
 ### Reporting & Validation
