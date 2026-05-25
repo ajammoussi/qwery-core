@@ -75,32 +75,73 @@ export class ZoneContextManager {
     return ++this.turnCounter;
   }
 
-  populateZoneA(schema: string, globalConstraints: string[] = []): void {
+  populateZoneA(schema: string, globalConstraints: string[] = [], columnDescriptions?: string): void {
     if (!this.context.config.frozenPrefix.enabled) {
       return;
     }
 
     this.context.zoneA = [];
-
+    // 1. Schema Definition
     if (schema) {
       const schemaSegment: ZoneSegment = {
         zone: 'frozen-prefix',
-        content: schema,
-        tokens: Math.ceil(schema.length / 4),
+        content: `[SCHEMA DEFINITION]\n${schema}`,
+        tokens: Math.ceil(schema.length / 4 + 21), // +21 for header
         metadata: { segmentType: 'schema' },
       };
       this.context.zoneA.push(schemaSegment);
     }
 
+    // 2. Column Descriptions
+    if (columnDescriptions) {
+      const columnDescSegment: ZoneSegment = {
+        zone: 'frozen-prefix',
+        content: `[COLUMN DESCRIPTIONS]\n${columnDescriptions}`,
+        tokens: Math.ceil(columnDescriptions.length / 4 + 21),
+        metadata: { segmentType: 'column_descriptions' },
+      };
+      this.context.zoneA.push(columnDescSegment);
+    } else if (schema) {
+      // Extract column descriptions from schema if available
+      const extracted = this.extractColumnDescriptionsFromSchema(schema);
+      if (extracted) {
+        const columnDescSegment: ZoneSegment = {
+          zone: 'frozen-prefix',
+          content: `[COLUMN DESCRIPTIONS]\n${extracted}`,
+          tokens: Math.ceil(extracted.length / 4 + 21),
+          metadata: { segmentType: 'column_descriptions' },
+        };
+        this.context.zoneA.push(columnDescSegment);
+      }
+    }
+
+    // 3. Global User Constraints
     for (const constraint of globalConstraints) {
       const constraintSegment: ZoneSegment = {
         zone: 'frozen-prefix',
-        content: constraint,
-        tokens: Math.ceil(constraint.length / 4),
+        content: `[GLOBAL CONSTRAINT]\n${constraint}`,
+        tokens: Math.ceil(constraint.length / 4 + 18),
         metadata: { segmentType: 'global_constraint' },
       };
       this.context.zoneA.push(constraintSegment);
     }
+  }
+
+  private extractColumnDescriptionsFromSchema(schema: string): string | null {
+    // Looks for patterns like "column_name TYPE description" or similar
+    const columnPattern = /^\s*(\w+)\s+([A-Z]+(?:\s*\([^)]*\))?)\s*(?:--\s*(.+?))?$/gm;
+    const matches: string[] = [];
+    let match;
+
+    while ((match = columnPattern.exec(schema)) !== null) {
+      const [, columnName, columnType, description] = match;
+      if (columnName && columnType) {
+        const desc = description ? `${columnName} (${columnType}): ${description}` : `${columnName} (${columnType})`;
+        matches.push(desc);
+      }
+    }
+
+    return matches.length > 0 ? matches.join('\n') : null;
   }
 
   addToZoneA(segment: ZoneSegment): void {
@@ -131,11 +172,22 @@ export class ZoneContextManager {
 
   private enforceActiveWindowLimit(): void {
     const maxTurns = this.context.config.activeWindow.maxTurns;
-    if (this.context.zoneC.length > maxTurns) {
-      const evicted = this.context.zoneC.splice(0, this.context.zoneC.length - maxTurns);
-      for (const segment of evicted) {
-        this.addToZoneD(segment);
+    // Count unique turn numbers in zoneC — each turn may have multiple segments
+    const uniqueTurns = new Set(this.context.zoneC.map((s) => s.metadata?.turnNumber).filter((t): t is number => t !== undefined));
+    if (uniqueTurns.size > maxTurns) {
+      // Determine which turn numbers to evict (the oldest ones)
+      const sortedTurns = [...uniqueTurns].sort((a, b) => a - b);
+      const turnsToKeep = sortedTurns.slice(-maxTurns);
+      const keepSet = new Set(turnsToKeep);
+      const kept: typeof this.context.zoneC = [];
+      for (const segment of this.context.zoneC) {
+        if (segment.metadata?.turnNumber !== undefined && keepSet.has(segment.metadata.turnNumber)) {
+          kept.push(segment);
+        } else {
+          this.addToZoneD(segment);
+        }
       }
+      this.context.zoneC = kept;
     }
   }
 
@@ -379,6 +431,15 @@ export class ZoneContextManager {
     }
   }
 
+  getTotalAssembledTokens(): number {
+    const assembly = this.assembleContext(this.context.currentQuery ?? '');
+    return assembly.totalTokens;
+  }
+
+  getZoneDTotalTokens(): number {
+    return this.getZoneTokens('compressed-archive');
+  }
+
   getTotalTokens(): number {
     return (
       this.getZoneTokens('frozen-prefix') +
@@ -399,16 +460,64 @@ export class ZoneContextManager {
     }
 
     const stateJson = this.entityStateTracker.toJSON();
-    const tokens = this.entityStateTracker.estimateTokens();
+    const maxTokens = this.context.config.entityState.maxTokens;
+    let tokens = this.entityStateTracker.estimateTokens();
+
+    // Enforce maxTokens budget by truncating the JSON representation
+    let content = stateJson;
+    if (tokens > maxTokens && maxTokens > 0) {
+      // Truncate to fit within budget (rough chars = tokens * 4)
+      const maxChars = Math.max(0, maxTokens * 4 - 3); // reserve room for "..."
+      content = stateJson.slice(0, maxChars) + '...';
+      tokens = maxTokens;
+    }
+
+    const formattedContent = `[ENTITY STATE - SESSION CONTEXT]\n${content}`;
+    const formattedTokens = tokens + Math.ceil('[ENTITY STATE - SESSION CONTEXT]\n'.length / 4);
 
     this.context.zoneB = [
       {
         zone: 'entity-state',
-        content: stateJson,
-        tokens,
-        metadata: { segmentType: 'entity_state' },
+        content: formattedContent,
+        tokens: formattedTokens,
+        metadata: { 
+          segmentType: 'entity_state',
+        },
       },
     ];
+  }
+
+  getAssembledContextMessages(
+    query: string,
+    systemContent?: string,
+  ): { role: 'system' | 'user' | 'assistant'; content: string; parts?: { type: string; text: string }[] }[] {
+    const assembly = this.assembleContext(query);
+    const messages: { role: 'system' | 'user' | 'assistant'; content: string; parts?: { type: string; text: string }[] }[] = [];
+
+    if (systemContent) {
+      messages.push({ role: 'system', content: `4-ZONE CONTEXT\n\n${systemContent}` });
+    }
+
+    const zoneSegments = [
+      ...this.context.zoneA,
+      ...this.context.zoneB,
+      ...(this.retrieveFromZoneD(query).retrievedSegments),
+      ...this.context.zoneC,
+    ];
+
+    for (const segment of zoneSegments) {
+      messages.push({
+        role: segment.metadata?.segmentType?.includes('user') ? 'user' : 'assistant',
+        content: segment.content,
+        parts: [{ type: 'text', text: segment.content }],
+      });
+    }
+
+    if (query) {
+      messages.push({ role: 'user', content: query, parts: [{ type: 'text', text: query }] });
+    }
+
+    return messages;
   }
 
   reset(): void {

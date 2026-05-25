@@ -3,6 +3,7 @@ import type { Repositories } from '@qwery/domain/repositories';
 import { DatasourceKind } from '@qwery/domain/entities';
 import { runAgentToCompletion } from '@qwery/agent-factory-sdk/agents/run-agent-to-completion';
 import type { UIMessage } from '@qwery/agent-factory-sdk';
+import { SessionCompaction } from '@qwery/agent-factory-sdk';
 import type {
   BenchmarkSession,
   BenchmarkResult,
@@ -15,6 +16,12 @@ import type {
   AssistantMessageDetail,
   MessagePartDetail,
   CompactionEvent,
+  SchemaAndConstraintsState,
+  ActiveWindowSummary,
+  CompressedArchiveSummary,
+  EntityStateSnapshot,
+  ZoneOverallSummary,
+  ZoneSnapshot,
 } from './types.js';
 import {
   convertMessageToStored,
@@ -37,6 +44,14 @@ export type BenchmarkConfig = {
   compressionMethod?: CompressionMethod;
   contextMode?: ContextMode;
   repositories?: Repositories;
+};
+
+type ZoneSnapshotData = {
+  schemaAndConstraints: SchemaAndConstraintsState;
+  entityState: EntityStateSnapshot;
+  activeWindow: ActiveWindowSummary;
+  compressedArchive: CompressedArchiveSummary;
+  summary: ZoneOverallSummary;
 };
 
 type ToolMetadataEvent = {
@@ -231,9 +246,25 @@ function detectCompactionEvent(args: {
   for (let i = scanFromIndex; i < storedMessages.length; i++) {
     const msg = storedMessages[i];
     if (!msg || msg.role !== 'assistant') continue;
-    const meta = msg.metadata as { summary?: boolean } | undefined;
+    const meta = msg.metadata as { summary?: boolean; type?: string } | undefined;
     if (!meta?.summary) continue;
+    if (meta?.type === 'compaction') {
+      newSummary = msg;
+      break;
+    }
     newSummary = msg;
+  }
+
+  // If process ran (lastCompaction exists) but no summary was found with
+  // the exact metadata, fall back to the last new assistant message.
+  if (!newSummary && lastCompaction) {
+    for (let i = storedMessages.length - 1; i >= scanFromIndex; i--) {
+      const msg = storedMessages[i];
+      if (msg && msg.role === 'assistant') {
+        newSummary = msg;
+        break;
+      }
+    }
   }
 
   // Strategies that don't persist a summary message (e.g. baseline) won't have
@@ -313,7 +344,7 @@ export async function runSession(
 
   const strategy = getStrategy(compressionMethod, contextMode);
   const currentTurnRef = { value: 0 };
-  const { restore, lastCompactionRef, preTokensRef } = installStrategy(
+  const { restore, lastCompactionRef, preTokensRef, getState } = installStrategy(
     strategy,
     {
       boundaryTurn: session.metadata.compressionBoundaryTurn,
@@ -322,7 +353,7 @@ export async function runSession(
   );
 
   try {
-    return await runSessionWithStrategy({
+    const finalResult = await runSessionWithStrategy({
       session,
       config,
       compressionMethod,
@@ -332,7 +363,22 @@ export async function runSession(
       currentTurnRef,
       lastCompactionRef,
       preTokensRef,
+      getState,
     });
+
+    if (getState) {
+      finalResult.finalZoneSnapshot = getState({ excludeRaw: true }) as ZoneSnapshotData;
+    }
+
+    // Reorder finalZoneSnapshot to appear after turns and before metrics in JSON output
+    const { metrics, errors, ...rest } = finalResult;
+    const ordered = rest as BenchmarkResult;
+    ordered.metrics = metrics;
+    ordered.errors = errors;
+
+    await saveResult(ordered, compressionMethod, contextMode);
+
+    return ordered;
   } finally {
     restore();
   }
@@ -348,6 +394,7 @@ async function runSessionWithStrategy(args: {
   currentTurnRef: { value: number };
   lastCompactionRef: { value: LastCompaction };
   preTokensRef: { value: number | null };
+  getState?: (options?: { prune?: boolean; excludeRaw?: boolean }) => Record<string, unknown>;
 }): Promise<BenchmarkResult> {
   const {
     session,
@@ -359,6 +406,7 @@ async function runSessionWithStrategy(args: {
     currentTurnRef,
     lastCompactionRef,
     preTokensRef,
+    getState,
   } = args;
 
   const conversationId = uuidv4();
@@ -479,6 +527,61 @@ async function runSessionWithStrategy(args: {
 
       let compactionEvent: CompactionEvent | undefined;
 
+      if (agentResult.usage) {
+        const rawTokens = {
+          input: agentResult.usage.promptTokens,
+          output: agentResult.usage.completionTokens,
+          reasoning: 0,
+          cache: { read: 0, write: 0 }
+        };
+        const isOverflow = await (SessionCompaction.isOverflow as any)({
+          tokens: rawTokens,
+          model: config.model,
+          messages: [...conversationMessages, ...finishedMessages],
+        });
+
+        if (isOverflow) {
+          const preCompactionMessages = await repositories.message.findByConversationId(
+            conversationId,
+          );
+          await SessionCompaction.process({
+            parentID: userMessageId,
+            messages: preCompactionMessages,
+            conversationSlug,
+            abort: abortController.signal,
+            auto: true,
+            repositories,
+          });
+        }
+      } else {
+        // Fallback: always check overflow for boundary-based strategies even when usage is missing
+        const rawTokens = {
+          input: 0,
+          output: 0,
+          reasoning: 0,
+          cache: { read: 0, write: 0 }
+        };
+        const isOverflow = await (SessionCompaction.isOverflow as any)({
+          tokens: rawTokens,
+          model: config.model,
+          messages: [...conversationMessages, ...finishedMessages],
+        });
+
+        if (isOverflow) {
+          const preCompactionMessages = await repositories.message.findByConversationId(
+            conversationId,
+          );
+          await SessionCompaction.process({
+            parentID: userMessageId,
+            messages: preCompactionMessages,
+            conversationSlug,
+            abort: abortController.signal,
+            auto: true,
+            repositories,
+          });
+        }
+      }
+
       try {
         const persistedMessages = await repositories.message.findByConversationId(
           conversationId,
@@ -579,6 +682,19 @@ async function runSessionWithStrategy(args: {
         }
       }
 
+      // Capture per-turn zone snapshot if getState is available (4zone mode)
+      let zonesSnapshot: ZoneSnapshot | undefined;
+      if (getState) {
+        const state = getState({ prune: true }) as ZoneSnapshotData;
+        zonesSnapshot = {
+          schemaAndConstraints: state.schemaAndConstraints,
+          entityState: state.entityState,
+          activeWindow: state.activeWindow,
+          compressedArchive: state.compressedArchive,
+          summary: state.summary,
+        };
+      }
+
       const turnResult: TurnResult = {
         turnNumber: turn.turnNumber,
         userMessage: turn.content,
@@ -592,6 +708,7 @@ async function runSessionWithStrategy(args: {
         cachedInputTokens,
         cost: totalCost,
         compactionEvent,
+        zonesSnapshot,
       };
 
       result.turns.push(turnResult);
@@ -654,8 +771,6 @@ result.turns = enrichTurnsWithAnnotations(result.turns, session);
 
 result.completedAt = new Date().toISOString();
 result.metrics = calculateMetrics(result.turns);
-
-  await saveResult(result, compressionMethod, contextMode);
 
   return result;
 }

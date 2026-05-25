@@ -101,7 +101,7 @@ export function extractQueryFromMessages(messages: ProcessInput['messages']): st
     return '';
   }
 
-  const parts = lastUserMessage.content?.parts ?? [];
+  const parts = lastUserMessage.content?.parts ?? (lastUserMessage as unknown as { parts?: Array<{ type: string; text: string }> }).parts ?? [];
   const textParts = parts.filter((p) => p.type === 'text').map((p) => (p as { text: string }).text);
   return textParts.join(' ');
 }
@@ -111,7 +111,7 @@ export function extractTurnNumberFromMessages(messages: ProcessInput['messages']
 }
 
 export function extractTextFromMessage(message: ProcessInput['messages'][number]): string {
-  const parts = message.content?.parts ?? [];
+  const parts = message.content?.parts ?? (message as unknown as { parts?: Array<{ type: string; text: string }> }).parts ?? [];
   const textParts = parts.filter((p) => p.type === 'text').map((p) => (p as { text: string }).text);
   return textParts.join(' ');
 }

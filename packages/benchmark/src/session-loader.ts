@@ -100,13 +100,29 @@ export function calculateMetrics(turns: TurnResult[]): SessionMetrics {
     0,
   );
 
-  const compactionTurn = turns.find((t) => t.compactionEvent);
-  const compactionLatencyMs = compactionTurn?.compactionEvent?.latencyMs ?? null;
-  const preTokens = compactionTurn?.compactionEvent?.preCompactionTokens;
-  const postTokens = compactionTurn?.compactionEvent?.summaryTokens;
+  // Collect all compaction events across the session
+  const allCompactionEvents = turns
+    .filter((t) => t.compactionEvent)
+    .map((t) => t.compactionEvent);
+
+  const firstCompactionTurn = turns.find((t) => t.compactionEvent);
+  const compactionLatencyMs = firstCompactionTurn?.compactionEvent?.latencyMs ?? null;
+
+  // Calculate average compression ratio across all compaction events
+  const validEvents = allCompactionEvents.filter(
+    (e): e is NonNullable<typeof e> & { preCompactionTokens: number; summaryTokens: number } =>
+      !!e &&
+      typeof e.preCompactionTokens === 'number' &&
+      typeof e.summaryTokens === 'number',
+  );
+
   const compressionRatio =
-    preTokens && postTokens
-      ? Math.round((postTokens / preTokens) * 1000) / 1000
+    validEvents.length > 0
+      ? Math.round(
+          (validEvents.reduce((sum, e) => sum + e.summaryTokens / e.preCompactionTokens, 0) /
+            validEvents.length) *
+            1000,
+        ) / 1000
       : null;
 
   return {

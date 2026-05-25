@@ -121,11 +121,30 @@ export class EntityStateTracker {
       aggregations: [],
     };
 
-    const lowerText = text.toLowerCase();
+    // --- Open-thread extraction ---
+    // Detect conversation threads / topics introduced by the user or assistant.
+    // Patterns limit to 1-2 words to avoid capturing too much and to improve deduplication
+    const threadPatterns = [
+      /\b(?:let[''']s|lets)\s+(?:discuss|talk about|explore)\s+([a-z_][a-z0-9_]*(?:\s+[a-z_][a-z0-9_]*){0,1})\b/gi,
+      /\b(?:show me|tell me about|what about)\s+(?:the\s+)?([a-z_][a-z0-9_]*(?:\s+[a-z_][a-z0-9_]*){0,1})\b/gi,
+      /\b(?:regarding)\s+(?:the\s+)?([a-z_][a-z0-9_]*(?:\s+[a-z_][a-z0-9_]*){0,1})\b/gi,
+      /\b(?:starting with|focused on|looking at)\s+([a-z_][a-z0-9_]*(?:\s+[a-z_][a-z0-9_]*){0,1})\b/gi,
+    ];
+    for (const pattern of threadPatterns) {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const rawTopic = match[1]?.trim();
+        if (rawTopic && rawTopic.length > 2 && rawTopic.length < 40) {
+          const topic = rawTopic.toLowerCase().replace(/\s+/g, ' ');
+          this.addOpenThread(topic);
+        }
+      }
+    }
 
+    // Table extraction — supports both simple (orders) and dotted (dbo.orders) and escaped ([orders])
     const tablePatterns = [
-      /\b(?:from|join)\s+([a-z_][a-z0-9_]*)/gi,
-      /\b(?:table|tables?)\s+([a-z_][a-z0-9_]*)/gi,
+      /\b(?:FROM|JOIN)\s+(?:"?[^\s"]+"?\.)?\[?([a-z_][a-z0-9_]*)\]?/gi,
+      /\b(?:CREATE|ALTER|DROP)\s+TABLE\s+(?:"?[^\s"]+"?\.)?\[?([a-z_][a-z0-9_]*)\]?/gi,
     ];
 
     for (const pattern of tablePatterns) {
@@ -133,25 +152,31 @@ export class EntityStateTracker {
       while ((match = pattern.exec(text)) !== null) {
         const tableName = match[1];
         if (tableName) {
-          const upperTableName = tableName.toUpperCase();
-          if (!extraction.tables.includes(upperTableName)) {
-            extraction.tables.push(upperTableName);
-            this.addTable(upperTableName);
+          if (!extraction.tables.includes(tableName)) {
+            extraction.tables.push(tableName);
+            this.addTable(tableName);
           }
         }
       }
     }
 
-    const columnPatterns = [
-      /\b([a-z_][a-z0-9_]*)\s*(?:=|!=|>|<|>=|<=|like|in)/gi,
-      /\b(?:select|group by|order by)\s+([a-z_][a-z0-9_]*(?:\s*,\s*[a-z_][a-z0-9_]*)*)/gi,
+    // Column extraction — supports dotted columns like db.schema.table.col
+    const columnInConditionPatterns = [
+      // a) simple or multi-part column on LHS:  col = ... or t.col = ... or db.sch.t.col = ...
+      /\b([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\s*(?:=|!=|<>|>|<|>=|<=|\bLIKE\b|\bIN\b)/gi,
     ];
 
-    for (const pattern of columnPatterns) {
+    const columnListPatterns = [
+      /\b(?:SELECT|GROUP\sBY|ORDER\sBY)\s+(.+?)(?=\s+(?:FROM|WHERE|GROUP|ORDER|LIMIT|HAVING|UNION|INTERSECT|EXCEPT|$))/gi,
+    ];
+
+    for (const pattern of columnInConditionPatterns) {
       let match;
       while ((match = pattern.exec(text)) !== null) {
-        const columns = match[1]?.split(',').map((c) => c.trim().toUpperCase()) ?? [];
-        for (const column of columns) {
+        const rawCol = match[1];
+        if (rawCol) {
+          const parts = rawCol.split('.');
+          const column = parts[parts.length - 1]!;
           if (column && !extraction.columns.includes(column)) {
             extraction.columns.push(column);
             this.addColumn(column);
@@ -160,29 +185,69 @@ export class EntityStateTracker {
       }
     }
 
+    for (const pattern of columnListPatterns) {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const rawList = match[1];
+        if (rawList) {
+          const columns = rawList.split(',').map((c) => {
+            const trimmed = c.trim();
+            // Handle potentially complex expressions/aliases in SELECT list
+            const parts = trimmed.split(/\s+AS\s+/i)[0]!.trim().split('.');
+            return parts[parts.length - 1]!;
+          });
+          for (const column of columns) {
+            // Further clean up to ensure it's a valid column name identifier
+            const cleaned = column.match(/([a-z_][a-z0-9_]*)/i)?.[1];
+            if (cleaned && !extraction.columns.includes(cleaned)) {
+              extraction.columns.push(cleaned);
+              this.addColumn(cleaned);
+            }
+          }
+        }
+      }
+    }
+
+    // Filter extraction
     const filterPatterns = [
-      /([a-z_][a-z0-9_]*)\s*(=|!=|>|<|>=|<=|like|in)\s*(['"]?[^'"]*['"]?)/gi,
-      /([a-z_][a-z0-9_]*)\s+(?:is\s+)?(null|not null)/gi,
+      /([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\s*(=|!=|<>|>=|<=|>|<)\s*(?:'[^']*'|"[^"]*"|\d+(?:\.\d+)?)/gi,
+      /([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\s+\bIS\s+(?:NOT\s+)?NULL\b/gi,
+      /([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\s+\b(?:NOT\s+)?\bLIKE\b\s+(?:'[^']*'|"[^"]*")/gi,
+      /([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\s+\b(?:NOT\s+)?\bIN\b\s*\(/gi,
     ];
 
     for (const pattern of filterPatterns) {
       let match;
       while ((match = pattern.exec(text)) !== null) {
-        const column = match[1]?.toUpperCase() ?? '';
-        const op = match[2]?.toUpperCase() as EntityFilter['op'];
-        let value: string | string[] | number | null = match[3] ?? null;
+        const column = match[1] ?? '';
+        let op: EntityFilter['op'] = '=';
+        let value: string | string[] | number | null = null;
 
-        if (op === 'IS NULL' || op === 'IS NOT NULL') {
+        const fullMatch = match[0];
+        const upperMatch = fullMatch.toUpperCase();
+
+        if (upperMatch.includes('IS NULL')) {
+          op = 'IS NULL';
           value = null;
-        } else if (value && typeof value === 'string') {
-          const cleanedValue = value.replace(/['"]/g, '');
-          if (op === 'IN') {
-            value = cleanedValue.split(',').map((v) => v.trim());
-          } else {
-            value = cleanedValue;
-          }
+        } else if (upperMatch.includes('IS NOT NULL')) {
+          op = 'IS NOT NULL';
+          value = null;
+        } else if (upperMatch.includes('LIKE')) {
+          op = upperMatch.includes('NOT LIKE') ? 'NOT LIKE' as EntityFilter['op'] : 'LIKE';
+          const valMatch = fullMatch.match(/'([^']*)'|"([^"]*)"/);
+          value = valMatch ? (valMatch[1] ?? valMatch[2] ?? '').replace(/^['"]|['"]$/g, '') : null;
+        } else if (upperMatch.includes('IN')) {
+          op = upperMatch.includes('NOT IN') ? 'NOT IN' as EntityFilter['op'] : 'IN';
+          value = null; // complex IN list — tracked as present
         } else {
-          value = null;
+          const opMatch = fullMatch.match(/\s*(=|!=|<>|>=|<=|>|<)\s*/);
+          if (opMatch) {
+            op = opMatch[1] as EntityFilter['op'];
+          }
+            const valMatch = fullMatch.match(/(?:=|!=|<>|>=|<=|>|<)\s*(?:'([^']*)'|"([^"]*)"|(\d+(?:\.\d+)?))/);
+            if (valMatch) {
+              value = (valMatch[1] ?? valMatch[2] ?? valMatch[3] ?? '').replace(/^['"]|['"]$/g, '');
+            }
         }
 
         const filter: EntityFilter = { column, op, value };
@@ -191,17 +256,38 @@ export class EntityStateTracker {
       }
     }
 
-    const aggregationPatterns = [
-      /\b(?:sum|avg|count|min|max)\s*\(\s*([a-z_][a-z0-9_]*)\s*\)/gi,
-    ];
-
-    for (const pattern of aggregationPatterns) {
+    // Aggregation extraction — supports balanced parentheses for complex expressions
+    const aggFuncs = ['SUM', 'AVG', 'COUNT', 'MIN', 'MAX'];
+    for (const func of aggFuncs) {
+      const regex = new RegExp(`\\b${func}\\s*\\(`, 'gi');
       let match;
-      while ((match = pattern.exec(text)) !== null) {
-        const expression = match[0].toUpperCase();
-        if (!extraction.aggregations.find((a) => a.expression === expression)) {
-          extraction.aggregations.push({ expression });
-          this.addAggregation({ expression });
+      while ((match = regex.exec(text)) !== null) {
+        const startPos = match.index + match[0].length;
+        let parenCount = 1;
+        let endPos = startPos;
+        let inQuotes: string | null = null;
+
+        while (parenCount > 0 && endPos < text.length) {
+          const char = text[endPos];
+          if (inQuotes) {
+            if (char === inQuotes) inQuotes = null;
+          } else if (char === "'" || char === '"') {
+            inQuotes = char;
+          } else if (char === '(') {
+            parenCount++;
+          } else if (char === ')') {
+            parenCount--;
+          }
+          endPos++;
+        }
+
+        if (parenCount === 0) {
+          const arg = text.substring(startPos, endPos - 1).trim();
+          const expression = `${func}(${arg})`;
+          if (!extraction.aggregations.find((a) => a.expression === expression)) {
+            extraction.aggregations.push({ expression });
+            this.addAggregation({ expression });
+          }
         }
       }
     }

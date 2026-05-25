@@ -7,6 +7,7 @@ export type ZoneSegment = {
   content: string;
   tokens: number;
   metadata?: {
+    messageId?: string;
     turnNumber?: number;
     segmentType?: string;
     compressionRatio?: number;

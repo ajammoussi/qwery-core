@@ -31,7 +31,8 @@
     "@types/node": "^20.19.0",
     "ai": "^6.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "vitest": "catalog:"
   },
   "ts-node": {
     "swc": true,

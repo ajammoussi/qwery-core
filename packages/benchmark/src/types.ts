@@ -154,6 +154,94 @@ export interface AssistantMessageDetail {
   metadata?: Record<string, unknown>;
 }
 
+export interface ZoneSnapshot {
+  schemaAndConstraints?: SchemaAndConstraintsState;
+  entityState?: EntityStateSnapshot;
+  activeWindow?: ActiveWindowSummary;
+  compressedArchive?: CompressedArchiveSummary;
+  summary?: ZoneOverallSummary;
+}
+
+export interface SchemaAndConstraintsState {
+  segments: Array<{
+    type: string;
+    content: {
+      header?: string;
+      raw?: string;
+      parsed?: unknown;
+      parseError?: string;
+      truncated?: boolean;
+    };
+    tokens: number;
+  }>;
+  totalSegments: number;
+  totalTokens: number;
+  description: string;
+}
+
+export interface EntityStateSnapshot {
+  segments: Array<{
+    type: string;
+    content: {
+      header?: string;
+      raw?: string;
+      parsed?: Record<string, unknown>;
+      parseError?: string;
+      truncated?: boolean;
+    };
+    tokens: number;
+  }>;
+  totalSegments: number;
+  totalTokens: number;
+  description: string;
+  parsedState?: Record<string, unknown>;
+}
+
+export interface ActiveWindowSummary {
+  turnNumbers: number[];
+  messageCount: number;
+  segmentComposition: {
+    userTurns: number;
+    assistantTurns: number;
+    totalSegments: number;
+  };
+  latestMessagePreview: string;
+  totalTokens: number;
+  description: string;
+}
+
+export interface CompressedArchiveSummary {
+  segmentCount: number;
+  segmentComposition: {
+    compactedArchives: number;
+    archivedTurns: number;
+    totalSegments: number;
+  };
+  latestSegmentPreview: string;
+  totalTokens: number;
+  description: string;
+}
+
+export interface ZoneOverallSummary {
+  totalZoneTokens: number;
+  zoneTokens: {
+    schemaAndConstraints: number;
+    entityState: number;
+    activeWindow: number;
+    compressedArchive: number;
+  };
+  activeWindow: {
+    maxTurns: number;
+    currentTurns: number;
+    isFull: boolean;
+  };
+  archive: {
+    maxSegments: number;
+    currentSegments: number;
+    isFull: boolean;
+  };
+}
+
 export interface TurnResult {
   turnNumber: number;
   userMessage: string;
@@ -170,6 +258,8 @@ export interface TurnResult {
   annotations?: TurnAnnotations;
   // Populated when a compaction strategy ran during this turn
   compactionEvent?: CompactionEvent;
+  // Per-turn snapshot of zone states (only in 4zone mode)
+  zonesSnapshot?: ZoneSnapshot;
 }
 
 export interface CompactionEvent {
@@ -224,7 +314,7 @@ export interface BenchmarkResult {
   startedAt: string;
   completedAt: string;
   turns: TurnResult[];
+  finalZoneSnapshot?: Record<string, unknown>; // Final state of the zone context
   metrics: SessionMetrics;
   errors: string[];
-  // Legacy fields removed: messages and usages arrays (redundant with per-turn data)
 }
