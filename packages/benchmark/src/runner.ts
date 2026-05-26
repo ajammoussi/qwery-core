@@ -35,6 +35,8 @@ import { Roles } from '@qwery/domain/common/roles';
 import { installStrategy } from './compaction/strategy.js';
 import type { LastCompaction } from './compaction/strategy.js';
 import { getStrategy } from './compaction/registry.js';
+import { startHeadroomProxy } from './compaction/proxy-manager.js';
+import type { HeadroomProxy } from './compaction/proxy-manager.js';
 
 export type BenchmarkConfig = {
   model?: string;
@@ -246,7 +248,9 @@ function detectCompactionEvent(args: {
   for (let i = scanFromIndex; i < storedMessages.length; i++) {
     const msg = storedMessages[i];
     if (!msg || msg.role !== 'assistant') continue;
-    const meta = msg.metadata as { summary?: boolean; type?: string } | undefined;
+    const meta = msg.metadata as
+      | { summary?: boolean; type?: string }
+      | undefined;
     if (!meta?.summary) continue;
     if (meta?.type === 'compaction') {
       newSummary = msg;
@@ -274,7 +278,9 @@ function detectCompactionEvent(args: {
   }
 
   const summaryText = newSummary
-    ? extractTextFromParts((newSummary.content?.parts ?? []) as MessagePartDetail[])
+    ? extractTextFromParts(
+        (newSummary.content?.parts ?? []) as MessagePartDetail[],
+      )
     : undefined;
 
   const summaryTokens =
@@ -287,7 +293,8 @@ function detectCompactionEvent(args: {
     triggeredAt: 'turn-boundary',
     summaryText,
     summaryTokens,
-    preCompactionTokens: preTokens ?? lastCompaction?.preCompactionTokens ?? undefined,
+    preCompactionTokens:
+      preTokens ?? lastCompaction?.preCompactionTokens ?? undefined,
     latencyMs:
       lastCompaction && lastCompaction.turnNumber === turnNumber
         ? Math.round(lastCompaction.latencyMs)
@@ -344,13 +351,21 @@ export async function runSession(
 
   const strategy = getStrategy(compressionMethod, contextMode);
   const currentTurnRef = { value: 0 };
-  const { restore, lastCompactionRef, preTokensRef, getState } = installStrategy(
-    strategy,
-    {
+  const { restore, lastCompactionRef, preTokensRef, getState } =
+    installStrategy(strategy, {
       boundaryTurn: session.metadata.compressionBoundaryTurn,
       currentTurnRef,
-    },
-  );
+    });
+
+  let headroomProxy: HeadroomProxy | undefined;
+  const previousHeadroomBaseUrl = process.env.HEADROOM_BASE_URL;
+  const previousHeadroomUrl = process.env.HEADROOM_URL;
+  if (compressionMethod === 'headroom') {
+    headroomProxy = await startHeadroomProxy();
+    process.env.HEADROOM_BASE_URL = headroomProxy.url;
+    process.env.HEADROOM_URL = headroomProxy.url;
+    console.log(`Headroom proxy started at ${headroomProxy.url}`);
+  }
 
   try {
     const finalResult = await runSessionWithStrategy({
@@ -367,7 +382,9 @@ export async function runSession(
     });
 
     if (getState) {
-      finalResult.finalZoneSnapshot = getState({ excludeRaw: true }) as ZoneSnapshotData;
+      finalResult.finalZoneSnapshot = getState({
+        excludeRaw: true,
+      }) as ZoneSnapshotData;
     }
 
     // Reorder finalZoneSnapshot to appear after turns and before metrics in JSON output
@@ -381,6 +398,20 @@ export async function runSession(
     return ordered;
   } finally {
     restore();
+    if (headroomProxy) {
+      headroomProxy.kill();
+      console.log('Headroom proxy stopped');
+    }
+    if (previousHeadroomBaseUrl === undefined) {
+      delete process.env.HEADROOM_BASE_URL;
+    } else {
+      process.env.HEADROOM_BASE_URL = previousHeadroomBaseUrl;
+    }
+    if (previousHeadroomUrl === undefined) {
+      delete process.env.HEADROOM_URL;
+    } else {
+      process.env.HEADROOM_URL = previousHeadroomUrl;
+    }
   }
 }
 
@@ -394,7 +425,10 @@ async function runSessionWithStrategy(args: {
   currentTurnRef: { value: number };
   lastCompactionRef: { value: LastCompaction };
   preTokensRef: { value: number | null };
-  getState?: (options?: { prune?: boolean; excludeRaw?: boolean }) => Record<string, unknown>;
+  getState?: (options?: {
+    prune?: boolean;
+    excludeRaw?: boolean;
+  }) => Record<string, unknown>;
 }): Promise<BenchmarkResult> {
   const {
     session,
@@ -425,7 +459,8 @@ async function runSessionWithStrategy(args: {
     isPublic: false,
   };
 
-  const savedConversation = await repositories.conversation.create(conversation);
+  const savedConversation =
+    await repositories.conversation.create(conversation);
   const conversationSlug = savedConversation.slug;
   result.conversationId = conversationId;
   result.conversationSlug = conversationSlug;
@@ -532,7 +567,7 @@ async function runSessionWithStrategy(args: {
           input: agentResult.usage.promptTokens,
           output: agentResult.usage.completionTokens,
           reasoning: 0,
-          cache: { read: 0, write: 0 }
+          cache: { read: 0, write: 0 },
         };
         const isOverflow = await (SessionCompaction.isOverflow as any)({
           tokens: rawTokens,
@@ -541,9 +576,8 @@ async function runSessionWithStrategy(args: {
         });
 
         if (isOverflow) {
-          const preCompactionMessages = await repositories.message.findByConversationId(
-            conversationId,
-          );
+          const preCompactionMessages =
+            await repositories.message.findByConversationId(conversationId);
           await SessionCompaction.process({
             parentID: userMessageId,
             messages: preCompactionMessages,
@@ -559,7 +593,7 @@ async function runSessionWithStrategy(args: {
           input: 0,
           output: 0,
           reasoning: 0,
-          cache: { read: 0, write: 0 }
+          cache: { read: 0, write: 0 },
         };
         const isOverflow = await (SessionCompaction.isOverflow as any)({
           tokens: rawTokens,
@@ -568,9 +602,8 @@ async function runSessionWithStrategy(args: {
         });
 
         if (isOverflow) {
-          const preCompactionMessages = await repositories.message.findByConversationId(
-            conversationId,
-          );
+          const preCompactionMessages =
+            await repositories.message.findByConversationId(conversationId);
           await SessionCompaction.process({
             parentID: userMessageId,
             messages: preCompactionMessages,
@@ -583,9 +616,8 @@ async function runSessionWithStrategy(args: {
       }
 
       try {
-        const persistedMessages = await repositories.message.findByConversationId(
-          conversationId,
-        );
+        const persistedMessages =
+          await repositories.message.findByConversationId(conversationId);
         const storedMessages = persistedMessages.map(convertMessageToStored);
         const assistantMessagesFromStore = extractAssistantMessagesFromTurn(
           storedMessages,
@@ -745,32 +777,32 @@ async function runSessionWithStrategy(args: {
       result.turns.push(turnResult);
     }
   }
-    // 
-    //   try {
-    //     const dbMessages =
-    //       await repositories.message.findByConversationId(conversationId);
-    //     result.messages = dbMessages.map(convertMessageToStored);
-    //   } catch (error) {
-    //     result.errors.push(
-    //       `Failed to retrieve messages: ${error instanceof Error ? error.message : String(error)}`,
-    //     );
-    //   }
-    // 
-    //   try {
-    //     const dbUsages =
-    //       await repositories.usage.findByConversationId(conversationId);
-    //     result.usages = dbUsages.map(convertUsageToStored);
-    //   } catch (error) {
-    //     result.errors.push(
-    //       `Failed to retrieve usages: ${error instanceof Error ? error.message : String(error)}`,
-// );
-// } 
-// 
-// Enrich turns with session annotations
-result.turns = enrichTurnsWithAnnotations(result.turns, session);
+  //
+  //   try {
+  //     const dbMessages =
+  //       await repositories.message.findByConversationId(conversationId);
+  //     result.messages = dbMessages.map(convertMessageToStored);
+  //   } catch (error) {
+  //     result.errors.push(
+  //       `Failed to retrieve messages: ${error instanceof Error ? error.message : String(error)}`,
+  //     );
+  //   }
+  //
+  //   try {
+  //     const dbUsages =
+  //       await repositories.usage.findByConversationId(conversationId);
+  //     result.usages = dbUsages.map(convertUsageToStored);
+  //   } catch (error) {
+  //     result.errors.push(
+  //       `Failed to retrieve usages: ${error instanceof Error ? error.message : String(error)}`,
+  // );
+  // }
+  //
+  // Enrich turns with session annotations
+  result.turns = enrichTurnsWithAnnotations(result.turns, session);
 
-result.completedAt = new Date().toISOString();
-result.metrics = calculateMetrics(result.turns);
+  result.completedAt = new Date().toISOString();
+  result.metrics = calculateMetrics(result.turns);
 
   return result;
 }
@@ -804,14 +836,17 @@ export async function ensureDatasource(
     };
 
     const hasConfigChanged =
-      JSON.stringify(foundDatasource.config) !== JSON.stringify(normalizedConfig);
+      JSON.stringify(foundDatasource.config) !==
+      JSON.stringify(normalizedConfig);
     const hasProviderChanged =
       foundDatasource.datasource_provider !== provider ||
       foundDatasource.datasource_driver !== provider;
 
     if (hasConfigChanged || hasProviderChanged) {
       await repositories.datasource.update({
-        ...(found as unknown as Parameters<typeof repositories.datasource.update>[0]),
+        ...(found as unknown as Parameters<
+          typeof repositories.datasource.update
+        >[0]),
         datasource_provider: provider,
         datasource_driver: provider,
         config: normalizedConfig,

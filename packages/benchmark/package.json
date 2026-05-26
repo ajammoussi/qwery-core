@@ -8,6 +8,7 @@
     "run:saas": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --db saas",
     "run:baseline": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method baseline-no-compression",
     "run:qwery-default": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method qwery-default",
+    "run:headroom": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method headroom",
     "run:compression": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts",
     "verify:strategy": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/verify-strategy.ts",
     "extract": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/extract-results.ts",
@@ -20,6 +21,7 @@
     "@qwery/domain": "workspace:*",
     "@qwery/repository-file": "workspace:*",
     "@qwery/shared": "workspace:*",
+    "headroom-ai": "^0.1.0",
     "uuid": "^11.0.3"
   },
   "peerDependencies": {

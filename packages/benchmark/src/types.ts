@@ -69,7 +69,8 @@ export type CompressionMethod =
   | 'longllmlingua'
   | 'sliding-window'
   | 'qwery-default'
-  | 'entity-state';
+  | 'entity-state'
+  | 'headroom';
 
 export type ContextMode = 'plain' | '4zone';
 
