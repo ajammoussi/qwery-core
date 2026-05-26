@@ -88,6 +88,8 @@ The following compression methods are supported:
 | `sliding-window`          | Simple sliding window truncation          |
 | `qwery-default`           | Qwery's default compression strategy      |
 | `entity-state`            | Entity state block + active window        |
+| `headroom`                | Headroom AI LLM-based summarization       |
+| `recomp-extractive`       | RECOMP extractive — query-aware sentence selection via Contriever (local ONNX, zero-shot) |
 
 ## Context Modes
 
@@ -166,6 +168,30 @@ pnpm run:headroom       # Run headroom benchmarks
 set HEADROOM_PYTHON=C:\path\to\conda\env\python.exe && pnpm run:headroom  # With custom Python
 ```
 
+## RECOMP Extractive Compression
+
+RECOMP Extractive (Xu et al., ICLR 2024) selects complete sentences from the context based on their relevance to the current user query. It uses a Contriever dual-encoder (110M params) running locally via ONNX (Transformers.js) to embed each sentence and the query, then retains the top-K sentences by cosine similarity.
+
+### Setup
+
+The Contriever ONNX model (~440MB) downloads automatically on first run and caches locally.
+
+### Running
+
+```bash
+pnpm run:recomp                              # Run all sessions with RECOMP
+pnpm run:recomp -- --db tpch                 # Filter by database
+pnpm run:recomp -- --type dcs                # Filter by conversation type
+pnpm run:recomp -- --context-mode 4zone      # With 4-zone wrapper
+```
+
+### Configuration
+
+| Env Variable  | Default                         | Description                                |
+|---------------|---------------------------------|--------------------------------------------|
+| `RECOMP_K`    | `10`                            | Number of sentences to retain               |
+| `RECOMP_SIMILARITY` | `cosine`                  | `cosine` or `dot` (dot matches the paper)  |
+| `RECOMP_MODEL` | `Xenova/contriever-msmarco`   | HF ONNX model ID for embeddings            |
 
 ### Reporting & Validation
 

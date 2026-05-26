@@ -180,7 +180,7 @@ export function with4Zone(
         if (zoneD.length > 0) {
           // Build a synthetic input containing ONLY Compressed Archive segments so the
           // base strategy compresses the archive, not the whole session.
-          const syntheticInput = buildZoneDOnlyInput(zoneD, input);
+          const syntheticInput = buildZoneDOnlyInput(zoneD, input, query);
 
           // Delegate to base strategy
           await baseHooks.process(syntheticInput);
@@ -463,10 +463,15 @@ function buildAssembledMessages(
 function buildZoneDOnlyInput(
   zoneDSegments: ReadonlyArray<ZoneSegment>,
   originalInput: ProcessInput,
+  currentQuery?: string,
 ): ProcessInput {
   const compressedContent = zoneDSegments
     .map((s, i) => `--- Historical Segment ${i + 1} ---\n${s.content}`)
     .join('\n\n');
+
+  const systemText = currentQuery
+    ? `[CURRENT QUERY]: ${currentQuery}\n\nSummarize the following history of the model. Focus on SQL entities, active filters, and previous intent.`
+    : 'Summarize the following history of the model. Focus on SQL entities, active filters, and previous intent.';
 
   return {
     ...originalInput,
@@ -478,7 +483,7 @@ function buildZoneDOnlyInput(
           parts: [
             {
               type: 'text' as const,
-              text: 'Summarize the following history of the model. Focus on SQL entities, active filters, and previous intent.',
+              text: systemText,
             },
           ],
         },

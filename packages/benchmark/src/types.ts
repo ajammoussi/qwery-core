@@ -70,7 +70,8 @@ export type CompressionMethod =
   | 'sliding-window'
   | 'qwery-default'
   | 'entity-state'
-  | 'headroom';
+  | 'headroom'
+  | 'recomp-extractive';
 
 export type ContextMode = 'plain' | '4zone';
 

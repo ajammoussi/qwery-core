@@ -3,12 +3,14 @@ import type { CompactionStrategy } from './strategy.js';
 import { baselineStrategy } from './strategies/baseline.js';
 import { qweryDefaultStrategy } from './strategies/qwery-default.js';
 import { headroomStrategy } from './strategies/headroom.js';
+import { recompExtractiveStrategy } from './strategies/recomp-extractive.js';
 import { with4Zone } from './wrappers/with-4zone.js';
 
 const CORE_STRATEGIES: Partial<Record<CompressionMethod, CompactionStrategy>> = {
   'baseline-no-compression': baselineStrategy,
   'qwery-default': qweryDefaultStrategy,
   'headroom': headroomStrategy,
+  'recomp-extractive': recompExtractiveStrategy,
 };
 
 export function getStrategy(
