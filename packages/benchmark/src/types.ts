@@ -299,6 +299,7 @@ export interface SessionMetrics {
   filterPersistenceRate: number | null;
   entityRecallAccuracy: number | null;
   referenceResolutionAccuracy: number | null;
+  toolSuccessRate: number | null;
   // Strategy-level aggregates; null when no compaction event was observed
   compressionRatio: number | null;
   compactionLatencyMs: number | null;

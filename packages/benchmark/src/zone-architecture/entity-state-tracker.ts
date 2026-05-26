@@ -121,7 +121,7 @@ export class EntityStateTracker {
       aggregations: [],
     };
 
-    // --- Open-thread extraction ---
+    // --- Open-thread extraction (runs unconditionally — natural language patterns) ---
     // Detect conversation threads / topics introduced by the user or assistant.
     // Patterns limit to 1-2 words to avoid capturing too much and to improve deduplication
     const threadPatterns = [
@@ -139,6 +139,18 @@ export class EntityStateTracker {
           this.addOpenThread(topic);
         }
       }
+    }
+
+    // Guard: skip SQL entity extraction when text has no SQL context.
+    // This prevents conversational prose ("from our analysis", "join me") from
+    // polluting activeTables and activeColumns with common English words.
+    const hasSQLContext =
+      /\b(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|FROM|WHERE|JOIN)\b/i.test(text);
+    if (!hasSQLContext) {
+      if (isUserCorrection) {
+        this.addUserCorrection(text);
+      }
+      return extraction;
     }
 
     // Table extraction — supports both simple (orders) and dotted (dbo.orders) and escaped ([orders])

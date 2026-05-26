@@ -194,18 +194,25 @@ function extractToolCallsFromParts(
           existingCall.error = toolPart.errorText;
           existingCall.success = false;
         }
-      } else if (toolPart.toolName) {
-        toolCalls.push({
-          toolName: toolPart.toolName,
-          toolCallId: toolPart.toolCallId,
-          toolInput: toolPart.input ?? {},
-          toolOutput: toolPart.output,
-          executionTimeMs: 0,
-          success:
-            toolPart.state === 'output-available' ||
-            (toolPart.output !== undefined && !toolPart.isError),
-          error: toolPart.errorText,
-        });
+      } else {
+        const inferredName =
+          toolPart.toolName ??
+          (typeof toolPart.type === 'string' && toolPart.type.startsWith('tool-')
+            ? toolPart.type.slice(5)
+            : undefined);
+        if (inferredName) {
+          toolCalls.push({
+            toolName: inferredName,
+            toolCallId: toolPart.toolCallId,
+            toolInput: toolPart.input ?? {},
+            toolOutput: toolPart.output,
+            executionTimeMs: 0,
+            success:
+              toolPart.state === 'output-available' ||
+              (toolPart.output !== undefined && !toolPart.isError),
+            error: toolPart.errorText,
+          });
+        }
       }
     }
   }
@@ -261,7 +268,9 @@ function detectCompactionEvent(args: {
 
   // If process ran (lastCompaction exists) but no summary was found with
   // the exact metadata, fall back to the last new assistant message.
-  if (!newSummary && lastCompaction) {
+  // Require latency > 50ms: a real LLM call takes hundreds of ms; anything
+  // shorter means process() returned early without generating a summary.
+  if (!newSummary && lastCompaction && lastCompaction.latencyMs > 50) {
     for (let i = storedMessages.length - 1; i >= scanFromIndex; i--) {
       const msg = storedMessages[i];
       if (msg && msg.role === 'assistant') {
@@ -578,8 +587,9 @@ async function runSessionWithStrategy(args: {
         if (isOverflow) {
           const preCompactionMessages =
             await repositories.message.findByConversationId(conversationId);
+          const lastPersistedId = preCompactionMessages.at(-1)?.id ?? userMessageId;
           await SessionCompaction.process({
-            parentID: userMessageId,
+            parentID: lastPersistedId,
             messages: preCompactionMessages,
             conversationSlug,
             abort: abortController.signal,
@@ -604,8 +614,9 @@ async function runSessionWithStrategy(args: {
         if (isOverflow) {
           const preCompactionMessages =
             await repositories.message.findByConversationId(conversationId);
+          const lastPersistedId = preCompactionMessages.at(-1)?.id ?? userMessageId;
           await SessionCompaction.process({
-            parentID: userMessageId,
+            parentID: lastPersistedId,
             messages: preCompactionMessages,
             conversationSlug,
             abort: abortController.signal,
@@ -802,7 +813,7 @@ async function runSessionWithStrategy(args: {
   result.turns = enrichTurnsWithAnnotations(result.turns, session);
 
   result.completedAt = new Date().toISOString();
-  result.metrics = calculateMetrics(result.turns);
+  result.metrics = calculateMetrics(result.turns, session);
 
   return result;
 }

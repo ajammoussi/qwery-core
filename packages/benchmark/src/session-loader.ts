@@ -10,6 +10,8 @@ import type {
   StoredUsage,
   MessagePartDetail,
   AssistantMessageDetail,
+  AnaphoricReference,
+  BenchmarkCallback,
 } from './types.js';
 import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
@@ -77,7 +79,10 @@ export async function saveResult(
   return filePath;
 }
 
-export function calculateMetrics(turns: TurnResult[]): SessionMetrics {
+export function calculateMetrics(
+  turns: TurnResult[],
+  session?: BenchmarkSession,
+): SessionMetrics {
   const totalTurns = turns.length;
   const totalInputTokens = turns.reduce((sum, t) => sum + t.inputTokens, 0);
   const totalOutputTokens = turns.reduce((sum, t) => sum + t.outputTokens, 0);
@@ -125,6 +130,80 @@ export function calculateMetrics(turns: TurnResult[]): SessionMetrics {
         ) / 1000
       : null;
 
+  // --- Quality metrics (require session annotations) ---
+
+  // Metric 1: Filter Persistence Rate
+  // For each persistedCorrection, check whether post-boundary turns honor it.
+  // "Honored" = correction keywords appear in agentResponse or SQL tool inputs.
+  let filterPersistenceRate: number | null = null;
+  if (session && session.persistedCorrections.length > 0) {
+    const boundary = session.metadata.compressionBoundaryTurn;
+    const postTurns = turns.filter((t) => t.turnNumber > boundary);
+    if (postTurns.length > 0) {
+      let honored = 0;
+      let total = 0;
+      for (const correction of session.persistedCorrections) {
+        const keywords = correction.correctionText
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 3);
+        for (const turn of postTurns) {
+          total++;
+          const text = (
+            turn.agentResponse +
+            ' ' +
+            turn.toolCalls.map((tc) => JSON.stringify(tc.toolInput)).join(' ')
+          ).toLowerCase();
+          if (keywords.some((kw) => text.includes(kw))) honored++;
+        }
+      }
+      filterPersistenceRate = total > 0 ? Math.round((honored / total) * 1000) / 1000 : null;
+    }
+  }
+
+  // Metric 2: Reference Resolution Rate
+  // For callbacks and anaphoric references that cross the compression boundary,
+  // check if the expected entity/resolution keywords appear in the response.
+  let referenceResolutionAccuracy: number | null = null;
+  if (session) {
+    const crossBoundaryRefs = [
+      ...session.callbacks.filter((c) => c.crossesCompressionBoundary),
+      ...(session.anaphoricReferences ?? []).filter((a) => a.crossesCompressionBoundary),
+    ];
+    if (crossBoundaryRefs.length > 0) {
+      let resolved = 0;
+      for (const ref of crossBoundaryRefs) {
+        const turn = turns.find((t) => t.turnNumber === ref.sourceTurn);
+        if (!turn) continue;
+        const expected =
+          'expectedEntity' in ref
+            ? (ref as BenchmarkCallback).expectedEntity
+            : (ref as AnaphoricReference).expectedResolution;
+        const keywords = expected
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 3);
+        if (keywords.some((kw) => turn.agentResponse.toLowerCase().includes(kw))) {
+          resolved++;
+        }
+      }
+      referenceResolutionAccuracy =
+        Math.round((resolved / crossBoundaryRefs.length) * 1000) / 1000;
+    }
+  }
+
+  // Metric 3: Tool Success Rate
+  // % of turns where all runQuery calls succeeded. Requires Fix 1 (toolName inference).
+  let toolSuccessRate: number | null = null;
+  const turnsWithTools = turns.filter((t) => t.toolCalls.length > 0);
+  if (turnsWithTools.length > 0) {
+    const successTurns = turnsWithTools.filter((t) => {
+      const queryTools = t.toolCalls.filter((tc) => tc.toolName === 'runQuery');
+      return queryTools.length === 0 || queryTools.every((tc) => tc.success);
+    }).length;
+    toolSuccessRate = Math.round((successTurns / turnsWithTools.length) * 1000) / 1000;
+  }
+
   return {
     totalTurns,
     totalInputTokens,
@@ -141,9 +220,10 @@ export function calculateMetrics(turns: TurnResult[]): SessionMetrics {
       totalTurns > 0
         ? Math.round((totalToolCalls / totalTurns) * 100) / 100
         : 0,
-    filterPersistenceRate: null,
+    filterPersistenceRate,
     entityRecallAccuracy: null,
-    referenceResolutionAccuracy: null,
+    referenceResolutionAccuracy,
+    toolSuccessRate,
     compressionRatio,
     compactionLatencyMs,
   };
@@ -308,6 +388,7 @@ export function createEmptyResult(
       filterPersistenceRate: null,
       entityRecallAccuracy: null,
       referenceResolutionAccuracy: null,
+      toolSuccessRate: null,
       compressionRatio: null,
       compactionLatencyMs: null,
     },
