@@ -53,6 +53,9 @@ async function generateReport(compressionMethod?: CompressionMethod, contextMode
         totalCost: number;
         avgResponseTimeMs: number;
         successRate: number;
+        avgFilterPersistenceRate: number | null;
+        avgReferenceResolutionRate: number | null;
+        avgToolSuccessRate: number | null;
       };
       byDatabase: Record<
         string,
@@ -97,6 +100,9 @@ async function generateReport(compressionMethod?: CompressionMethod, contextMode
         totalCost: 0,
         avgResponseTimeMs: 0,
         successRate: 0,
+        avgFilterPersistenceRate: null,
+        avgReferenceResolutionRate: null,
+        avgToolSuccessRate: null,
       },
       byDatabase: {},
       byType: {},
@@ -215,6 +221,31 @@ async function generateReport(compressionMethod?: CompressionMethod, contextMode
           );
         }
       }
+
+      // Quality metric averages (null-aware: only average sessions that have data)
+      const fprValues = report.sessions
+        .map((s) => s.metrics.filterPersistenceRate)
+        .filter((v): v is number => v !== null);
+      report.summary.avgFilterPersistenceRate =
+        fprValues.length > 0
+          ? Math.round((fprValues.reduce((a, b) => a + b, 0) / fprValues.length) * 1000) / 1000
+          : null;
+
+      const rrrValues = report.sessions
+        .map((s) => s.metrics.referenceResolutionAccuracy)
+        .filter((v): v is number => v !== null);
+      report.summary.avgReferenceResolutionRate =
+        rrrValues.length > 0
+          ? Math.round((rrrValues.reduce((a, b) => a + b, 0) / rrrValues.length) * 1000) / 1000
+          : null;
+
+      const tsrValues = report.sessions
+        .map((s) => s.metrics.toolSuccessRate)
+        .filter((v): v is number => v !== null);
+      report.summary.avgToolSuccessRate =
+        tsrValues.length > 0
+          ? Math.round((tsrValues.reduce((a, b) => a + b, 0) / tsrValues.length) * 1000) / 1000
+          : null;
     }
 
     const reportPath = join(
@@ -240,6 +271,22 @@ async function generateReport(compressionMethod?: CompressionMethod, contextMode
     console.log(
       `Success Rate: ${(report.summary.successRate * 100).toFixed(1)}%`,
     );
+
+    if (report.summary.avgFilterPersistenceRate !== null) {
+      console.log(
+        `Filter Persistence Rate: ${(report.summary.avgFilterPersistenceRate * 100).toFixed(1)}%`,
+      );
+    }
+    if (report.summary.avgReferenceResolutionRate !== null) {
+      console.log(
+        `Reference Resolution Rate: ${(report.summary.avgReferenceResolutionRate * 100).toFixed(1)}%`,
+      );
+    }
+    if (report.summary.avgToolSuccessRate !== null) {
+      console.log(
+        `Tool Success Rate: ${(report.summary.avgToolSuccessRate * 100).toFixed(1)}%`,
+      );
+    }
 
     console.log('\nBy Database:');
     for (const [db, stats] of Object.entries(report.byDatabase)) {

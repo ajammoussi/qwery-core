@@ -91,7 +91,8 @@ export function with4Zone(
             entityStateTracker.extractFromText(content, false);
 
             // Schema extraction from tool outputs
-            const parts = (msg.content as { parts?: any[] })?.parts ?? [];
+            // UIMessages store parts at msg.parts; persisted messages use msg.content.parts
+            const parts = (msg.content as { parts?: any[] })?.parts ?? (msg as any).parts ?? [];
             for (const part of parts) {
               const partType = typeof part.type === 'string' ? part.type : '';
               const toolName = part.toolName || (partType.startsWith('tool-') ? partType.slice(5) : '');

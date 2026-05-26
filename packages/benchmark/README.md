@@ -149,6 +149,24 @@ pnpm run -- --db saas --type irc --indices 1,2 --compression-method llmlingua
 pnpm run:compression -- llmlingua --db saas --type irc --indices 1,2 --context-mode 4zone
 ```
 
+## Headroom Compression
+
+### Setup
+
+```bash
+# Option A: full ML compression
+python -m venv .venv-headroom
+.venv-headroom/bin/pip install "headroom-ai[ml,proxy]"
+```
+
+### Running
+
+```bash
+pnpm run:headroom       # Run headroom benchmarks
+set HEADROOM_PYTHON=C:\path\to\conda\env\python.exe && pnpm run:headroom  # With custom Python
+```
+
+
 ### Reporting & Validation
 
 ```bash

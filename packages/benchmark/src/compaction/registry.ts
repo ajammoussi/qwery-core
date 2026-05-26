@@ -2,11 +2,13 @@ import type { CompressionMethod, ContextMode } from '../types.js';
 import type { CompactionStrategy } from './strategy.js';
 import { baselineStrategy } from './strategies/baseline.js';
 import { qweryDefaultStrategy } from './strategies/qwery-default.js';
+import { headroomStrategy } from './strategies/headroom.js';
 import { with4Zone } from './wrappers/with-4zone.js';
 
 const CORE_STRATEGIES: Partial<Record<CompressionMethod, CompactionStrategy>> = {
   'baseline-no-compression': baselineStrategy,
   'qwery-default': qweryDefaultStrategy,
+  'headroom': headroomStrategy,
 };
 
 export function getStrategy(
