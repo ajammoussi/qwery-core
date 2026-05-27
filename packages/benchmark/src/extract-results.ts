@@ -2,6 +2,17 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
 import type { BenchmarkResult, CompressionMethod, ContextMode } from './types.js';
+import {
+  extractKnownTables,
+  computeSQLValidityRate,
+  computeSchemaGroundingRate,
+} from './sql-analyzer.js';
+
+function nullableAvg(values: (number | null | undefined)[]): number | null {
+  const nums = values.filter((v): v is number => typeof v === 'number');
+  if (nums.length === 0) return null;
+  return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 1000) / 1000;
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -56,6 +67,17 @@ async function generateReport(compressionMethod?: CompressionMethod, contextMode
         avgFilterPersistenceRate: number | null;
         avgReferenceResolutionRate: number | null;
         avgToolSuccessRate: number | null;
+        avgSQLValidityRate: number | null;
+        avgSchemaGroundingRate: number | null;
+        avgQueryConsistencyRate: number | null;
+        avgGeminiContextScore: number | null;
+        avgGeminiFilterPersistence: number | null;
+        avgGeminiEntityContinuity: number | null;
+        avgGeminiCorrectionPersistence: number | null;
+        avgGeminiAnalyticalThread: number | null;
+        geminiFailureCategories: Record<string, number>;
+        totalCompactionLatencyMs: number;
+        avgCompactionOverheadPct: number | null;
       };
       byDatabase: Record<
         string,
@@ -103,6 +125,17 @@ async function generateReport(compressionMethod?: CompressionMethod, contextMode
         avgFilterPersistenceRate: null,
         avgReferenceResolutionRate: null,
         avgToolSuccessRate: null,
+        avgSQLValidityRate: null,
+        avgSchemaGroundingRate: null,
+        avgQueryConsistencyRate: null,
+        avgGeminiContextScore: null,
+        avgGeminiFilterPersistence: null,
+        avgGeminiEntityContinuity: null,
+        avgGeminiCorrectionPersistence: null,
+        avgGeminiAnalyticalThread: null,
+        geminiFailureCategories: {},
+        totalCompactionLatencyMs: 0,
+        avgCompactionOverheadPct: null,
       },
       byDatabase: {},
       byType: {},
@@ -129,6 +162,31 @@ async function generateReport(compressionMethod?: CompressionMethod, contextMode
           for (const file of files.filter((f: string) => f.endsWith('.json'))) {
             const content = await readFile(join(typeDir, file), 'utf-8');
             const result = JSON.parse(content) as BenchmarkResult;
+
+            // Recompute SQL metrics from stored turns if not present (backward compat)
+            if (result.turns && result.turns.length > 0) {
+              if (result.metrics.sqlValidityRate == null) {
+                result.metrics.sqlValidityRate = computeSQLValidityRate(result.turns);
+              }
+              if (result.metrics.schemaGroundingRate == null) {
+                const knownTables = extractKnownTables(result.turns);
+                result.metrics.schemaGroundingRate = computeSchemaGroundingRate(result.turns, knownTables);
+              }
+              if (result.metrics.totalCompactionLatencyMs == null) {
+                const compactionLatencies = result.turns
+                  .filter((t) => t.compactionEvent?.latencyMs != null)
+                  .map((t) => t.compactionEvent!.latencyMs!);
+                result.metrics.totalCompactionLatencyMs = compactionLatencies.length > 0
+                  ? compactionLatencies.reduce((a, b) => a + b, 0)
+                  : null;
+              }
+              if (result.metrics.compactionOverheadPct == null && result.metrics.totalCompactionLatencyMs != null) {
+                const totalResponseMs = result.turns.reduce((s, t) => s + (t.responseTimeMs ?? 0), 0);
+                result.metrics.compactionOverheadPct = totalResponseMs > 0
+                  ? Math.round((result.metrics.totalCompactionLatencyMs / totalResponseMs) * 1000) / 10
+                  : null;
+              }
+            }
 
             report.sessions.push(result);
             report.summary.totalSessions++;
@@ -223,29 +281,55 @@ async function generateReport(compressionMethod?: CompressionMethod, contextMode
       }
 
       // Quality metric averages (null-aware: only average sessions that have data)
-      const fprValues = report.sessions
-        .map((s) => s.metrics.filterPersistenceRate)
-        .filter((v): v is number => v !== null);
-      report.summary.avgFilterPersistenceRate =
-        fprValues.length > 0
-          ? Math.round((fprValues.reduce((a, b) => a + b, 0) / fprValues.length) * 1000) / 1000
-          : null;
-
-      const rrrValues = report.sessions
-        .map((s) => s.metrics.referenceResolutionAccuracy)
-        .filter((v): v is number => v !== null);
-      report.summary.avgReferenceResolutionRate =
-        rrrValues.length > 0
-          ? Math.round((rrrValues.reduce((a, b) => a + b, 0) / rrrValues.length) * 1000) / 1000
-          : null;
-
-      const tsrValues = report.sessions
-        .map((s) => s.metrics.toolSuccessRate)
-        .filter((v): v is number => v !== null);
-      report.summary.avgToolSuccessRate =
-        tsrValues.length > 0
-          ? Math.round((tsrValues.reduce((a, b) => a + b, 0) / tsrValues.length) * 1000) / 1000
-          : null;
+      report.summary.avgFilterPersistenceRate = nullableAvg(
+        report.sessions.map((s) => s.metrics.filterPersistenceRate),
+      );
+      report.summary.avgReferenceResolutionRate = nullableAvg(
+        report.sessions.map((s) => s.metrics.referenceResolutionAccuracy),
+      );
+      report.summary.avgToolSuccessRate = nullableAvg(
+        report.sessions.map((s) => s.metrics.toolSuccessRate),
+      );
+      report.summary.avgSQLValidityRate = nullableAvg(
+        report.sessions.map((s) => s.metrics.sqlValidityRate),
+      );
+      report.summary.avgSchemaGroundingRate = nullableAvg(
+        report.sessions.map((s) => s.metrics.schemaGroundingRate),
+      );
+      report.summary.avgQueryConsistencyRate = nullableAvg(
+        report.sessions.map((s) => s.metrics.queryConsistencyRate),
+      );
+      report.summary.avgGeminiContextScore = nullableAvg(
+        report.sessions.map((s) => s.metrics.geminiContextScore),
+      );
+      // Dimension-level averages (only sessions that have a geminiJudge result)
+      const judgedSessions = report.sessions.filter((s) => s.metrics.geminiJudge != null);
+      report.summary.avgGeminiFilterPersistence = nullableAvg(
+        judgedSessions.map((s) => s.metrics.geminiJudge!.dimensions.filterPersistence.score),
+      );
+      report.summary.avgGeminiEntityContinuity = nullableAvg(
+        judgedSessions.map((s) => s.metrics.geminiJudge!.dimensions.entityContinuity.score),
+      );
+      report.summary.avgGeminiCorrectionPersistence = nullableAvg(
+        judgedSessions.map((s) => s.metrics.geminiJudge!.dimensions.correctionPersistence.score),
+      );
+      report.summary.avgGeminiAnalyticalThread = nullableAvg(
+        judgedSessions.map((s) => s.metrics.geminiJudge!.dimensions.analyticalThread.score),
+      );
+      const fc: Record<string, number> = {};
+      for (const s of judgedSessions) {
+        for (const cat of s.metrics.geminiJudge!.failureCategories) {
+          if (cat !== 'none') fc[cat] = (fc[cat] ?? 0) + 1;
+        }
+      }
+      report.summary.geminiFailureCategories = fc;
+      report.summary.totalCompactionLatencyMs = report.sessions.reduce(
+        (sum, s) => sum + (s.metrics.totalCompactionLatencyMs ?? 0),
+        0,
+      );
+      report.summary.avgCompactionOverheadPct = nullableAvg(
+        report.sessions.map((s) => s.metrics.compactionOverheadPct),
+      );
     }
 
     const reportPath = join(
@@ -285,6 +369,45 @@ async function generateReport(compressionMethod?: CompressionMethod, contextMode
     if (report.summary.avgToolSuccessRate !== null) {
       console.log(
         `Tool Success Rate: ${(report.summary.avgToolSuccessRate * 100).toFixed(1)}%`,
+      );
+    }
+    if (report.summary.avgSQLValidityRate !== null) {
+      console.log(
+        `SQL Validity Rate: ${(report.summary.avgSQLValidityRate * 100).toFixed(1)}%`,
+      );
+    }
+    if (report.summary.avgSchemaGroundingRate !== null) {
+      console.log(
+        `Schema Grounding Rate: ${(report.summary.avgSchemaGroundingRate * 100).toFixed(1)}%`,
+      );
+    }
+    if (report.summary.avgQueryConsistencyRate !== null) {
+      console.log(
+        `Query Consistency Rate: ${(report.summary.avgQueryConsistencyRate * 100).toFixed(1)}%`,
+      );
+    }
+    if (report.summary.avgGeminiContextScore !== null) {
+      console.log(
+        `Gemini Context Score: ${report.summary.avgGeminiContextScore.toFixed(2)} / 10`,
+      );
+      if (report.summary.avgGeminiFilterPersistence !== null)
+        console.log(`  filter_persistence:         ${report.summary.avgGeminiFilterPersistence.toFixed(2)} / 5`);
+      if (report.summary.avgGeminiEntityContinuity !== null)
+        console.log(`  entity_continuity:          ${report.summary.avgGeminiEntityContinuity.toFixed(2)} / 5`);
+      if (report.summary.avgGeminiCorrectionPersistence !== null)
+        console.log(`  correction_persistence:     ${report.summary.avgGeminiCorrectionPersistence.toFixed(2)} / 5`);
+      if (report.summary.avgGeminiAnalyticalThread !== null)
+        console.log(`  analytical_thread:          ${report.summary.avgGeminiAnalyticalThread.toFixed(2)} / 5`);
+      const fc = report.summary.geminiFailureCategories;
+      if (Object.keys(fc).length > 0)
+        console.log(`  failure categories:         ${Object.entries(fc).map(([k, v]) => `${k}(${v})`).join(', ')}`);
+    }
+    if (report.summary.totalCompactionLatencyMs > 0) {
+      console.log(`Total Compaction Latency: ${report.summary.totalCompactionLatencyMs}ms`);
+    }
+    if (report.summary.avgCompactionOverheadPct !== null) {
+      console.log(
+        `Compaction Overhead: ${report.summary.avgCompactionOverheadPct.toFixed(1)}% of session time`,
       );
     }
 

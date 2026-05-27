@@ -305,23 +305,73 @@ Each result file contains:
 
 ## Metrics
 
-### Primary Metrics
+### Inline Metrics (computed on every run)
 
-| Metric                        | Description                                 | Target |
-| ----------------------------- | ------------------------------------------- | ------ |
-| Filter Persistence Rate       | Corrections appearing in subsequent queries | ≥ 0.92 |
-| Entity Recall                 | Callback values matching earlier results    | ≥ 0.85 |
-| Reference Resolution Accuracy | Anaphoric references resolved correctly     | ≥ 0.90 |
-| Schema Grounding Accuracy     | No hallucinated columns/tables              | ≥ 0.95 |
+These are computed automatically from stored turn data. `extract-results.ts` also recomputes them from older result files for backward compatibility.
 
-### Efficiency Metrics
+| Metric | Description |
+| ------ | ----------- |
+| Filter Persistence Rate | % post-compaction turns where established filters appear in SQL |
+| Reference Resolution Accuracy | % anaphoric/callback references resolved correctly |
+| Tool Success Rate | % tool calls that succeeded |
+| SQL Validity Rate | % `runQuery` calls with no syntax or semantic error |
+| Schema Grounding Rate | % `runQuery` SQL where all table refs exist in `getSchema` output |
+| Total Compaction Latency | Sum of all compaction event latencies |
+| Compaction Overhead % | `totalCompactionLatencyMs / totalResponseTimeMs × 100` |
+| Total Input / Output Tokens | Token totals across all turns |
+| Avg Response Time | Mean turn response time in ms |
 
-| Metric              | Description              |
-| ------------------- | ------------------------ |
-| Total Input Tokens  | Sum of prompt tokens     |
-| Total Output Tokens | Sum of completion tokens |
-| Avg Response Time   | Mean time per turn       |
-| Tool Calls per Turn | Average tool invocations |
+### Post-processing Metrics (from `verify:consistency`)
+
+These require a live database and are patched back into the result JSON with `--patch`. They are the primary quality comparison signal between compression strategies.
+
+| Metric | Description |
+| ------ | ----------- |
+| Query Consistency Rate | % sampled post-compaction turns where re-running the agent from `[summary + user turn]` produces SQL with matching row counts |
+| **Gemini Context Score** | 0–10 aggregate from Gemini's multi-dimension judgment |
+| ↳ filter_persistence | 0–5: Were established filters and exclusions applied? |
+| ↳ entity_continuity | 0–5: Were the right entities (dates, categories, groups) referenced? |
+| ↳ correction_persistence | 0–5: Were explicit user corrections from earlier turns respected? |
+| ↳ analytical_thread | 0–5: Did the agent understand what was being investigated? |
+| Failure Categories | Tags: `filter_drift`, `entity_confusion`, `baseline_loss`, `correction_ignored` |
+
+The overall score is `avg(4 dimensions) × 2`, normalised to 0–10.
+
+## Consistency Verification
+
+`verify:consistency` re-runs the benchmark model in a stripped context (only the compressed summary + the turn's user message) and compares the result against the original. Gemini (1M context) acts as judge — it sees the complete original conversation and scores how well the summary preserved analytical context.
+
+### Usage
+
+```bash
+pnpm verify:consistency \
+  --result data/results/qwery-default/plain/tpch/dcs/tpch-dcs-001.json \
+  --connection-string postgres://postgres:postgres@localhost:55432/tpch \
+  [--sample 5] \
+  [--model ollama-cloud/minimax-m2.5] \
+  [--patch]
+```
+
+| Argument | Default | Description |
+| -------- | ------- | ----------- |
+| `--result` | required | Path to a `BenchmarkResult` JSON |
+| `--connection-string` | required | PostgreSQL connection string for SQL re-execution |
+| `--sample` | `5` | Number of post-compaction turns to sample |
+| `--model` | `ollama-cloud/minimax-m2.5` | Model for the re-run (should match the original benchmark model) |
+| `--patch` | `false` | Write `queryConsistencyRate`, `geminiJudge`, and `geminiContextScore` back to the result JSON |
+
+### Requirements
+
+- `GEMINI_API_KEY` and `GEMINI_MODEL` set in `apps/web/.env`
+- Database running at the provided connection string
+- The result must have a compaction event with `summaryText` (strategies that use `structuredState` only are not yet supported)
+
+### Connection strings
+
+| Database | Connection string |
+| -------- | ----------------- |
+| TPCH | `postgres://postgres:postgres@localhost:55432/tpch` |
+| SaaS | `postgres://postgres:postgres@localhost:55433/saas_analytics` |
 
 ## Database Connection
 

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "verify:consistency": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/verify-consistency.ts",
     "run": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts",
     "run:tpch": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --db tpch",
     "run:saas": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --db saas",
@@ -18,6 +19,7 @@
   },
   "dependencies": {
     "@atjsh/llmlingua-2": "^2.0.3",
+    "@google/genai": "^1.0.0",
     "@huggingface/transformers": "^4.2.0",
     "@qwery/agent-factory-sdk": "workspace:*",
     "@qwery/domain": "workspace:*",
@@ -27,6 +29,7 @@
     "headroom-ai": "^0.1.0",
     "js-tiktoken": "^1.0.21",
     "onnxruntime-common": "^1.26.0",
+    "pg": "^8.13.1",
     "uuid": "^11.0.3"
   },
   "peerDependencies": {
@@ -36,6 +39,7 @@
     "@qwery/tsconfig": "workspace:*",
     "@swc/core": "^1.11.0",
     "@types/node": "^20.19.0",
+    "@types/pg": "^8.11.10",
     "ai": "^6.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.0",
