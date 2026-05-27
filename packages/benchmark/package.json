@@ -23,9 +23,10 @@
     "@qwery/domain": "workspace:*",
     "@qwery/repository-file": "workspace:*",
     "@qwery/shared": "workspace:*",
-    "headroom-ai": "^0.1.0",
     "@tensorflow/tfjs": "^4.22.0",
+    "headroom-ai": "^0.1.0",
     "js-tiktoken": "^1.0.21",
+    "onnxruntime-common": "^1.26.0",
     "uuid": "^11.0.3"
   },
   "peerDependencies": {
