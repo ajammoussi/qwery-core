@@ -272,6 +272,9 @@ export interface CompactionEvent {
   summaryTokens?: number;
   preCompactionTokens?: number;
   latencyMs: number;
+  // Strategy-reported compressed/original ratio. When set, overrides the
+  // summaryTokens/preCompactionTokens heuristic in metric aggregation.
+  reportedRatio?: number;
 }
 
 export interface ToolCallResult {

@@ -310,6 +310,7 @@ export const llmlingua2Strategy: CompactionStrategy = {
               summary: true,
               finish: 'stop',
               parentId: input.parentID,
+              compactionRatio: ratio,
               llmlingua2: {
                 model: LLMLINGUA_MODEL,
                 rates: {

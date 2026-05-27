@@ -113,18 +113,28 @@ export function calculateMetrics(
   const firstCompactionTurn = turns.find((t) => t.compactionEvent);
   const compactionLatencyMs = firstCompactionTurn?.compactionEvent?.latencyMs ?? null;
 
-  // Calculate average compression ratio across all compaction events
+  // Calculate average compression ratio across all compaction events.
+  // Prefer a strategy-reported ratio (e.g. in-place compactors like llmlingua-2)
+  // and fall back to the summaryTokens/preCompactionTokens heuristic.
   const validEvents = allCompactionEvents.filter(
-    (e): e is NonNullable<typeof e> & { preCompactionTokens: number; summaryTokens: number } =>
+    (e): e is NonNullable<typeof e> =>
       !!e &&
-      typeof e.preCompactionTokens === 'number' &&
-      typeof e.summaryTokens === 'number',
+      (typeof e.reportedRatio === 'number' ||
+        (typeof e.preCompactionTokens === 'number' &&
+          typeof e.summaryTokens === 'number')),
   );
 
   const compressionRatio =
     validEvents.length > 0
       ? Math.round(
-          (validEvents.reduce((sum, e) => sum + e.summaryTokens / e.preCompactionTokens, 0) /
+          (validEvents.reduce(
+            (sum, e) =>
+              sum +
+              (typeof e.reportedRatio === 'number'
+                ? e.reportedRatio
+                : e.summaryTokens! / e.preCompactionTokens!),
+            0,
+          ) /
             validEvents.length) *
             1000,
         ) / 1000
