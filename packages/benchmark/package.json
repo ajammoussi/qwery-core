@@ -17,11 +17,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@atjsh/llmlingua-2": "^2.0.3",
+    "@huggingface/transformers": "^4.2.0",
     "@qwery/agent-factory-sdk": "workspace:*",
     "@qwery/domain": "workspace:*",
     "@qwery/repository-file": "workspace:*",
     "@qwery/shared": "workspace:*",
     "headroom-ai": "^0.1.0",
+    "@tensorflow/tfjs": "^4.22.0",
+    "js-tiktoken": "^1.0.21",
     "uuid": "^11.0.3"
   },
   "peerDependencies": {
