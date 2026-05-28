@@ -12,7 +12,13 @@ import type {
   AssistantMessageDetail,
   AnaphoricReference,
   BenchmarkCallback,
+  CompactionEvent,
 } from './types.js';
+import {
+  extractKnownTables,
+  computeSQLValidityRate,
+  computeSchemaGroundingRate,
+} from './sql-analyzer.js';
 import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -64,7 +70,14 @@ export async function saveResult(
   compressionMethod: CompressionMethod = 'baseline-no-compression',
   contextMode: ContextMode = 'plain',
 ): Promise<string> {
-  const baseDir = join(__dirname, '..', 'data', 'results', compressionMethod, contextMode);
+  const baseDir = join(
+    __dirname,
+    '..',
+    'data',
+    'results',
+    compressionMethod,
+    contextMode,
+  );
   const resultDir = join(
     baseDir,
     result.database,
@@ -106,12 +119,24 @@ export function calculateMetrics(
   );
 
   // Collect all compaction events across the session
-  const allCompactionEvents = turns
-    .filter((t) => t.compactionEvent)
-    .map((t) => t.compactionEvent);
+  const compactionEvents = turns
+    .map((t) => t.compactionEvent)
+    .filter((e): e is CompactionEvent => !!e);
 
-  const firstCompactionTurn = turns.find((t) => t.compactionEvent);
-  const compactionLatencyMs = firstCompactionTurn?.compactionEvent?.latencyMs ?? null;
+  // Keep first-event latency for backward compat with existing result JSON files
+  const compactionLatencyMs = compactionEvents[0]?.latencyMs ?? null;
+
+  // Sum ALL compaction event latencies
+  const totalCompactionLatencyMs =
+    compactionEvents.length > 0
+      ? compactionEvents.reduce((sum, e) => sum + e.latencyMs, 0)
+      : null;
+
+  const compactionOverheadPct =
+    totalCompactionLatencyMs !== null && totalResponseTimeMs > 0
+      ? Math.round((totalCompactionLatencyMs / totalResponseTimeMs) * 10000) /
+        100
+      : null;
 
   // Fraction of the prompt that survives a compaction event (lower = more
   // compression). When the strategy reports the absolute tokens it removed,
@@ -143,10 +168,16 @@ export function calculateMetrics(
       : null;
 
   const tokensSavedTotal = allCompactionEvents.reduce(
-    (sum, e) => sum + (e && typeof e.tokensSaved === 'number' ? e.tokensSaved : 0),
+    (sum, e) =>
+      sum + (e && typeof e.tokensSaved === 'number' ? e.tokensSaved : 0),
     0,
   );
   const compactionTokensSaved = tokensSavedTotal > 0 ? tokensSavedTotal : null;
+
+  // SQL quality metrics
+  const knownTables = extractKnownTables(turns);
+  const sqlValidityRate = computeSQLValidityRate(turns);
+  const schemaGroundingRate = computeSchemaGroundingRate(turns, knownTables);
 
   // --- Quality metrics (require session annotations) ---
 
@@ -175,7 +206,8 @@ export function calculateMetrics(
           if (keywords.some((kw) => text.includes(kw))) honored++;
         }
       }
-      filterPersistenceRate = total > 0 ? Math.round((honored / total) * 1000) / 1000 : null;
+      filterPersistenceRate =
+        total > 0 ? Math.round((honored / total) * 1000) / 1000 : null;
     }
   }
 
@@ -186,7 +218,9 @@ export function calculateMetrics(
   if (session) {
     const crossBoundaryRefs = [
       ...session.callbacks.filter((c) => c.crossesCompressionBoundary),
-      ...(session.anaphoricReferences ?? []).filter((a) => a.crossesCompressionBoundary),
+      ...(session.anaphoricReferences ?? []).filter(
+        (a) => a.crossesCompressionBoundary,
+      ),
     ];
     if (crossBoundaryRefs.length > 0) {
       let resolved = 0;
@@ -201,7 +235,9 @@ export function calculateMetrics(
           .toLowerCase()
           .split(/\s+/)
           .filter((w) => w.length > 3);
-        if (keywords.some((kw) => turn.agentResponse.toLowerCase().includes(kw))) {
+        if (
+          keywords.some((kw) => turn.agentResponse.toLowerCase().includes(kw))
+        ) {
           resolved++;
         }
       }
@@ -219,7 +255,8 @@ export function calculateMetrics(
       const queryTools = t.toolCalls.filter((tc) => tc.toolName === 'runQuery');
       return queryTools.length === 0 || queryTools.every((tc) => tc.success);
     }).length;
-    toolSuccessRate = Math.round((successTurns / turnsWithTools.length) * 1000) / 1000;
+    toolSuccessRate =
+      Math.round((successTurns / turnsWithTools.length) * 1000) / 1000;
   }
 
   return {
@@ -245,6 +282,13 @@ export function calculateMetrics(
     compressionRatio,
     compactionTokensSaved,
     compactionLatencyMs,
+    totalCompactionLatencyMs,
+    compactionOverheadPct,
+    sqlValidityRate,
+    schemaGroundingRate,
+    queryConsistencyRate: null,
+    geminiJudge: null,
+    geminiContextScore: null,
   };
 }
 
@@ -411,6 +455,13 @@ export function createEmptyResult(
       compressionRatio: null,
       compactionTokensSaved: null,
       compactionLatencyMs: null,
+      totalCompactionLatencyMs: null,
+      compactionOverheadPct: null,
+      sqlValidityRate: null,
+      schemaGroundingRate: null,
+      queryConsistencyRate: null,
+      geminiJudge: null,
+      geminiContextScore: null,
     },
     errors: [],
   };

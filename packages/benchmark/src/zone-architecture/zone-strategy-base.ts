@@ -97,13 +97,21 @@ export function extractQueryFromMessages(messages: ProcessInput['messages']): st
     .filter((m) => m.role === 'user')
     .pop();
 
-  if (!lastUserMessage) {
-    return '';
+  if (lastUserMessage) {
+    const parts = lastUserMessage.content?.parts ?? (lastUserMessage as unknown as { parts?: Array<{ type: string; text: string }> }).parts ?? [];
+    const textParts = parts.filter((p) => p.type === 'text').map((p) => (p as { text: string }).text);
+    return textParts.join(' ');
   }
 
-  const parts = lastUserMessage.content?.parts ?? (lastUserMessage as unknown as { parts?: Array<{ type: string; text: string }> }).parts ?? [];
-  const textParts = parts.filter((p) => p.type === 'text').map((p) => (p as { text: string }).text);
-  return textParts.join(' ');
+  // Benchmark does not persist user messages — fall back to the last
+  // assistant message whose reasoning part typically paraphrases the query.
+  const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+  if (lastAssistant) {
+    const text = extractTextFromMessage(lastAssistant);
+    return text.slice(0, 200);
+  }
+
+  return '';
 }
 
 export function extractTurnNumberFromMessages(messages: ProcessInput['messages']): number {

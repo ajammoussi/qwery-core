@@ -3,16 +3,17 @@ import type { CompactionStrategy } from './strategy.js';
 import { baselineStrategy } from './strategies/baseline.js';
 import { qweryDefaultStrategy } from './strategies/qwery-default.js';
 import { headroomStrategy } from './strategies/headroom.js';
+import { recompExtractiveStrategy } from './strategies/recomp-extractive.js';
 import { llmlingua2Strategy } from './strategies/llmlingua-2.js';
 import { with4Zone } from './wrappers/with-4zone.js';
 
-const CORE_STRATEGIES: Partial<Record<CompressionMethod, CompactionStrategy>> =
-  {
-    'baseline-no-compression': baselineStrategy,
-    'qwery-default': qweryDefaultStrategy,
-    headroom: headroomStrategy,
-    'llmlingua-2': llmlingua2Strategy,
-  };
+const CORE_STRATEGIES: Partial<Record<CompressionMethod, CompactionStrategy>> = {
+  'baseline-no-compression': baselineStrategy,
+  'qwery-default': qweryDefaultStrategy,
+  'headroom': headroomStrategy,
+  'llmlingua-2': llmlingua2Strategy,
+  'recomp-extractive': recompExtractiveStrategy,
+};
 
 export function getStrategy(
   method: CompressionMethod,
