@@ -145,7 +145,7 @@ export function calculateMetrics(
   // Otherwise fall back to the rough summaryTokens/preCompactionTokens heuristic
   // (used by replace-the-history strategies like qwery-default).
   const eventRatio = (
-    e: NonNullable<(typeof allCompactionEvents)[number]>,
+    e: NonNullable<(typeof compactionEvents)[number]>,
   ): number | null => {
     const pre = e.preCompactionTokens;
     if (typeof pre !== 'number' || pre <= 0) return null;
@@ -158,7 +158,7 @@ export function calculateMetrics(
     return null;
   };
 
-  const ratios = allCompactionEvents
+  const ratios = compactionEvents
     .map((e) => (e ? eventRatio(e) : null))
     .filter((r): r is number => typeof r === 'number');
   const compressionRatio =
@@ -167,8 +167,8 @@ export function calculateMetrics(
         1000
       : null;
 
-  const tokensSavedTotal = allCompactionEvents.reduce(
-    (sum, e) =>
+  const tokensSavedTotal = compactionEvents.reduce(
+    (sum: number, e: (typeof compactionEvents)[number]) =>
       sum + (e && typeof e.tokensSaved === 'number' ? e.tokensSaved : 0),
     0,
   );
