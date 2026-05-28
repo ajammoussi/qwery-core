@@ -272,9 +272,10 @@ export interface CompactionEvent {
   summaryTokens?: number;
   preCompactionTokens?: number;
   latencyMs: number;
-  // Strategy-reported compressed/original ratio. When set, overrides the
-  // summaryTokens/preCompactionTokens heuristic in metric aggregation.
-  reportedRatio?: number;
+  // Absolute tokens removed from the conversation by this event, as reported by
+  // the strategy. When set, compressionRatio is computed as the real prompt
+  // reduction: (preCompactionTokens - tokensSaved) / preCompactionTokens.
+  tokensSaved?: number;
 }
 
 export interface ToolCallResult {
@@ -305,6 +306,7 @@ export interface SessionMetrics {
   toolSuccessRate: number | null;
   // Strategy-level aggregates; null when no compaction event was observed
   compressionRatio: number | null;
+  compactionTokensSaved: number | null;
   compactionLatencyMs: number | null;
 }
 

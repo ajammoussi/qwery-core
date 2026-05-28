@@ -113,32 +113,40 @@ export function calculateMetrics(
   const firstCompactionTurn = turns.find((t) => t.compactionEvent);
   const compactionLatencyMs = firstCompactionTurn?.compactionEvent?.latencyMs ?? null;
 
-  // Calculate average compression ratio across all compaction events.
-  // Prefer a strategy-reported ratio (e.g. in-place compactors like llmlingua-2)
-  // and fall back to the summaryTokens/preCompactionTokens heuristic.
-  const validEvents = allCompactionEvents.filter(
-    (e): e is NonNullable<typeof e> =>
-      !!e &&
-      (typeof e.reportedRatio === 'number' ||
-        (typeof e.preCompactionTokens === 'number' &&
-          typeof e.summaryTokens === 'number')),
-  );
+  // Fraction of the prompt that survives a compaction event (lower = more
+  // compression). When the strategy reports the absolute tokens it removed,
+  // measure the real reduction against the captured prompt size:
+  //   (preCompactionTokens - tokensSaved) / preCompactionTokens.
+  // Otherwise fall back to the rough summaryTokens/preCompactionTokens heuristic
+  // (used by replace-the-history strategies like qwery-default).
+  const eventRatio = (
+    e: NonNullable<(typeof allCompactionEvents)[number]>,
+  ): number | null => {
+    const pre = e.preCompactionTokens;
+    if (typeof pre !== 'number' || pre <= 0) return null;
+    if (typeof e.tokensSaved === 'number') {
+      return Math.max(0, pre - e.tokensSaved) / pre;
+    }
+    if (typeof e.summaryTokens === 'number') {
+      return e.summaryTokens / pre;
+    }
+    return null;
+  };
 
+  const ratios = allCompactionEvents
+    .map((e) => (e ? eventRatio(e) : null))
+    .filter((r): r is number => typeof r === 'number');
   const compressionRatio =
-    validEvents.length > 0
-      ? Math.round(
-          (validEvents.reduce(
-            (sum, e) =>
-              sum +
-              (typeof e.reportedRatio === 'number'
-                ? e.reportedRatio
-                : e.summaryTokens! / e.preCompactionTokens!),
-            0,
-          ) /
-            validEvents.length) *
-            1000,
-        ) / 1000
+    ratios.length > 0
+      ? Math.round((ratios.reduce((a, b) => a + b, 0) / ratios.length) * 1000) /
+        1000
       : null;
+
+  const tokensSavedTotal = allCompactionEvents.reduce(
+    (sum, e) => sum + (e && typeof e.tokensSaved === 'number' ? e.tokensSaved : 0),
+    0,
+  );
+  const compactionTokensSaved = tokensSavedTotal > 0 ? tokensSavedTotal : null;
 
   // --- Quality metrics (require session annotations) ---
 
@@ -235,6 +243,7 @@ export function calculateMetrics(
     referenceResolutionAccuracy,
     toolSuccessRate,
     compressionRatio,
+    compactionTokensSaved,
     compactionLatencyMs,
   };
 }
@@ -400,6 +409,7 @@ export function createEmptyResult(
       referenceResolutionAccuracy: null,
       toolSuccessRate: null,
       compressionRatio: null,
+      compactionTokensSaved: null,
       compactionLatencyMs: null,
     },
     errors: [],

@@ -296,9 +296,9 @@ function detectCompactionEvent(args: {
     newSummary?.metadata?.tokens?.output ??
     (summaryText ? Math.ceil(summaryText.length / 3.6) : undefined);
 
-  const reportedRatio =
-    typeof newSummary?.metadata?.compactionRatio === 'number'
-      ? (newSummary.metadata.compactionRatio as number)
+  const tokensSaved =
+    typeof newSummary?.metadata?.compactionTokensSaved === 'number'
+      ? (newSummary.metadata.compactionTokensSaved as number)
       : undefined;
 
   return {
@@ -313,7 +313,7 @@ function detectCompactionEvent(args: {
       lastCompaction && lastCompaction.turnNumber === turnNumber
         ? Math.round(lastCompaction.latencyMs)
         : 0,
-    reportedRatio,
+    tokensSaved,
   };
 }
 

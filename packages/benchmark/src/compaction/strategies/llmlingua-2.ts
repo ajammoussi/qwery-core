@@ -9,8 +9,13 @@ import { v4 as uuidv4 } from 'uuid';
 import type { CompactionStrategy } from '../strategy.js';
 import { makeBoundaryIsOverflow } from '../strategy.js';
 
+// XLM-RoBERTa-large: 514 position embeddings (vs BERT's 512) so the library's
+// own chunker — which rounds chunks up to 511 tokens + 2 special = 513 — never
+// overflows. Larger model also makes more discriminating keep/drop choices.
+// 2.24 GB on first download; cached afterwards. Override with LLMLINGUA_MODEL.
 const LLMLINGUA_MODEL =
-  process.env.LLMLINGUA_MODEL ?? 'atjsh/llmlingua-2-js-tinybert-meetingbank';
+  process.env.LLMLINGUA_MODEL ??
+  'atjsh/llmlingua-2-js-xlm-roberta-large-meetingbank';
 
 // Rate semantics per @atjsh/llmlingua-2 (CompressPromptOptions.rate):
 //   "Float between 0 and 1 indicating the rate of compression.
@@ -35,14 +40,25 @@ const getTokenizer = (): Tiktoken =>
   (oaiTokenizer ??= new Tiktoken(o200k_base));
 
 type Compressor = Awaited<
-  ReturnType<typeof LLMLingua2.WithBERTMultilingual>
+  ReturnType<typeof LLMLingua2.WithXLMRoBERTa>
 >['promptCompressor'];
+
+async function compressText(
+  compressor: Compressor,
+  text: string,
+  rate: number,
+): Promise<string> {
+  return compressor.compress(text, { rate, forceReserveDigit: true });
+}
 
 let compressorPromise: Promise<Compressor> | null = null;
 const getCompressor = (): Promise<Compressor> =>
-  (compressorPromise ??= LLMLingua2.WithBERTMultilingual(LLMLINGUA_MODEL, {
+  (compressorPromise ??= LLMLingua2.WithXLMRoBERTa(LLMLINGUA_MODEL, {
     transformerJSConfig: { device: LLMLINGUA_DEVICE, dtype: 'fp32' },
     oaiTokenizer: getTokenizer(),
+    // Required for XLM-RoBERTa-large per the package docstring — its weights
+    // ship as separate .data files alongside the ONNX graph.
+    modelSpecificOptions: { use_external_data_format: true },
   }).then((r) => r.promptCompressor));
 
 function countTokens(text: string): number {
@@ -161,10 +177,7 @@ export const llmlingua2Strategy: CompactionStrategy = {
         const before = countTokens(text);
         if (before < MIN_TOKENS_TO_COMPRESS) return null;
         try {
-          const compressed = await compressor.compress(text, {
-            rate,
-            forceReserveDigit: true,
-          });
+          const compressed = await compressText(compressor, text, rate);
           return { compressed, before, after: countTokens(compressed) };
         } catch (err) {
           failures += 1;
@@ -291,13 +304,17 @@ export const llmlingua2Strategy: CompactionStrategy = {
         input.conversationSlug,
       );
 
-      const ratio = totalAfter / Math.max(1, totalBefore);
+      // Absolute tokens removed from the conversation content. The harness turns
+      // this into a meaningful ratio against the real prompt size it captured
+      // (preCompactionTokens): post = pre - tokensSaved.
+      const tokensSaved = totalBefore - totalAfter;
+      const partsRatio = totalAfter / Math.max(1, totalBefore);
       const summaryText =
         `[llmlingua-2] compressed parts — tool:${buckets.tool.parts} ` +
         `llm:${buckets.llm.parts} user:${buckets.user.parts}` +
         (failures > 0 ? ` (skipped ${failures} on error)` : '') +
-        `; tokens ${totalBefore} → ${totalAfter} ` +
-        `(retained ${(ratio * 100).toFixed(1)}%).`;
+        `; saved ${tokensSaved} tokens (${totalBefore} → ${totalAfter}, ` +
+        `${(partsRatio * 100).toFixed(1)}% retained on touched parts).`;
 
       await persistence.persistMessages(
         [
@@ -310,7 +327,7 @@ export const llmlingua2Strategy: CompactionStrategy = {
               summary: true,
               finish: 'stop',
               parentId: input.parentID,
-              compactionRatio: ratio,
+              compactionTokensSaved: tokensSaved,
               llmlingua2: {
                 model: LLMLINGUA_MODEL,
                 rates: {
@@ -322,7 +339,8 @@ export const llmlingua2Strategy: CompactionStrategy = {
                 failures,
                 originalTokens: totalBefore,
                 compressedTokens: totalAfter,
-                actualRatio: ratio,
+                tokensSaved,
+                partsRatio,
               },
               tokens: {
                 input: 0,
@@ -345,4 +363,25 @@ export const llmlingua2Strategy: CompactionStrategy = {
       return 'continue';
     },
   }),
+};
+
+/**
+ * Internals exposed for the inspection script (src/inspect-llmlingua-2.ts) so it
+ * runs the exact same classification, rates and compressor the strategy uses.
+ */
+export const __llmlingua_internals__ = {
+  model: LLMLINGUA_MODEL,
+  device: LLMLINGUA_DEVICE,
+  rates: {
+    tool: LLMLINGUA_RATE_TOOL,
+    llm: LLMLINGUA_RATE_LLM,
+    user: LLMLINGUA_RATE_USER,
+  },
+  minTokens: MIN_TOKENS_TO_COMPRESS,
+  getCompressor,
+  compressText,
+  countTokens,
+  approxTokens,
+  readToolOutput,
+  readTextLike,
 };

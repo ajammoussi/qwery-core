@@ -91,12 +91,12 @@ The following compression methods are supported:
 
 ### `llmlingua-2` prerequisites
 
-- The first run downloads a BERT-class model from Hugging Face Hub (default: `atjsh/llmlingua-2-js-tinybert-meetingbank`, ~57 MB). Subsequent runs use the cached copy under `~/.cache/huggingface/`.
+- The first run downloads a transformer model from Hugging Face Hub (default: `atjsh/llmlingua-2-js-xlm-roberta-large-meetingbank`, **~2.24 GB**). Subsequent runs use the cached copy under `~/.cache/huggingface/`. XLM-RoBERTa is the default because its 514 position-embedding window avoids the 512-token chunk overflow that BERT-base / TinyBERT hit on dense JSON tool outputs.
 - No external service required — compression runs in-process via `@huggingface/transformers` + `@tensorflow/tfjs`.
 - Compression is applied **in place** on older message parts (not as a single summary): tool outputs are compressed aggressively, assistant text/reasoning lightly, user-message text very lightly. Tool *inputs* (the SQL queries) and `errorText` are never compressed. The active user turn and everything after it is protected.
 - All compression passes `forceReserveDigit: true` so numeric callback values (revenue figures, IDs, row counts) survive.
 - Environment variables (rate = fraction of tokens retained; **higher = lighter compression**):
-  - `LLMLINGUA_MODEL` — Hugging Face repo id. Default `atjsh/llmlingua-2-js-tinybert-meetingbank`. Larger BERT/XLM-RoBERTa variants are available; see the package README.
+  - `LLMLINGUA_MODEL` — Hugging Face repo id. Default `atjsh/llmlingua-2-js-xlm-roberta-large-meetingbank` (XLM-RoBERTa-large, ~2.24 GB). For a much smaller cache footprint set `LLMLINGUA_MODEL=atjsh/llmlingua-2-js-tinybert-meetingbank` (~57 MB), but be aware dense JSON tool outputs will fail compression on BERT-512 models.
   - `LLMLINGUA_RATE_TOOL` — rate for tool outputs (JSON result rows, schema dumps). Default `0.5` (retain 50%).
   - `LLMLINGUA_RATE_LLM` — rate for assistant `text` and `reasoning` parts. Default `0.8` (retain 80%).
   - `LLMLINGUA_RATE_USER` — rate for prior user-message text. Default `0.85` (retain 85%).
