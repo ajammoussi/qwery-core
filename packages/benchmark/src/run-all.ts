@@ -164,7 +164,10 @@ async function main() {
   await loadBenchmarkEnv();
 
   const rawArgs = process.argv.slice(2);
-  const sanitizedArgs = rawArgs[0] === '--' ? rawArgs.slice(1) : rawArgs;
+  // Drop any stray `--` separators pnpm/npm may leave in the args. They land
+  // mid-string when compound scripts (e.g. `run:saas`) prepend their own flags
+  // and a downstream `--` would otherwise terminate option parsing.
+  const sanitizedArgs = rawArgs.filter((a) => a !== '--');
 
   const { values, positionals } = parseArgs({
     args: sanitizedArgs,

@@ -12,7 +12,13 @@ import type {
   AssistantMessageDetail,
   AnaphoricReference,
   BenchmarkCallback,
+  CompactionEvent,
 } from './types.js';
+import {
+  extractKnownTables,
+  computeSQLValidityRate,
+  computeSchemaGroundingRate,
+} from './sql-analyzer.js';
 import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -106,29 +112,54 @@ export function calculateMetrics(
   );
 
   // Collect all compaction events across the session
-  const allCompactionEvents = turns
-    .filter((t) => t.compactionEvent)
-    .map((t) => t.compactionEvent);
+  const compactionEvents = turns
+    .map((t) => t.compactionEvent)
+    .filter((e): e is CompactionEvent => !!e);
 
-  const firstCompactionTurn = turns.find((t) => t.compactionEvent);
-  const compactionLatencyMs = firstCompactionTurn?.compactionEvent?.latencyMs ?? null;
+  // Keep first-event latency for backward compat with existing result JSON files
+  const compactionLatencyMs = compactionEvents[0]?.latencyMs ?? null;
 
-  // Calculate average compression ratio across all compaction events
-  const validEvents = allCompactionEvents.filter(
-    (e): e is NonNullable<typeof e> & { preCompactionTokens: number; summaryTokens: number } =>
-      !!e &&
-      typeof e.preCompactionTokens === 'number' &&
-      typeof e.summaryTokens === 'number',
+  // Sum ALL compaction event latencies
+  const totalCompactionLatencyMs =
+    compactionEvents.length > 0
+      ? compactionEvents.reduce((sum, e) => sum + e.latencyMs, 0)
+      : null;
+
+  const compactionOverheadPct =
+    totalCompactionLatencyMs !== null && totalResponseTimeMs > 0
+      ? Math.round((totalCompactionLatencyMs / totalResponseTimeMs) * 10000) / 100
+      : null;
+
+  // Calculate average compression ratio across all compaction events.
+  // Prefer a strategy-reported ratio (e.g. in-place compactors like llmlingua-2)
+  // and fall back to the summaryTokens/preCompactionTokens heuristic.
+  const validEvents = compactionEvents.filter(
+    (e): e is CompactionEvent & { preCompactionTokens: number; summaryTokens: number } =>
+      typeof e.reportedRatio === 'number' ||
+      (typeof e.preCompactionTokens === 'number' &&
+        typeof e.summaryTokens === 'number'),
   );
 
   const compressionRatio =
     validEvents.length > 0
       ? Math.round(
-          (validEvents.reduce((sum, e) => sum + e.summaryTokens / e.preCompactionTokens, 0) /
+          (validEvents.reduce(
+            (sum, e) =>
+              sum +
+              (typeof e.reportedRatio === 'number'
+                ? e.reportedRatio
+                : e.summaryTokens! / e.preCompactionTokens!),
+            0,
+          ) /
             validEvents.length) *
             1000,
         ) / 1000
       : null;
+
+  // SQL quality metrics
+  const knownTables = extractKnownTables(turns);
+  const sqlValidityRate = computeSQLValidityRate(turns);
+  const schemaGroundingRate = computeSchemaGroundingRate(turns, knownTables);
 
   // --- Quality metrics (require session annotations) ---
 
@@ -226,6 +257,13 @@ export function calculateMetrics(
     toolSuccessRate,
     compressionRatio,
     compactionLatencyMs,
+    totalCompactionLatencyMs,
+    compactionOverheadPct,
+    sqlValidityRate,
+    schemaGroundingRate,
+    queryConsistencyRate: null,
+    geminiJudge: null,
+    geminiContextScore: null,
   };
 }
 
@@ -391,6 +429,13 @@ export function createEmptyResult(
       toolSuccessRate: null,
       compressionRatio: null,
       compactionLatencyMs: null,
+      totalCompactionLatencyMs: null,
+      compactionOverheadPct: null,
+      sqlValidityRate: null,
+      schemaGroundingRate: null,
+      queryConsistencyRate: null,
+      geminiJudge: null,
+      geminiContextScore: null,
     },
     errors: [],
   };

@@ -273,6 +273,9 @@ export interface CompactionEvent {
   summaryTokens?: number;
   preCompactionTokens?: number;
   latencyMs: number;
+  // Strategy-reported compressed/original ratio. When set, overrides the
+  // summaryTokens/preCompactionTokens heuristic in metric aggregation.
+  reportedRatio?: number;
 }
 
 export interface ToolCallResult {
@@ -283,6 +286,29 @@ export interface ToolCallResult {
   executionTimeMs: number;
   success: boolean;
   error?: string;
+}
+
+export type GeminiFailureCategory =
+  | 'filter_drift'       // an established filter was not applied
+  | 'entity_confusion'   // wrong entity, date range, or category referenced
+  | 'baseline_loss'      // prior analytical baseline or reference value not retained
+  | 'correction_ignored' // an explicit user correction from an earlier turn was ignored
+  | 'none';
+
+export interface GeminiDimensionScore {
+  score: number;      // 0–5
+  reasoning: string;  // one-sentence explanation
+}
+
+export interface GeminiJudgeResult {
+  dimensions: {
+    filterPersistence: GeminiDimensionScore;
+    entityContinuity: GeminiDimensionScore;
+    correctionPersistence: GeminiDimensionScore;
+    analyticalThread: GeminiDimensionScore;
+  };
+  failureCategories: GeminiFailureCategory[];
+  overall: number;  // avg(dims) * 2, normalized to 0–10
 }
 
 export interface SessionMetrics {
@@ -304,6 +330,20 @@ export interface SessionMetrics {
   // Strategy-level aggregates; null when no compaction event was observed
   compressionRatio: number | null;
   compactionLatencyMs: number | null;
+  // Sum of ALL compaction event latencies across the session
+  totalCompactionLatencyMs: number | null;
+  // totalCompactionLatencyMs / totalResponseTimeMs * 100
+  compactionOverheadPct: number | null;
+  // % of runQuery calls with syntactically valid SQL (null if no runQuery calls)
+  sqlValidityRate: number | null;
+  // % of runQuery SQL where all table refs appear in getSchema output (null if no schema captured)
+  schemaGroundingRate: number | null;
+  // % of re-executed post-compaction queries matching stored row count (null until verify:consistency runs)
+  queryConsistencyRate: number | null;
+  // Structured Gemini judge result (null until verify:consistency runs)
+  geminiJudge: GeminiJudgeResult | null;
+  // Convenience scalar: geminiJudge.overall (null until verify:consistency runs)
+  geminiContextScore: number | null;
 }
 
 export interface BenchmarkResult {
