@@ -119,43 +119,129 @@ The tags make cross-session analysis tractable: instead of reading individual tu
 
 **Why Gemini specifically**: The judge needs to see the complete original conversation (ground truth) plus the compressed summary plus the re-run response — all at once. Gemini's 1M-token context window makes this feasible for long sessions. The benchmark model runs with the *stripped* context; Gemini runs with *everything*.
 
-### Limitations of the judge
+### Limitations of the judge (current version)
 
+- **Infers ground truth from free text**: the judge reads 30+ turns of history and guesses what corrections/filters were established. This is unreliable — as demonstrated by qwery-default scoring 8.0/10 despite applying established constraints 0% of the time.
 - Scores are per-turn samples, not full sessions. 5 sampled turns is a heuristic.
-- Gemini itself can be inconsistent across runs (different score on the same input at different times). For final report figures, increase `--sample` and consider averaging two independent judge passes.
-- Turns without SQL (purely analytical responses) are harder to evaluate — Gemini may score them higher or lower depending on how much analytical language it deems equivalent.
+- Gemini itself can be inconsistent across runs. For final report figures, increase `--sample` and consider averaging two independent judge passes.
+- Turns without SQL are harder to evaluate accurately.
+
+**These limitations are addressed in the upgraded judge** (see *Planned Improvements*): session annotations provide structured ground truth, and conversation-type-specific dimensions ensure each scenario type is evaluated on the failure modes it is designed to expose.
 
 ---
 
-## Observed Results (2026-05-27)
+## Observed Results (2026-05-29)
 
-Only `qwery-default/plain/tpch/dcs/tpch-dcs-001` has been run through the full pipeline so far.
+All four compression strategies have been run on `tpch-dcs-001` (DCS = Deep Callback Session, 32-turn SQL analytics conversation establishing two persistent rules at turns 3–4 then making a cross-boundary callback at turn 25).
 
-### Inline metrics
+### Inline metrics (all strategies / tpch-dcs-001)
 
-| Method | SQL Validity | Schema Grounding | Compaction Latency | Overhead |
-|--------|-------------|------------------|--------------------|----------|
-| baseline-no-compression / plain | 90.6% | 81.3% | — | — |
-| qwery-default / plain | 93.3% | 93.3% | 19,318 ms | 2.1% |
-| qwery-default / 4zone | n/a (0 tool calls recorded) | n/a | 15,149 ms | 1.6% |
+| Strategy | mode | compressionRatio | sqlValidityRate | schemaGroundingRate | compactionOverhead% | totalResponseTimeMs |
+|---|---|---|---|---|---|---|
+| baseline-no-compression | plain | — | 90.6% | 81.3% | — | (baseline) |
+| qwery-default | plain | 0.109 | 100% | 87.5% | 0.62% | 1,401,765 |
+| qwery-default | 4zone | 0.017 | 96.8% | 93.5% | ~0% | 1,394,838 |
+| headroom | plain | 0.269 | 96.6% | 93.1% | 0.62% | 711,735 |
+| headroom | 4zone | 0.384 | — | — | 0.31% | 1,593,435 |
+| recomp-extractive | plain | 0.022 | 100% | 96.0% | 1.52% | 1,316,547 |
+| recomp-extractive | 4zone | 0.031 | — | — | 0.85% | 596,708 |
+| llmlingua-2 | plain | 0.828 | 100% | 71.4% | 23.49% | 1,139,273 |
 
-Note: The 4zone result has 0 tool calls recorded — likely a logging issue in the 4zone runner path, not an actual agent behavior problem.
+*qwery-default/4zone has 0 tool calls recorded — logging issue in the 4zone runner path, not an agent behavior problem.
 
-### Post-processing metrics (qwery-default / plain / tpch-dcs-001, 5 sampled turns)
+### Post-processing metrics (verify:consistency, 5 sampled turns each)
 
-| Metric | Value |
-|--------|-------|
-| Row-count match rate | 60% (first run) / 0% (second run — DB down) |
-| **Gemini context score** | **6.67 / 10** |
-| ↳ filter_persistence | **2.00 / 5** |
-| ↳ entity_continuity | **5.00 / 5** |
-| ↳ correction_persistence | **1.67 / 5** |
-| ↳ analytical_thread | **4.67 / 5** |
-| Dominant failure categories | `filter_drift` (2 turns), `correction_ignored` (2 turns) |
+| Strategy | mode | Gemini score | queryConsistencyRate | dominant failures |
+|---|---|---|---|---|
+| qwery-default | plain | **7.87 / 10** | 100% | filter_drift(3), correction_ignored(2) |
+| qwery-default | 4zone | 6.00 / 10 | 80% | filter_drift(4), correction_ignored(4) |
+| headroom | plain | 6.88 / 10 | 80% | filter_drift, entity_confusion |
+| recomp-extractive | plain | 6.0 / 10 | 80% | filter_drift, correction_ignored |
+| llmlingua-2 | plain | 6.3 / 10 | 22%† | entity_confusion |
 
-### Interpretation
+†The llmlingua-2 consistency rate is architecturally misleading — see Findings #3.
 
-Entity recall and analytical intent are preserved well by `qwery-default`. The weak spots are filter and correction persistence — exactly the dimensions most sensitive to lossy summarisation. The summary preserves *what tables exist* and *what the analysis is about*, but loses the specific constraints the user established (fiscal year definition, priority exclusions). This is actionable: it points to exactly what the compression summary needs to include more explicitly.
+### 5-LOW filter application (post-compaction, all strategies)
+
+The DCS scenario establishes "exclude all orders with `O_ORDERPRIORITY = '5-LOW'`" at turn 4. This tracks how many post-compaction `runQuery` calls correctly apply this rule:
+
+| Strategy | queries with 5-LOW exclusion | total post-compaction queries |
+|---|---|---|
+| qwery-default | **0** | 12 |
+| headroom | 2 | 17 |
+| recomp-extractive | **0** | 11 |
+| llmlingua-2 | 6 | 23 |
+
+---
+
+## Findings
+
+### 1. filter_drift is universal
+
+All four strategies fail to consistently apply the `5-LOW` order priority exclusion after compaction. Root cause per strategy:
+
+- **qwery-default**: The LLM narrative summary (1,049 chars) describes analytical results but omits the operational constraint entirely. The summary says "Analyzed order priority distribution (5 priorities, ~300K each)" — no mention of the exclusion rule.
+- **headroom**: The rule text is present in the 5,646-char compressed message join ("Exclude order priority '5-LOW' (test orders)"), but it gets buried among data tables and compressed placeholders. The agent doesn't consistently surface it.
+- **recomp-extractive**: Output starts mid-sentence ("2. **Exclude '5-LOW'...**") — the first item and the fiscal year rule are already gone. The compressor also leaks its own metadata into the context ("Method: RECOMP Extractive, Tokens before: 1719...").
+- **llmlingua-2**: Best result (6/23 = 26%) because it compresses in-place — the agent still sees all 15 turns with ~17% of tokens removed. The original turn establishing the rule is still present; only token-level compression may degrade the surrounding context.
+
+### 2. Gemini judge rewards narrative coherence over constraint correctness
+
+`qwery-default` scores 8.0/10 despite applying the constraint 0% of the time. The judge's `analyticalThread` and `entityContinuity` dimensions reward clean narrative flow; `filterPersistence` and `correctionPersistence` don't catch the failure because Gemini has to *infer* from free text what constraints were established — and it bases that inference on the summary's fluency, not its completeness.
+
+**Takeaway**: The direct 5-LOW filter count and `queryConsistencyRate` are more reliable signals for constraint preservation than the Gemini score in its current form. The judge is being upgraded to use session annotations (structured ground truth) as its evaluation basis — see *Planned improvements* below.
+
+### 3. llmlingua-2 `queryConsistencyRate` is architecturally invalid
+
+`verify:consistency` provides the compressed summary as synthetic context for re-execution. For llmlingua-2, the "summary" is a 91-char log line (`[llmlingua-2] compressed parts — tokens 4657 → 3858`). The re-run agent has no context at all, producing completely different SQL → 22% row-count match. This measures the absence of a summary, not the strategy's quality. llmlingua-2 requires a different evaluation path (compare original in-context turns vs. token-compressed turns directly, without stripping history).
+
+### 4. `compactionOverheadPct` is llmlingua-2's disqualifying signal
+
+23.5% overhead = 267 seconds of compression time for 15 turns, before the agent can continue. All other strategies are under 2%. This is a practical dealbreaker for interactive use — the XLM-RoBERTa model processes every single message and tool call token-by-token.
+
+### 5. Total token cost is invariant across strategies
+
+All four strategies produce 254k–279k input tokens for the same 32-turn session. Compression at turn 15 doesn't meaningfully reduce total API cost because the conversation rebuilds on top of the compressed context. The benefit of compression is keeping the context *window* manageable, not reducing spend.
+
+### 6. The 4-zone architecture's clearest benefit is compaction speed
+
+With 4-zone, only Zone D (the compressed archive) is passed to the base strategy. This makes recomp-extractive/4zone 4× faster at compaction (5s vs. 20s) and halves its total session time (597s vs. 1,317s). The trade-off: Zone D grows over time, so headroom/4zone compresses progressively more content and ends up 2.2× slower overall.
+
+---
+
+## 4-Zone Architecture Assessment
+
+### Design intent
+
+Zone A (frozen schema), Zone B (rolling entity state JSON), Zone C (recent full-fidelity turns), Zone D (compressed archive). Only Zone D is passed to the base compression strategy; A/B/C are always included at full fidelity. The hypothesis: by keeping filters and corrections explicitly in Zone B's structured state, the agent never loses them even as the archived conversation history gets compressed.
+
+### What works
+
+- Zone A (schema) is correctly populated from `getSchema` tool outputs
+- Zone C (active window) preserves recent turns at full fidelity
+- Zone D isolation reduces compaction cost for expensive strategies (recomp: 4× faster)
+- Per-turn `zonesSnapshot` is recorded in result JSONs, enabling post-hoc analysis
+
+### Zone B captures filters but does not enforce them
+
+Zone B correctly stores active filters with accurate operator semantics, extracted from actual `runQuery` SQL WHERE clauses rather than prose text. On tpch-dcs-001, Zone B contains `{"column": "o_orderpriority", "op": "!=", "value": "5-LOW"}` with the correct negation from Turn 4 onwards. Entity state accuracy = **50%** (the exclusion filter is captured; the fiscal year definition cannot be expressed as a filter predicate).
+
+The remaining gap: the agent treats Zone B as informational context rather than enforced constraints. It applies the filters when the user explicitly references them ("as we established") but not on standalone queries. This is reflected in the re-run judge scores — Turn 26 scored 10/10, standalone lineitem queries scored 0/5 on filter_persistence.
+
+### Gemini judge
+
+The judge is grounded in session annotations (`persistedCorrections`, `anaphoricReferences`, `callbacks`) as structured ground truth rather than inferring constraints from free text. Scoring is weighted by conversation type: DCS weights `callbackResolution` 2×, IRC weights `correctionPersistence` 2×, PTA weights `threadIsolation` 2×. The `entityStateAccuracy` metric provides a deterministic (non-LLM) check of Zone B capture rate.
+
+4zone re-runs inject Zone A + Zone B + Zone D + Zone C context to match what the real agent saw — plain re-runs inject only the compression summary. Both modes are now evaluated fairly.
+
+---
+
+## Conclusions
+
+- **For latency-sensitive production use**: `qwery-default` has the best narrative coherence (8.0/10 Gemini) and low overhead (0.62%), making it suitable when summary fluency matters more than constraint precision.
+- **For constraint-critical scenarios (DCS, IRC)**: No current strategy is reliable. All drop established rules after compaction. The 4-zone architecture with a corrected entity state tracker (extracting from tool calls) is the intended solution.
+- **llmlingua-2**: Only viable if compression latency is acceptable (it isn't at 23.5% overhead) and if the evaluation framework is adapted for its in-place architecture.
+- **recomp-extractive**: Benefits most from 4-zone (2.2× total speedup) but produces the most garbled summaries (starts mid-sentence, leaks metadata).
 
 ---
 
@@ -163,12 +249,14 @@ Entity recall and analytical intent are preserved well by `qwery-default`. The w
 
 | File | Change | Purpose |
 |------|--------|---------|
-| `src/types.ts` | Added `GeminiFailureCategory`, `GeminiDimensionScore`, `GeminiJudgeResult`; added `geminiJudge` field to `SessionMetrics` | Type definitions for structured judge output |
+| `src/types.ts` | Added `GeminiFailureCategory`, `GeminiDimensionScore`, `GeminiJudgeResult`, `entityStateAccuracy` field; optional per-type judge dimensions | Type definitions for structured judge output |
 | `src/sql-analyzer.ts` | **New** | SQL validity + schema grounding helpers; all regex on `toolInput.query` only |
 | `src/utils/extract-tool-calls.ts` | **New** | Shared `extractToolCallsFromParts` (used by runner + verify-consistency) |
-| `src/verify-consistency.ts` | **New** | CLI for re-execution + multi-dimension Gemini judge |
-| `src/session-loader.ts` | Added new metric fields to `calculateMetrics()` + `createEmptyResult()` | Computes inline metrics; initialises new fields to null |
-| `src/extract-results.ts` | Added `nullableAvg`, backward-compat inline recomputation, dimension aggregation + display | Report generator with full metric coverage |
+| `src/verify-consistency.ts` | Updated | Smarter Gemini judge (session annotations + type-specific dims + weighted scoring); `computeEntityStateAccuracy()` for 4zone runs |
+| `src/session-loader.ts` | Added metric fields to `calculateMetrics()` + `createEmptyResult()` | Computes inline metrics; initialises new fields to null |
+| `src/extract-results.ts` | Added `nullableAvg`, dimension aggregation + display, `entityStateAccuracy` printing | Report generator with full metric coverage |
+| `src/zone-architecture/entity-state-tracker.ts` | Added `extractFromToolCalls()` + `extractFiltersFromSQL()` | Correct filter extraction from actual SQL WHERE clauses |
+| `src/compaction/wrappers/with-4zone.ts` | Calls `extractFromToolCalls()` after each turn | Feeds tool-call SQL into Zone B tracker |
 | `package.json` | Added `pg`, `@google/genai`, `verify:consistency` script | Dependencies for SQL re-execution + Gemini judge |
 
 ---
@@ -176,13 +264,13 @@ Entity recall and analytical intent are preserved well by `qwery-default`. The w
 ## Running the Full Pipeline
 
 ```bash
-# 1. Run a session
+# 1. Run a session (do not re-run sessions that already have results)
 pnpm run:qwery-default -- --db tpch --type dcs --indices 1
 
 # 2. Extract inline metrics report
 pnpm extract
 
-# 3. Run the quality judge (requires DB + GEMINI_API_KEY)
+# 3. Run the quality judge (requires live DB + GEMINI_API_KEY in apps/web/.env)
 pnpm verify:consistency \
   --result data/results/qwery-default/plain/tpch/dcs/tpch-dcs-001.json \
   --connection-string postgres://postgres:postgres@localhost:55432/tpch \
@@ -192,3 +280,21 @@ pnpm verify:consistency \
 # 4. Re-extract to pick up patched judge scores
 pnpm extract
 ```
+
+### Re-running verify:consistency on existing results (no benchmark re-run needed)
+
+All four strategy results are already on disk. To get updated judge scores with the improved judge:
+
+```bash
+for method in qwery-default headroom recomp-extractive; do
+  pnpm verify:consistency \
+    --result data/results/$method/plain/tpch/dcs/tpch-dcs-001.json \
+    --connection-string postgres://postgres:postgres@localhost:55432/tpch \
+    --sample 5 --patch
+done
+```
+
+### Connection strings for standard databases
+
+- tpch: `postgres://postgres:postgres@localhost:55432/tpch`
+- saas: `postgres://postgres:postgres@localhost:55433/saas_analytics`

@@ -75,7 +75,11 @@ async function generateReport(compressionMethod?: CompressionMethod, contextMode
         avgGeminiEntityContinuity: number | null;
         avgGeminiCorrectionPersistence: number | null;
         avgGeminiAnalyticalThread: number | null;
+        avgGeminiCallbackResolution: number | null;
+        avgGeminiThreadIsolation: number | null;
+        avgGeminiSchemaGrounding: number | null;
         geminiFailureCategories: Record<string, number>;
+        avgEntityStateAccuracy: number | null;
         totalCompactionLatencyMs: number;
         avgCompactionOverheadPct: number | null;
       };
@@ -133,7 +137,11 @@ async function generateReport(compressionMethod?: CompressionMethod, contextMode
         avgGeminiEntityContinuity: null,
         avgGeminiCorrectionPersistence: null,
         avgGeminiAnalyticalThread: null,
+        avgGeminiCallbackResolution: null,
+        avgGeminiThreadIsolation: null,
+        avgGeminiSchemaGrounding: null,
         geminiFailureCategories: {},
+        avgEntityStateAccuracy: null,
         totalCompactionLatencyMs: 0,
         avgCompactionOverheadPct: null,
       },
@@ -316,6 +324,24 @@ async function generateReport(compressionMethod?: CompressionMethod, contextMode
       report.summary.avgGeminiAnalyticalThread = nullableAvg(
         judgedSessions.map((s) => s.metrics.geminiJudge!.dimensions.analyticalThread.score),
       );
+      report.summary.avgGeminiCallbackResolution = nullableAvg(
+        judgedSessions
+          .map((s) => s.metrics.geminiJudge!.dimensions.callbackResolution?.score)
+          .filter((v): v is number => v !== undefined),
+      );
+      report.summary.avgGeminiThreadIsolation = nullableAvg(
+        judgedSessions
+          .map((s) => s.metrics.geminiJudge!.dimensions.threadIsolation?.score)
+          .filter((v): v is number => v !== undefined),
+      );
+      report.summary.avgGeminiSchemaGrounding = nullableAvg(
+        judgedSessions
+          .map((s) => s.metrics.geminiJudge!.dimensions.schemaGrounding?.score)
+          .filter((v): v is number => v !== undefined),
+      );
+      report.summary.avgEntityStateAccuracy = nullableAvg(
+        report.sessions.map((s) => s.metrics.entityStateAccuracy),
+      );
       const fc: Record<string, number> = {};
       for (const s of judgedSessions) {
         for (const cat of s.metrics.geminiJudge!.failureCategories) {
@@ -398,9 +424,20 @@ async function generateReport(compressionMethod?: CompressionMethod, contextMode
         console.log(`  correction_persistence:     ${report.summary.avgGeminiCorrectionPersistence.toFixed(2)} / 5`);
       if (report.summary.avgGeminiAnalyticalThread !== null)
         console.log(`  analytical_thread:          ${report.summary.avgGeminiAnalyticalThread.toFixed(2)} / 5`);
+      if (report.summary.avgGeminiCallbackResolution !== null)
+        console.log(`  callback_resolution:        ${report.summary.avgGeminiCallbackResolution.toFixed(2)} / 5`);
+      if (report.summary.avgGeminiThreadIsolation !== null)
+        console.log(`  thread_isolation:           ${report.summary.avgGeminiThreadIsolation.toFixed(2)} / 5`);
+      if (report.summary.avgGeminiSchemaGrounding !== null)
+        console.log(`  schema_grounding:           ${report.summary.avgGeminiSchemaGrounding.toFixed(2)} / 5`);
       const fc = report.summary.geminiFailureCategories;
       if (Object.keys(fc).length > 0)
         console.log(`  failure categories:         ${Object.entries(fc).map(([k, v]) => `${k}(${v})`).join(', ')}`);
+    }
+    if (report.summary.avgEntityStateAccuracy !== null) {
+      console.log(
+        `Zone B Entity State Accuracy: ${(report.summary.avgEntityStateAccuracy * 100).toFixed(0)}% of corrections captured`,
+      );
     }
     if (report.summary.totalCompactionLatencyMs > 0) {
       console.log(`Total Compaction Latency: ${report.summary.totalCompactionLatencyMs}ms`);

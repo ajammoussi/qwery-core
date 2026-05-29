@@ -90,20 +90,44 @@ export function with4Zone(
             );
             entityStateTracker.extractFromText(content, false);
 
-            // Schema extraction from tool outputs
+            // Schema extraction from tool outputs + filter extraction from runQuery inputs.
+            // Two message formats co-exist:
+            //   - Repository format (persisted messages): { type: 'tool-runQuery', input: { query } }
+            //   - UIMessage format (in-memory from AI SDK): { type: 'tool-invocation', toolInvocation: { toolName, args } }
             // UIMessages store parts at msg.parts; persisted messages use msg.content.parts
             const parts = (msg.content as { parts?: any[] })?.parts ?? (msg as any).parts ?? [];
+            const runQueryCalls: Array<{ toolName: string; toolInput: Record<string, unknown> }> = [];
             for (const part of parts) {
               const partType = typeof part.type === 'string' ? part.type : '';
-              const toolName = part.toolName || (partType.startsWith('tool-') ? partType.slice(5) : '');
-              
-              if (toolName === 'getSchema' || toolName === 'describeTables') {
-                const schemaText =
-                  typeof part.output === 'string'
-                    ? part.output
-                    : JSON.stringify(part.output ?? '');
-                mgr.populateZoneA(schemaText, []);
+
+              if (partType === 'tool-invocation' && part.toolInvocation) {
+                // UIMessage format: { type: 'tool-invocation', toolInvocation: { toolName, args, state, result } }
+                const inv = part.toolInvocation as { toolName?: string; args?: Record<string, unknown>; state?: string; result?: unknown };
+                const invName = inv.toolName ?? '';
+                if (invName === 'getSchema' || invName === 'describeTables') {
+                  if (inv.state === 'result') {
+                    const schemaText = typeof inv.result === 'string' ? inv.result : JSON.stringify(inv.result ?? '');
+                    mgr.populateZoneA(schemaText, []);
+                  }
+                } else if (invName === 'runQuery' && inv.args && typeof inv.args === 'object') {
+                  runQueryCalls.push({ toolName: 'runQuery', toolInput: inv.args });
+                }
+              } else {
+                // Repository format: { type: 'tool-runQuery', toolName?: string, input?: {...}, output?: ... }
+                const toolName = part.toolName || (partType.startsWith('tool-') ? partType.slice(5) : '');
+                if (toolName === 'getSchema' || toolName === 'describeTables') {
+                  const schemaText =
+                    typeof part.output === 'string'
+                      ? part.output
+                      : JSON.stringify(part.output ?? '');
+                  mgr.populateZoneA(schemaText, []);
+                } else if (toolName === 'runQuery' && part.input && typeof part.input === 'object') {
+                  runQueryCalls.push({ toolName: 'runQuery', toolInput: part.input as Record<string, unknown> });
+                }
               }
+            }
+            if (runQueryCalls.length > 0) {
+              entityStateTracker.extractFromToolCalls(runQueryCalls);
             }
           }
         }

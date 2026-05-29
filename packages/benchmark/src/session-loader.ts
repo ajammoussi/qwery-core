@@ -289,6 +289,7 @@ export function calculateMetrics(
     queryConsistencyRate: null,
     geminiJudge: null,
     geminiContextScore: null,
+    entityStateAccuracy: null,
   };
 }
 
@@ -462,6 +463,7 @@ export function createEmptyResult(
       queryConsistencyRate: null,
       geminiJudge: null,
       geminiContextScore: null,
+      entityStateAccuracy: null,
     },
     errors: [],
   };

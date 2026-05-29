@@ -290,10 +290,14 @@ export interface ToolCallResult {
 }
 
 export type GeminiFailureCategory =
-  | 'filter_drift'       // an established filter was not applied
-  | 'entity_confusion'   // wrong entity, date range, or category referenced
-  | 'baseline_loss'      // prior analytical baseline or reference value not retained
-  | 'correction_ignored' // an explicit user correction from an earlier turn was ignored
+  | 'filter_drift'        // an established filter was not applied
+  | 'entity_confusion'    // wrong entity, date range, or category referenced
+  | 'baseline_loss'       // prior analytical baseline or reference value not retained
+  | 'correction_ignored'  // an explicit user correction from an earlier turn was ignored
+  | 'thread_bleed'        // PTA: correction from Thread A applied in Thread B (or vice versa)
+  | 'callback_miss'       // DCS/RCI: agent failed to recall a specific fact from a distant turn
+  | 'schema_hallucination' // SNCJ: agent referenced a non-existent table or column
+  | 'dead_end_regression' // RCI: agent re-pursued a hypothesis already ruled out
   | 'none';
 
 export interface GeminiDimensionScore {
@@ -303,13 +307,18 @@ export interface GeminiDimensionScore {
 
 export interface GeminiJudgeResult {
   dimensions: {
+    // Core dimensions — always present
     filterPersistence: GeminiDimensionScore;
     entityContinuity: GeminiDimensionScore;
     correctionPersistence: GeminiDimensionScore;
     analyticalThread: GeminiDimensionScore;
+    // Type-specific extras — present only when applicable
+    callbackResolution?: GeminiDimensionScore;  // DCS + RCI: recall facts from distant turns
+    threadIsolation?: GeminiDimensionScore;     // PTA: Thread A corrections must not bleed into Thread B
+    schemaGrounding?: GeminiDimensionScore;     // SNCJ: correct table/column recall after compression
   };
   failureCategories: GeminiFailureCategory[];
-  overall: number;  // avg(dims) * 2, normalized to 0–10
+  overall: number;  // weighted avg across applicable dimensions, normalized to 0–10
 }
 
 export interface SessionMetrics {
@@ -346,6 +355,8 @@ export interface SessionMetrics {
   geminiJudge: GeminiJudgeResult | null;
   // Convenience scalar: geminiJudge.overall (null until verify:consistency runs)
   geminiContextScore: number | null;
+  // 4-zone only: % of persistedCorrections correctly reflected in Zone B entity state (null for non-4zone or until verify:consistency runs)
+  entityStateAccuracy: number | null;
 }
 
 export interface BenchmarkResult {

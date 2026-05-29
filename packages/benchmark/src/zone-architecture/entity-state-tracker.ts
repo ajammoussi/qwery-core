@@ -311,6 +311,87 @@ export class EntityStateTracker {
     return extraction;
   }
 
+  /**
+   * Extract filter conditions and table names from actual SQL queries in tool calls.
+   * This gives Zone B ground-truth filter conditions with correct operators — unlike
+   * extractFromText(), which reads prose and misreads exclusion semantics (e.g. seeing
+   * "exclude orders with op = '5-LOW'" and storing op='=' instead of op='!=').
+   */
+  extractFromToolCalls(
+    toolCalls: Array<{ toolName: string; toolInput: Record<string, unknown> }>,
+  ): void {
+    for (const tc of toolCalls) {
+      if (tc.toolName !== 'runQuery') continue;
+      const sql = String(tc.toolInput['query'] ?? '');
+      if (!sql) continue;
+      this.extractFiltersFromSQL(sql);
+      this.extractTablesFromSQL(sql);
+    }
+  }
+
+  private extractFiltersFromSQL(sql: string): void {
+    // WHERE-clause filter extraction — the SQL is always real SQL so no keyword guard needed
+    const filterPatterns = [
+      /([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\s*(=|!=|<>|>=|<=|>|<)\s*(?:'[^']*'|"[^"]*"|\d+(?:\.\d+)?)/gi,
+      /([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\s+\bIS\s+(NOT\s+)?NULL\b/gi,
+      /([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\s+(NOT\s+)?\bLIKE\b\s+(?:'[^']*'|"[^"]*")/gi,
+      /([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\s+(NOT\s+)?\bIN\b\s*\(/gi,
+    ];
+
+    for (const pattern of filterPatterns) {
+      let match;
+      while ((match = pattern.exec(sql)) !== null) {
+        const rawCol = match[1] ?? '';
+        const parts = rawCol.split('.');
+        const column = parts[parts.length - 1]!;
+        if (!column) continue;
+
+        const fullMatch = match[0];
+        const upperMatch = fullMatch.toUpperCase();
+        let op: EntityFilter['op'] = '=';
+        let value: string | string[] | number | null = null;
+
+        if (upperMatch.includes('IS NOT NULL')) {
+          op = 'IS NOT NULL';
+        } else if (upperMatch.includes('IS NULL')) {
+          op = 'IS NULL';
+        } else if (upperMatch.includes('NOT LIKE')) {
+          op = 'NOT LIKE' as EntityFilter['op'];
+          const valMatch = fullMatch.match(/'([^']*)'|"([^"]*)"/);
+          value = valMatch ? (valMatch[1] ?? valMatch[2] ?? '') : null;
+        } else if (upperMatch.includes('LIKE')) {
+          op = 'LIKE';
+          const valMatch = fullMatch.match(/'([^']*)'|"([^"]*)"/);
+          value = valMatch ? (valMatch[1] ?? valMatch[2] ?? '') : null;
+        } else if (upperMatch.includes('NOT IN')) {
+          op = 'NOT IN' as EntityFilter['op'];
+        } else if (upperMatch.includes(' IN ') || upperMatch.includes(' IN(')) {
+          op = 'IN';
+        } else {
+          const opMatch = fullMatch.match(/\s*(!=|<>|>=|<=|>|<|=)\s*/);
+          if (opMatch) op = opMatch[1] as EntityFilter['op'];
+          const valMatch = fullMatch.match(/(?:!=|<>|>=|<=|>|<|=)\s*(?:'([^']*)'|"([^"]*)"|(\d+(?:\.\d+)?))/);
+          if (valMatch) value = valMatch[1] ?? valMatch[2] ?? valMatch[3] ?? '';
+        }
+
+        this.addFilter({ column, op, value });
+      }
+    }
+  }
+
+  private extractTablesFromSQL(sql: string): void {
+    const tablePatterns = [
+      /\b(?:FROM|JOIN)\s+(?:"?[^\s"]+"?\.)?\[?([a-z_][a-z0-9_]*)\]?/gi,
+    ];
+    for (const pattern of tablePatterns) {
+      let match;
+      while ((match = pattern.exec(sql)) !== null) {
+        const tableName = match[1];
+        if (tableName) this.addTable(tableName);
+      }
+    }
+  }
+
   toJSON(): string {
     return JSON.stringify(this.state, null, 2);
   }
