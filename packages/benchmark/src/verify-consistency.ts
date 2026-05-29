@@ -632,6 +632,7 @@ async function main() {
   let exactMatches = 0;
   let rowCountMatches = 0;
   const perTurnJudgments: GeminiJudgeResult[] = [];
+  const perTurnDetails: Array<{ turnNumber: number } & GeminiJudgeResult> = [];
   const entityStateAccuracies: number[] = [];
 
   try {
@@ -721,6 +722,7 @@ async function main() {
 
       if (judgment) {
         perTurnJudgments.push(judgment);
+        perTurnDetails.push({ turnNumber: refTurn.turnNumber, ...judgment });
         const { dimensions: d, failureCategories: fc, overall } = judgment;
         console.log(`  Gemini overall: ${overall.toFixed(1)}/10`);
         console.log(`    filter_persistence:     ${d.filterPersistence.score}/5 — ${d.filterPersistence.reasoning}`);
@@ -821,6 +823,7 @@ async function main() {
           overall: geminiOverall ?? 0,
         };
         result.metrics.geminiContextScore = geminiOverall;
+        result.metrics.geminiJudgePerTurn = perTurnDetails;
       }
 
       await writeFile(resultPath, JSON.stringify(result, null, 2), 'utf-8');

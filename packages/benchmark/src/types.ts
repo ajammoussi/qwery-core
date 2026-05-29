@@ -357,6 +357,8 @@ export interface SessionMetrics {
   geminiContextScore: number | null;
   // 4-zone only: % of persistedCorrections correctly reflected in Zone B entity state (null for non-4zone or until verify:consistency runs)
   entityStateAccuracy: number | null;
+  // Per-turn Gemini judge results with full reasoning text (null until verify:consistency runs)
+  geminiJudgePerTurn: Array<{ turnNumber: number } & GeminiJudgeResult> | null;
 }
 
 export interface BenchmarkResult {

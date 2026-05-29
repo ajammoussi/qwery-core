@@ -290,6 +290,7 @@ export function calculateMetrics(
     geminiJudge: null,
     geminiContextScore: null,
     entityStateAccuracy: null,
+    geminiJudgePerTurn: null,
   };
 }
 
@@ -464,6 +465,7 @@ export function createEmptyResult(
       geminiJudge: null,
       geminiContextScore: null,
       entityStateAccuracy: null,
+      geminiJudgePerTurn: null,
     },
     errors: [],
   };
