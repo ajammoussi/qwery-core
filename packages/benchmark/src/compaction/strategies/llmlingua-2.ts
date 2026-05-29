@@ -273,9 +273,21 @@ export const llmlingua2Strategy: CompactionStrategy = {
         return 'continue';
       }
 
-      await Promise.all(
+      const updateResults = await Promise.allSettled(
         pendingUpdates.map((u) => input.repositories.message.update(u)),
       );
+      for (const r of updateResults) {
+        if (r.status === 'rejected') {
+          const err = r.reason;
+          if (err instanceof Error && err.message.includes('not found')) {
+            console.warn(
+              `[llmlingua-2] skipping update — message not found in repository (id may be synthetic): ${err.message}`,
+            );
+          } else {
+            throw err;
+          }
+        }
+      }
 
       const totalBefore =
         buckets.tool.before + buckets.llm.before + buckets.user.before;

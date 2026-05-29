@@ -511,6 +511,7 @@ function buildZoneDOnlyInput(
             },
           ],
         },
+        metadata: { summary: true },
       },
       {
         id: originalInput.parentID,
