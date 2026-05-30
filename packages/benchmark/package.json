@@ -11,6 +11,7 @@
     "run:qwery-default": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method qwery-default",
     "run:headroom": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method headroom",
     "run:recomp": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method recomp-extractive",
+    "run:llmlingua-2": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method llmlingua-2",
     "run:compression": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts",
     "verify:strategy": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/verify-strategy.ts",
     "inspect:llmlingua-2": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/inspect-llmlingua-2.ts",

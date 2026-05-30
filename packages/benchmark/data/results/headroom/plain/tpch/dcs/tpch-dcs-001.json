@@ -23545,33 +23545,123 @@
     "compactionOverheadPct": 0.62,
     "sqlValidityRate": 0.966,
     "schemaGroundingRate": 0.931,
-    "queryConsistencyRate": 0.8,
+    "queryConsistencyRate": 0.6,
     "geminiJudge": {
       "dimensions": {
         "filterPersistence": {
-          "score": 1.25,
-          "reasoning": "avg of 4 turns"
+          "score": 5,
+          "reasoning": "avg of 3 turns"
         },
         "entityContinuity": {
           "score": 5,
-          "reasoning": "avg of 4 turns"
+          "reasoning": "avg of 3 turns"
         },
         "correctionPersistence": {
-          "score": 2.5,
-          "reasoning": "avg of 4 turns"
+          "score": 5,
+          "reasoning": "avg of 3 turns"
         },
         "analyticalThread": {
           "score": 5,
-          "reasoning": "avg of 4 turns"
+          "reasoning": "avg of 3 turns"
+        },
+        "callbackResolution": {
+          "score": 5,
+          "reasoning": "avg of 3 turns"
         }
       },
-      "failureCategories": [
-        "filter_drift",
-        "correction_ignored"
-      ],
-      "overall": 6.88
+      "failureCategories": [],
+      "overall": 10
     },
-    "geminiContextScore": 6.88
+    "geminiContextScore": 10,
+    "geminiJudgePerTurn": [
+      {
+        "turnNumber": 17,
+        "dimensions": {
+          "filterPersistence": {
+            "score": 5,
+            "reasoning": "No established filters or exclusions were relevant or required for this query, so none were incorrectly omitted."
+          },
+          "entityContinuity": {
+            "score": 5,
+            "reasoning": "The re-run correctly identified 'lineitem' as the table of interest and 'quantity' as the column for aggregation."
+          },
+          "correctionPersistence": {
+            "score": 5,
+            "reasoning": "The established corrections (fiscal year and order priority exclusion) were not applicable to this specific query and therefore did not need to be applied."
+          },
+          "analyticalThread": {
+            "score": 5,
+            "reasoning": "The user shifted to a basic data exploration query, and the agent accurately provided the requested statistic for the 'lineitem' table."
+          },
+          "callbackResolution": {
+            "score": 5,
+            "reasoning": "No specific facts or values established in distant turns were required for this query."
+          }
+        },
+        "failureCategories": [
+          "none"
+        ],
+        "overall": 10
+      },
+      {
+        "turnNumber": 19,
+        "dimensions": {
+          "filterPersistence": {
+            "score": 5,
+            "reasoning": "The established filters (fiscal year definition, excluding '5-LOW' priority) are not applicable to this specific query about line item discounts and quantities, so no filters were incorrectly applied or omitted."
+          },
+          "entityContinuity": {
+            "score": 5,
+            "reasoning": "The re-run correctly focused on 'discount' and 'quantity' from the 'lineitem' table, aligning with the user's request."
+          },
+          "correctionPersistence": {
+            "score": 5,
+            "reasoning": "No explicit corrections from the established list were relevant to or required for this specific turn's query."
+          },
+          "analyticalThread": {
+            "score": 5,
+            "reasoning": "The re-run accurately understood the user's intent to investigate the relationship between discount and quantity, providing a statistical analysis and clear conclusion."
+          },
+          "callbackResolution": {
+            "score": 5,
+            "reasoning": "No specific facts or values from distant turns needed to be recalled or applied for this query."
+          }
+        },
+        "failureCategories": [
+          "none"
+        ],
+        "overall": 10
+      },
+      {
+        "turnNumber": 21,
+        "dimensions": {
+          "filterPersistence": {
+            "score": 5,
+            "reasoning": "The established filter for '5-LOW' order priority is not applicable to a lineitem return flag breakdown, so its omission is correct."
+          },
+          "entityContinuity": {
+            "score": 5,
+            "reasoning": "The re-run correctly identified 'l_returnflag' from the lineitem table as the entity for 'return flags by type'."
+          },
+          "correctionPersistence": {
+            "score": 5,
+            "reasoning": "Neither the fiscal year definition nor the order priority exclusion were applicable to this specific query, so no corrections were violated."
+          },
+          "analyticalThread": {
+            "score": 5,
+            "reasoning": "The re-run correctly understood the request to pivot from 'how many' return flags to 'breakdown by type' for line items."
+          },
+          "callbackResolution": {
+            "score": 5,
+            "reasoning": "No specific numerical facts or values from distant turns were required to be recalled and applied in the output of this particular query."
+          }
+        },
+        "failureCategories": [
+          "none"
+        ],
+        "overall": 10
+      }
+    ]
   },
   "errors": []
 }
