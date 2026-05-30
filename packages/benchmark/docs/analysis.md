@@ -452,7 +452,7 @@ qwery-default/plain is the best plain strategy on every session type. The LLM na
 
 2. **Zone B HAVING/CTE support**: The legacy cohort failure on IRC is a clear gap. Extending `EntityStateTracker.extractFromToolCalls()` to parse `HAVING` conditions and CTE definitions would directly address the most common IRC failure mode.
 
-3. **headroom/4zone on DCS-001**: The only missing headroom/4zone result. DCS has a deterministic single-event boundary — headroom/4zone may fire 0 or 1 events, eliminating the frequency problem entirely. Would confirm whether the PTA catastrophe is purely a frequency artifact.
+3. **headroom/4zone on DCS-001**: Run exists (compressionRatio=0.384 recorded) but unverified — filterPersistenceRate, Gemini score, and queryConsistencyRate are all missing. DCS has a deterministic single-event boundary, so headroom/4zone would fire at most once, preventing the Zone D accumulation seen on PTA. Verifying this would complete the DCS picture and confirm the inline filterPersistenceRate gap vs plain.
 
 4. **Cross-database generalizability**: All sessions above are TPC-H. The saas database (SaaS analytics schema) tests whether findings hold on a different schema structure. saas-dcs-001 results are available for llmlingua-2 and baseline; other strategies not yet run.
 

@@ -161,8 +161,6 @@ From data/results/qwery-default/4zone/tpch/pta/tpch-pta-001.json
 
    Comparison across sessions confirms this: on IRC, 5 of 6 headroom/4zone events are near-instant no-ops (1–9ms, no summary written) — Zone D barely changes, and 4zone improves over plain (5.50 vs 3.45). On SNCJ, Zone D grows 2,782 → 42,903 tokens across 14 real events, yet the score is 8.83 — Zone A holds the schema so Zone D growth is irrelevant. The 1.27 is caused by PTA's thread-isolation requirement meeting headroom's thread-unaware format at the first compaction, not by 4zone firing 20 times.
 
-### Pending (4zone mode)
-
 7. **recomp/4zone shows split personality: correctionPersistence 1→5, threadIsolation 3→5, but analyticalThread 3→0 and entityContinuity 2→0.** The Zone B entity state appears to anchor explicit corrections well (Gemini scores correctionPersistence/threadIsolation at max), but the extractive Zone D archive loses the analytical *flow* — the agent knows the rules but can't reconstruct where the analysis was heading. Most striking: queryConsistencyRate jumps from 0% to 57.1% — Zone A schema context makes the re-run SQL structurally reproducible even when the narrative context is fragmented.
 
 8. **4zone is not uniformly better on PTA.** Strategy-dependent interaction effects dominate:
@@ -170,4 +168,4 @@ From data/results/qwery-default/4zone/tpch/pta/tpch-pta-001.json
    - recomp: 4.31 → 4.62 (modest, dimension-swapping — structural SQL improves, narrative degrades)
    - headroom: 7.39 → **1.27** (headroom's hash-chunked format loses thread labels at the first compaction; the 4zone accumulation effect compounds it but is not the root cause)
 
-7. **Does 4zone help queryConsistencyRate on PTA?** DCS-001 saw 4zone *hurt* consistency (80% vs 100% plain for qwery-default). On PTA where plain consistency is already near zero, any structured Zone B anchoring of SQL patterns could only help.
+9. **4zone lifts queryConsistencyRate modestly on PTA (12.5% → 20% for qwery-default, 0% → 57.1% for recomp).** Zone A schema context anchors SQL structure for the cold re-run; recomp/4zone's 57.1% spike is the clearest example — the agent can't reconstruct the narrative but writes reproducible join patterns from Zone A alone.

@@ -140,9 +140,9 @@ From data/results/headroom/4zone/tpch/sncj/tpch-sncj-001.json
 
 2. **Zone A eliminates the schemaGrounding failure mode for 4zone strategies.** All 4zone strategies achieve schemaGrounding = 5.0/5 (llmlingua-2/4zone achieves 3.0, qd and hr reach 5.0). In plain mode, llmlingua-2 drops to 3.0 — it compresses away schema content at 21% overhead and the cold-start agent can't reconstruct which columns belong to which table. Zone A holds the raw `getSchema` output verbatim regardless of Zone D compression.
 
-3. **headroom/4zone is the best-performing combination overall (8.83/10) — a complete reversal of PTA.** The mechanism is different from the PTA catastrophe and recovery:
-   - On PTA: headroom/4zone failed because 20 compaction events ground Zone D to dust without thread labels to compensate.
-   - On SNCJ: 15 compaction events occur but Zone A holds the schema, Zone B captures the join key and status filter, and Zone D's loss of narrative is offset. The agent navigates joins using Zone A rather than recalling them from Zone D.
+3. **headroom/4zone is the best-performing combination overall (8.83/10) — a complete reversal of PTA.** The mechanism is clear when compared across sessions:
+   - On PTA: headroom's hash-chunked format lost thread labels at the **first compaction event** (turn 15). By the first sampled turn after compaction, all thread-related Gemini dimensions were already at 0/5. The subsequent Zone D accumulation (3,866 → 209,899 tokens across 19 further events) made recovery impossible, but the damage was done at event 1, not by the frequency.
+   - On SNCJ: 15 compaction events fire, Zone D grows from 2,782 to 42,903 tokens — comparable growth rate — yet Zone A holds the schema that SNCJ's anaphoric references require. headroom's thread-unaware format doesn't matter when Zone A can answer "what columns does REGION have?" directly.
    - entityContinuity: 2.0 (plain) → **4.8 (4zone)** — the largest single-dimension improvement in this benchmark series. Plain headroom's hash-chunks lose entity context; Zone A restores it directly.
 
 4. **headroom/plain has 184.79% compaction overhead — the worst of any combination.** The headroom proxy is spending more wall-clock time compressing the SNCJ session than the actual LLM calls take. The result (6.29 Gemini) is also the worst for the session. The combination of maximum cost and minimum quality makes headroom/plain the only result in this series where the compression is unambiguously counterproductive vs baseline.

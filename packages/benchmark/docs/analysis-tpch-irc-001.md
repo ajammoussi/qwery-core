@@ -1,6 +1,6 @@
 # Preliminary Analysis — tpch-irc-001 (IRC: Iterative Refinement with Corrections)
 
-> Status: **COMPLETE** — all 6 strategy/mode combinations run and verified (recomp/4zone Gemini score null — quota exhausted, re-verify needed with fresh key)
+> Status: **COMPLETE** — all 6 strategy/mode combinations run and verified
 
 ## 1. What We're Comparing
 
