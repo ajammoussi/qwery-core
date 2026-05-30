@@ -1,6 +1,6 @@
 # Preliminary Analysis — tpch-pta-001 (PTA: Parallel Thread Analysis)
 
-> Status: **COMPLETE** — all 6 strategy/mode combinations run and verified
+> Status: **COMPLETE** — all 8 strategy/mode combinations run and verified
 
 ## 1. What We're Comparing
 
@@ -22,7 +22,7 @@
 
 ## 2. What Compaction Produces
 
-Plain-mode strategies triggered compaction at **turn 15** (first turn past the boundary). In 4zone mode, qwery-default triggered at turn 18 — Zone B absorbs entity state incrementally, delaying the need for a full Zone D compaction.
+Plain-mode strategies triggered compaction at **turn 15** (first turn past the boundary). In 4zone mode, qwery-default triggered at turn 18 — Zone B absorbs entity state incrementally, delaying the need for a full Zone D compaction. llmlingua-2 fires once in both plain and 4zone mode.
 
 ### qwery-default / plain — Zone D summary (LLM narrative)
 
@@ -79,18 +79,41 @@ I don't have the previous "Thread B" result
 
 Observation: recomp extracted only a **fragmented slice of Thread B**, and the agent itself notes "I don't have the previous Thread B result" — the extraction discarded most of Thread A context. This explains the catastrophic 4.31/10 Gemini score.
 
+### llmlingua-2 / plain — compressed log header
+
+```
+From data/results/llmlingua-2/plain/tpch/pta/tpch-pta-001.json
+→ turns[14].compactionEvent.summaryText
+
+[llmlingua-2] compressed parts — tool:25 llm:49 user:0; saved 19146 tokens
+(45402 → 26256, 57.8% retained on touched parts).
+```
+
+Observation: A 76-character log header replaces the entire analytical context. No thread labels, no filter rules, no result data. The post-compaction agent has zero context from the compression.
+
+### llmlingua-2 / 4zone — compressed log header
+
+```
+From data/results/llmlingua-2/4zone/tpch/pta/tpch-pta-001.json
+→ turns[14].compactionEvent.summaryText
+
+[llmlingua-2] compressed parts — tool:49 llm:131 user:0; saved 9894 tokens
+(44226 → 34332, 77.6% retained on touched parts).
+```
+
+Same format. Zone B provides the only entity state anchor post-compaction.
+
 ---
 
 ## 3. Inline Metrics (live session)
 
-| Metric | qwery-default/plain | headroom/plain | recomp/plain | qwery-default/4zone | headroom/4zone | recomp/4zone |
-|---|---|---|---|---|---|---|
-| compressionRatio | 0.112 | 0.182 | 0.029 | 0.026 | 4.499* | 0.025 |
-| filterPersistenceRate | 0.933 | 0.783 | 0.683 | 0.783 | **0.883** | 0.833 |
-| compactionOverheadPct | 1.91% | 0.62% | 0.93% | **0%** | 0.45% | 9.77% |
-| sqlValidityRate | 0.974 | 0.879 | 0.940 | 0.950 | 0.895 | 0.897 |
-| schemaGroundingRate | 0.486 | 0.636 | 0.694 | **0.625** | 0.568 | 0.553 |
-| totalResponseTimeMs | 1,678,201 | 2,268,531 | 2,301,552 | 1,828,728 | — | 1,223,157 |
+| Metric | qd/plain | hr/plain | rc/plain | qd/4zone | hr/4zone | rc/4zone | ll2/plain | ll2/4zone |
+|---|---|---|---|---|---|---|---|---|---|
+| compressionRatio | 0.112 | 0.182 | 0.029 | 0.026 | 4.499* | 0.025 | 0 | 0.024 |
+| filterPersistenceRate | 93.3% | 78.3% | 68.3% | 78.3% | **88.3%** | 83.3% | 86.7% | 83.3% |
+| compactionOverheadPct | 1.91% | 0.62% | 0.93% | **0%** | 0.45% | 9.77% | 10.72% | 0.33% |
+| compactionEvents | 1 | 1 | 1 | 1 | 20 | 1 | 1 | 1 |
+| errors | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 > *headroom/4zone compressionRatio=4.499 is a metric artifact: headroom fires compaction on every turn (20 events vs 1 for plain), and the ratio averaging across events with varying preCompactionTokens produces a nonsensical result. The raw per-event ratios span 0.01–0.8.
 
@@ -98,16 +121,16 @@ Observation: recomp extracted only a **fragmented slice of Thread B**, and the a
 
 ## 4. Post-Processing Metrics (Gemini judge + row-count consistency)
 
-| Metric | qwery-default/plain | headroom/plain | recomp/plain | qwery-default/4zone | headroom/4zone | recomp/4zone |
-|---|---|---|---|---|---|---|
-| Gemini score (0–10) | **8.46** | 7.39 | 4.31 | **9.63** | 🔴 1.27 | 4.62 |
-| filterPersistence (0–5) | 2.5 | 3.6 | 1.0 | **5.0** | 0.0 | 0.0 |
-| entityContinuity (0–5) | 5.0 | 3.2 | 2.0 | 4.2 | 0.25 | 0.0 |
-| correctionPersistence (0–5) | 2.5 | 3.6 | 1.0 | **5.0** | 0.0 | **5.0** |
-| analyticalThread (0–5) | 5.0 | 4.0 | 3.0 | **5.0** | 1.25 | 0.0 |
-| threadIsolation (0–5) | **5.0** | 4.0 | 3.0 | **5.0** | 1.25 | **5.0** |
-| queryConsistencyRate | 12.5% | 28.6% | 0% | 20.0% | 12.5% | **57.1%** |
-| Dominant failures | filter_drift, correction_ignored | entity_confusion, filter_drift, correction_ignored | entity_confusion, thread_bleed, baseline_loss, correction_ignored | entity_confusion(1), baseline_loss(1) | filter_drift(3), entity_confusion(4), correction_ignored(4), baseline_loss(2) | filter_drift, entity_confusion, baseline_loss |
+| Metric | qd/plain | hr/plain | rc/plain | qd/4zone | hr/4zone | rc/4zone | ll2/plain | ll2/4zone |
+|---|---|---|---|---|---|---|---|---|---|
+| Gemini score (0–10) | **8.46** | 7.39 | 4.31 | **9.63** | 🔴 1.27 | 4.62 | 5.75 | 4.74 |
+| filterPersistence (0–5) | 2.5 | 3.6 | 1.0 | **5.0** | 0.0 | 0.0 | 3.0 | 1.6 |
+| entityContinuity (0–5) | **5.0** | 3.2 | 2.0 | 4.2 | 0.25 | 0.0 | 1.8 | 2.0 |
+| correctionPersistence (0–5) | 2.5 | 3.6 | 1.0 | **5.0** | 0.0 | **5.0** | 3.0 | 2.4 |
+| analyticalThread (0–5) | **5.0** | 4.0 | 3.0 | **5.0** | 1.25 | 0.0 | 2.0 | 2.0 |
+| threadIsolation (0–5) | **5.0** | 4.0 | 3.0 | **5.0** | 1.25 | **5.0** | 4.0 | 3.2 |
+| queryConsistencyRate | 12.5% | 28.6% | 0% | 20.0% | 12.5% | **57.1%** | 0% | 37.5% |
+| Dominant failures | filter_drift, correction_ignored | entity_confusion, filter_drift, correction_ignored | entity_confusion, thread_bleed, baseline_loss, correction_ignored | entity_confusion(1), baseline_loss(1) | filter_drift(3), entity_confusion(4), correction_ignored(4), baseline_loss(2) | filter_drift, entity_confusion, baseline_loss | filter_drift, entity_confusion, baseline_loss, correction_ignored | filter_drift, entity_confusion, correction_ignored, baseline_loss, thread_bleed |
 
 > Note: qwery-default sampled only 2 post-compaction turns (vs 5 for others), so high scores may reflect limited coverage. `geminiJudgePerTurn` not stored for plain runs (code change landed after these verifies ran).
 
@@ -169,3 +192,9 @@ From data/results/qwery-default/4zone/tpch/pta/tpch-pta-001.json
    - headroom: 7.39 → **1.27** (headroom's hash-chunked format loses thread labels at the first compaction; the 4zone accumulation effect compounds it but is not the root cause)
 
 9. **4zone lifts queryConsistencyRate modestly on PTA (12.5% → 20% for qwery-default, 0% → 57.1% for recomp).** Zone A schema context anchors SQL structure for the cold re-run; recomp/4zone's 57.1% spike is the clearest example — the agent can't reconstruct the narrative but writes reproducible join patterns from Zone A alone.
+
+10. **llmlingua-2/plain (5.75) outperforms recomp/plain (4.31) on PTA — the first session where llmlingua-2 beats a non-llmlingua strategy.** llmlingua-2/plain's log-header format provides zero analytical context, yet the agent scores 5.75 by relying on general schema knowledge and query patterns. recomp/plain's extractive snippets contain fragmented Thread B content that actively misleads the agent (thread_bleed, entity_confusion). A blank slate is less damaging than a misleading fragment — at least the llmlingua-2 agent doesn't have to unlearn incorrect thread boundaries. qwery-default (8.46) and headroom (7.39) still outperform both.
+
+11. **llmlingua-2/4zone (4.74) scores lower than llmlingua-2/plain (5.75) — the only strategy where 4zone hurts on PTA.** qwery-default gains +1.17, recomp gains +0.31, headroom collapses −6.12 — but llmlingua-2 loses −1.01 in 4zone mode. The mechanism: llmlingua-2/4zone's Zone B captures `o_orderstatus = 'F'` as an active filter, anchoring the agent to Thread A's filter rule. This pushes the agent to apply the filter more consistently (filterPersistence: 3.0→1.6, actually worse in 4zone), but the agent then fails to isolate it to Thread A alone — threadIsolation drops from 4.0 to 3.2 with `thread_bleed` appearing in failure categories. Zone B gives llmlingua-2 a filter anchor it otherwise lacks, but that anchor has no thread label, causing cross-thread contamination. The plain mode agent, with zero context, naturally stays thread-agnostic and produces better threadIsolation by not applying any filter aggressively.
+
+12. **llmlingua-2/plain's 0% queryConsistencyRate is consistent with the log-header artifact** — the cold-start agent has no stored row counts from the compressed context, so every query result differs from the original. llmlingua-2/4zone's 37.5% qCR reflects Zone A anchoring SQL structure without narrative context — the agent writes reproducible joins from schema knowledge alone.

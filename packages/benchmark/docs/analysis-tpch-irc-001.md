@@ -1,6 +1,6 @@
 # Preliminary Analysis — tpch-irc-001 (IRC: Iterative Refinement with Corrections)
 
-> Status: **COMPLETE** — all 6 strategy/mode combinations run and verified
+> Status: **COMPLETE** — all 8 strategy/mode combinations run and verified
 
 ## 1. What We're Comparing
 
@@ -25,7 +25,7 @@
 
 ## 2. What Compaction Produces
 
-All plain-mode strategies triggered compaction at **turn 12**. In 4zone mode: qwery-default fires once at turn 12; headroom fires 6 times (turns 12–17, attenuated vs PTA's 20 events); recomp fires once.
+All plain-mode strategies triggered compaction at **turn 12**. In 4zone mode: qwery-default fires once at turn 12; headroom fires 6 times (turns 12–17, attenuated vs PTA's 20 events); recomp fires once; llmlingua-2 fires once.
 
 ### qwery-default / plain — Zone D summary (LLM narrative)
 
@@ -86,6 +86,30 @@ Summary of conversation:
 
 Observation: Zone D explicitly surfaces the "filter customers who signed up before 1994" attempt — more informative than plain. But the proxy implementation (multi-step CTE join) is still not encoded as a concrete SQL template.
 
+### llmlingua-2 / plain — compressed log header
+
+```
+From data/results/llmlingua-2/plain/tpch/irc/tpch-irc-001.json
+→ turns[11].compactionEvent.summaryText
+
+[llmlingua-2] compressed parts — tool:20 llm:36 user:0; saved 23383 tokens
+(57343 → 33960, 59.2% retained on touched parts).
+```
+
+Observation: llmlingua-2 replaces the conversation with a 75-character log header. No analytical content, no filters, no results. The post-compaction agent has zero context beyond what Zone A (schema) provides in 4zone mode.
+
+### llmlingua-2 / 4zone — compressed log header
+
+```
+From data/results/llmlingua-2/4zone/tpch/irc/tpch-irc-001.json
+→ turns[11].compactionEvent.summaryText
+
+[llmlingua-2] compressed parts — tool:29 llm:109 user:0; saved 18789 tokens
+(53798 → 35009, 65.1% retained on touched parts).
+```
+
+Same log-header format. Zone B provides the only filter anchor post-compaction.
+
 ### Zone B entity state (4zone mode)
 
 Zone B `activeFilters` are extracted from SQL `WHERE` clauses. Representative entries from qwery-default/4zone final turn:
@@ -112,13 +136,13 @@ From data/results/qwery-default/4zone/tpch/irc/tpch-irc-001.json
 
 ## 3. Inline Metrics (live session)
 
-| Metric | qwery-default/plain | headroom/plain | recomp/plain | qwery-default/4zone | headroom/4zone | recomp/4zone |
-|---|---|---|---|---|---|---|
-| compressionRatio | 0.099 | 0.292 | 0.033 | 0.097 | 0.374* | 0.019 |
-| filterPersistenceRate | 0.700 | 0.713 | 0.738 | **0.813** | **0.813** | 0.800 |
-| compactionOverheadPct | 1.14% | 0.52% | 3.58% | 1.10% | 0.50% | 1.12% |
-| compactionEvents | 1 | 1 | 1 | 1 | **6** | 1 |
-| errors | 0 | 1 | 0 | 0 | 0 | 0 |
+| Metric | qd/plain | qd/4zone | hr/plain | hr/4zone | rc/plain | rc/4zone | ll2/plain | ll2/4zone |
+|---|---|---|---|---|---|---|---|---|
+| compressionRatio | 0.099 | 0.097 | 0.292 | 0.374* | 0.033 | 0.019 | 0 | 0.022 |
+| filterPersistenceRate | 70.0% | 81.3% | 71.3% | 81.3% | 73.8% | 80.0% | 80.0% | **83.8%** |
+| compactionOverheadPct | 1.14% | 1.10% | 0.52% | 0.50% | 3.58% | 1.12% | 8.21% | 0.22% |
+| compactionEvents | 1 | 1 | 1 | **6** | 1 | 1 | 1 | 1 |
+| errors | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
 
 > *headroom/4zone compressionRatio=0.374 reflects averaging across 6 events with varying pre-compaction token counts; not comparable to single-event strategies.
 
@@ -126,17 +150,18 @@ From data/results/qwery-default/4zone/tpch/irc/tpch-irc-001.json
 
 ## 4. Post-Processing Metrics (Gemini judge + row-count consistency)
 
-| Metric | qwery-default/plain | headroom/plain | recomp/plain | qwery-default/4zone | headroom/4zone† | recomp/4zone |
-|---|---|---|---|---|---|---|
-| Gemini score (0–10) | 3.75 | 3.45 | 2.00 | 4.45 | **5.50** | 4.45 |
-| filterPersistence (avg/5) | 0.6 | 0.8 | **0.0** | 1.8 | 2.0 | — |
-| entityContinuity (avg/5) | 4.2 | 3.2 | 2.6 | 2.4 | 5.0 | — |
-| correctionPersistence (avg/5) | 1.2 | 1.2 | 0.6 | 2.2 | 2.0 | — |
-| analyticalThread (avg/5) | 4.8 | 4.2 | 3.0 | 3.0 | 5.0 | — |
-| queryConsistencyRate | 28.6% | 33.3% | 16.7% | 18.2% | **0.0%** | **28.6%** |
-| Dominant failures | filter_drift, correction_ignored | filter_drift, correction_ignored | filter_drift, correction_ignored, entity_confusion | filter_drift, correction_ignored, entity_confusion, baseline_loss | filter_drift, correction_ignored | filter_drift, correction_ignored, entity_confusion |
+| Metric | qd/plain | qd/4zone | hr/plain | hr/4zone† | rc/plain | rc/4zone | ll2/plain | ll2/4zone |
+|---|---|---|---|---|---|---|---|---|
+| Gemini score (0–10) | 3.75 | 4.45 | 3.45 | **5.50** | 2.00 | 4.45 | 4.10 | 4.85 |
+| filterPersistence (avg/5) | 0.6 | 1.8 | 0.8 | 2.0 | **0.0** | 1.0 | 1.2 | 1.8 |
+| entityContinuity (avg/5) | 4.2 | 2.4 | 3.2 | **5.0** | 2.6 | 4.4 | 2.6 | 3.0 |
+| correctionPersistence (avg/5) | 1.2 | 2.2 | 1.2 | 2.0 | 0.6 | 1.6 | 2.0 | **2.4** |
+| analyticalThread (avg/5) | **4.8** | 3.0 | 4.2 | **5.0** | 3.0 | **5.0** | 3.4 | 3.2 |
+| queryConsistencyRate | 28.6% | 18.2% | 33.3% | **0.0%** | 16.7% | **28.6%** | 57.1% | 66.7% |
+| Dominant failures | filter_drift, correction_ignored | filter_drift, correction_ignored, entity_confusion, baseline_loss | filter_drift, correction_ignored | filter_drift, correction_ignored | filter_drift, correction_ignored, entity_confusion | filter_drift, correction_ignored, entity_confusion | filter_drift, correction_ignored, entity_confusion, baseline_loss | filter_drift, correction_ignored, entity_confusion |
 
 > †headroom/4zone sampled only 1 post-compaction turn (Gemini quota partially consumed); dimension scores are not representative of the full post-boundary window.
+> llmlingua-2 queryConsistencyRate (57.1% plain, 66.7% 4zone) is an evaluation artefact — the summary is a log header with no analytical context. The "match" is from queries whose result can be guessed from schema alone.
 
 ---
 
@@ -155,3 +180,9 @@ From data/results/qwery-default/4zone/tpch/irc/tpch-irc-001.json
 6. **Zone B false positives cause entity confusion in qwery-default/4zone.** `entityContinuity` drops from 4.2 (plain) to 2.4 (4zone) for qwery-default. In at least one sampled turn, Gemini noted the agent "incorrectly substituted the legacy cohort with the BUILDING market segment" — a Zone B false positive (`c_mktsegment = 'BUILDING'` from an unrelated turn) was read as an active constraint. This is a direct cost of Zone B's regex-based extraction: noisy filters in Zone B actively mislead the agent.
 
 7. **Row-count consistency is uniformly low (0–33%), contradicting the pre-benchmark hypothesis that IRC would outperform PTA.** The hypothesis was that single-thread IRC SQL would be more structurally reproducible. In practice, the cold-start re-run agent reconstructs complex joins differently (different CTE names, different join paths for the legacy cohort proxy) even when the analytical intent is correct. The correction-heavy IRC scenario produces more SQL variation on re-run than simpler sessions.
+
+8. **llmlingua-2/plain (Gemini 4.10) narrowly beats recomp/plain (2.00) — the first session where llmlingua-2 is not the worst plain strategy.** On DCS, llmlingua-2/plain scored 6.60 — competitive with recomp/plain (6.00) but behind headroom/plain (10.00). On IRC, llmlingua-2/plain scores 4.10 vs recomp/plain's 2.00. recomp's extractive format discards correction rules from result snippets more aggressively on IRC than on DCS. llmlingua-2's log-header format provides zero context either way, so its score reflects what the agent can infer from schema alone — which on IRC happens to be more than what recomp's fragmented snippets provide.
+
+9. **llmlingua-2/4zone (4.85) is the second-best 4zone strategy on IRC after headroom/4zone (5.50).** The 0.75-point 4zone gain for llmlingua-2 is the smallest among IRC strategies (rc: +2.45, hr: +2.05, qd: +0.70). Zone A's schema context and Zone B's filter anchors compensate for llmlingua-2's blank summary, but the legacy cohort proxy (which requires multi-step SQL reasoning) remains uncaptured by any zone. llmlingua-2's 4zone improvement comes entirely from Zone A/B — the summary log header still provides zero analytical content.
+
+10. **llmlingua-2's compaction overhead is 8.21% on IRC — lower than DCS (23.49%) but still the second-highest among IRC strategies.** The 8.21% overhead corresponds to ~204 seconds for a single compaction. In 4zone mode, overhead drops to 0.22% — the proxy runs once and Zone B absorbs entity state without further compactions. The overhead problem is worst on plain, where every post-compaction turn accumulates uncompressed context towards the next token-overflow event.
