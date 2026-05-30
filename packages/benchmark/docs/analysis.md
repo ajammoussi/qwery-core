@@ -255,7 +255,7 @@ The false positives (`table_name = 'customer'` from `information_schema.columns`
 
 **Key findings**:
 - qwery-default's LLM summary explicitly labels "Thread 1" and "Thread 2" — the only strategy to produce structural thread separation in Zone D. This is why it uniquely achieves full threadIsolation (5/5) post-compaction.
-- headroom/4zone collapses catastrophically (1.27 vs 7.39 plain). 20 compaction events across turns 15–35 shred Zone D faster than the agent can reconstruct thread context from Zone B (which holds only SQL filter snapshots, not narrative thread labels).
+- headroom/4zone scores 1.27 vs 7.39 plain. The first compaction at turn 15 produces a hash-chunked archive with no thread labels — headroom's format is thread-unaware regardless of mode. 4zone then fires 19 more real events, growing Zone D from 3,866 to 209,899 tokens (accumulation, not compression), which makes recovery impossible. But the thread context was already lost by turn 17. See Finding 5.
 - recomp/4zone shows a surprising queryConsistencyRate spike (0% → 57.1%) — Zone A schema context makes SQL structurally reproducible even though analytical narrative is lost. The agent "knows the rules but not where the analysis was heading."
 
 ### 6c. IRC-001 (4 corrections, all pre-boundary, boundary 12)
@@ -330,7 +330,7 @@ IRC is the worst case because the legacy cohort correction ("signed up before 19
 
 The zone that carries the primary load determines the outcome:
 - **DCS/IRC**: Zone D (LLM narrative) does the heavy lifting. qwery-default's plain narrative is strong; Zone B noise subtracts from it. 4zone hurts qwery-default on DCS.
-- **PTA**: Zone D must preserve thread labels. headroom/4zone shreds Zone D in 20 events; 4zone is catastrophic for headroom.
+- **PTA**: Zone D must preserve thread labels. headroom's hash-chunked format loses them at the first compaction; Zone D then accumulates to 209,899 tokens across 19 further events, making recovery impossible.
 - **SNCJ**: Zone A (schema) is the decisive zone. 4zone makes headroom the best performer because Zone A answers schema recall questions directly, making Zone D compression irrelevant.
 
 The implication: **the 4zone architecture is most beneficial when Zone A schema context is the primary gap in plain mode** (schema-heavy sessions like SNCJ), and least beneficial (or harmful) when the gap is in narrative structure that Zone B cannot encode (semantic corrections like the IRC legacy cohort proxy).
@@ -347,17 +347,21 @@ recomp strips context to extracted result snippets. Corrections are metadata abo
 
 DCS-001 has the fewest corrections and they're concrete column=value rules that often appear in result descriptions. PTA adds thread structure that extraction destroys (explicit "Thread 1 / Thread 2" labels don't survive). IRC adds a semantic proxy that has no result-table representation. recomp loses quality at each step.
 
-### Finding 5: headroom/4zone frequency interaction is session-type-dependent — Zone A can rescue it
+### Finding 5: headroom/4zone's 1.27 on PTA is caused by headroom's format, not 4zone's firing frequency
 
-headroom fires compaction on every turn after the boundary. In 4zone mode this creates repeated Zone D compression. The outcome depends on whether Zone A can carry what Zone D loses:
+The first compaction event at PTA turn 15 (2,540ms, a real proxy call) converts 14 turns of interleaved Thread A / Thread B content into a hash-chunked archive with no thread labels — the same structural failure as headroom/plain, but more consequential. By the first post-compaction sample (turn 17), all five Gemini dimensions except analyticalThread are already at 0/5. Thread context was gone before the "frequency problem" had time to matter.
 
-| Session | headroom/4zone events | headroom/4zone Gemini | vs plain | Zone A role |
+The per-session headroom/4zone event analysis confirms the format-first explanation:
+
+| Session | Real events (>100ms) | Near-instant no-ops | Zone D growth | Gemini |
 |---|---|---|---|---|
-| PTA-001 | **20 events** (turns 15–35) | **1.27** | ↓ from 7.39 | Minimal (PTA needs thread labels, not schema) |
-| IRC-001 | 6 events (turns 12–17) | 5.50† | ↑ from 3.45 | Partial (AMERICA filter captured; legacy cohort not) |
-| SNCJ-001 | **15 events** | **8.83** | ↑ from 6.29 | **Decisive** (all schema recall anaphors answered by Zone A) |
+| PTA-001 | **20** (all events real, Zone D: 3,866→209,899 tok) | 0 | 54× | **1.27** |
+| IRC-001 | 1 (last event only, 4,805ms) | 5 (1–9ms, no summary written) | minimal | 5.50 |
+| SNCJ-001 | 14 (Zone D: 2,782→42,903 tok) | 1 (first event, 3ms) | 15× | **8.83** |
 
-SNCJ has 15 headroom/4zone events — more than IRC, close to PTA — yet achieves the highest score in the series. The difference: SNCJ's analytical challenges are schema recall, and Zone A holds the complete schema verbatim. Zone D's repeated eviction is irrelevant when Zone A provides exactly what the agent needs. PTA's thread labels are narrative constructs that no zone can mechanically substitute.
+IRC improves because headroom barely fires real events — Zone D barely changes. SNCJ fires 14 real events and Zone D grows 15×, yet scores 8.83 because Zone A holds the schema that SNCJ needs. PTA fires 20 real events and Zone D grows 54×, but the agent was already thread-confused from the first event — the accumulation makes recovery impossible rather than causing the initial failure.
+
+**The 1.27 is headroom's thread-unaware format colliding with PTA's thread-isolation requirement, amplified by Zone D accumulation.** It is not a general headroom/4zone architecture failure: headroom/4zone delivers 5.50 on IRC and 8.83 on SNCJ.
 
 ### Finding 6: Zone B captures syntactic filters, not semantic corrections
 
