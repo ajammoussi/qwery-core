@@ -45,7 +45,16 @@ export class EntityStateTracker {
     }
   }
 
+  private static readonly NOISE_COLUMNS = new Set([
+    'table_name', 'column_name', 'table_schema', 'table_catalog',
+    'constraint_name', 'column_default', 'data_type',
+  ]);
+
   addFilter(filter: EntityFilter): void {
+    // Skip information_schema-derived columns — they are schema browsing artefacts,
+    // not user-established constraints, and actively mislead the post-compaction agent.
+    if (EntityStateTracker.NOISE_COLUMNS.has(filter.column)) return;
+
     const existingIndex = this.state.activeFilters.findIndex(
       (f) => f.column === filter.column && f.op === filter.op,
     );
