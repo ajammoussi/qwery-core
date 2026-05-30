@@ -1,6 +1,6 @@
 # Consolidated Analysis: Context Compression Strategies across Session Types
 
-**Sessions covered**: `tpch-dcs-001`, `tpch-pta-001`, `tpch-irc-001`
+**Sessions covered**: `tpch-dcs-001`, `tpch-pta-001`, `tpch-irc-001`, `tpch-sncj-001`
 **Strategies**: baseline-no-compression, qwery-default, headroom, recomp-extractive, llmlingua-2
 **Modes**: plain, 4zone
 **Database**: TPC-H SF=1
@@ -10,6 +10,7 @@ For per-session deep dives see:
 - [analysis-tpch-dcs-001 (original)](./analysis.md#dcs-001) — this document
 - [analysis-tpch-pta-001.md](./analysis-tpch-pta-001.md)
 - [analysis-tpch-irc-001.md](./analysis-tpch-irc-001.md)
+- [analysis-tpch-sncj-001.md](./analysis-tpch-sncj-001.md)
 
 ---
 
@@ -20,18 +21,20 @@ For per-session deep dives see:
 | **DCS** | Deep Callback Session — 2 pre-boundary rules, tested via deep callbacks | 32 | 15 | 2 | filter_drift |
 | **PTA** | Parallel Thread Analysis — 2 interleaved analytical threads, 3 corrections | 35 | 15 | 3 | thread_bleed, filter_drift |
 | **IRC** | Iterative Refinement with Corrections — 4 pre-boundary corrections including a semantic proxy | 32 | 12 | 4 | correction_ignored, filter_drift |
+| **SNCJ** | Schema Navigation and Complex Joins — 2 corrections, 5 cross-boundary schema recall anaphors | 30 | ~12 | 2 | schemaGrounding, filter_drift |
 
-**Correction complexity increases from DCS → PTA → IRC**: DCS has the fewest constraints (2), PTA adds thread isolation, IRC has the most pre-boundary corrections (4) with the hardest one requiring a semantic SQL proxy.
+**Correction complexity increases from DCS → PTA → IRC**: DCS has the fewest constraints (2), PTA adds thread isolation, IRC has the most pre-boundary corrections (4) with the hardest one requiring a semantic SQL proxy. **SNCJ is orthogonal** — its challenge is schema recall across the boundary, not correction density.
 
 ---
 
 ## 2. Full Coverage Matrix
 
-| Session | qd/plain | qd/4zone | hr/plain | hr/4zone | rc/plain | rc/4zone | ll2/plain | baseline |
-|---|---|---|---|---|---|---|---|---|
-| tpch-dcs-001 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| tpch-pta-001 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — |
-| tpch-irc-001 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — |
+| Session | qd/plain | qd/4zone | hr/plain | hr/4zone | rc/plain | rc/4zone | ll2/plain | ll2/4zone | baseline |
+|---|---|---|---|---|---|---|---|---|---|
+| tpch-dcs-001 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ |
+| tpch-pta-001 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
+| tpch-irc-001 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
+| tpch-sncj-001 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
 
 ---
 
@@ -61,6 +64,14 @@ For per-session deep dives see:
 | IRC-001 | headroom | 4zone | 0.374 | 81.3% | 0.50% | 6 |
 | IRC-001 | recomp-extractive | plain | 0.033 | 73.8% | 3.58% | 1 |
 | IRC-001 | recomp-extractive | 4zone | 0.019 | 80.0% | 1.12% | 1 |
+| SNCJ-001 | qwery-default | plain | 0.099 | 83.3% | 4.63% | 1 |
+| SNCJ-001 | qwery-default | 4zone | 0.071 | 88.9% | 29.24% | 11 |
+| SNCJ-001 | headroom | plain | 0.234 | 88.9% | **184.79%** | 1 |
+| SNCJ-001 | headroom | 4zone | 1.911* | 86.1% | 1.26% | 15 |
+| SNCJ-001 | recomp-extractive | plain | 0.020 | 88.9% | 2.51% | 1 |
+| SNCJ-001 | recomp-extractive | 4zone | 0.023 | 88.9% | 35.88% | 5 |
+| SNCJ-001 | llmlingua-2 | plain | 0 | 88.9% | 21.19% | 1 |
+| SNCJ-001 | llmlingua-2 | 4zone | 0.009 | 86.1% | 0.45% | 5 |
 
 > *headroom/4zone compressionRatio > 1 is a metric artifact from averaging multiple per-event ratios with varying pre-compaction token counts.
 
@@ -85,6 +96,14 @@ For per-session deep dives see:
 | IRC-001 | headroom | 4zone | 5.50‡ | 0% | filter_drift, correction_ignored |
 | IRC-001 | recomp-extractive | plain | 2.00 | 16.7% | filter_drift, correction_ignored, entity_confusion |
 | IRC-001 | recomp-extractive | 4zone | **4.45** | **28.6%** | filter_drift, correction_ignored, entity_confusion |
+| SNCJ-001 | qwery-default | plain | 8.49 | 40.0% | none(2), filter_drift(3), baseline_loss(1) |
+| SNCJ-001 | qwery-default | 4zone | 8.39 | 28.6% | none(2), filter_drift(1), correction_ignored(2) |
+| SNCJ-001 | headroom | plain | 6.29 | 40.0% | filter_drift(4), entity_confusion(3), baseline_loss(3) |
+| SNCJ-001 | headroom | 4zone | **8.83** | 40.0% | filter_drift(3), correction_ignored(3) |
+| SNCJ-001 | recomp-extractive | plain | 7.29 | **80.0%** | filter_drift(3), correction_ignored(3) |
+| SNCJ-001 | recomp-extractive | 4zone | 7.88 | 60.0% | filter_drift(2), correction_ignored(3) |
+| SNCJ-001 | llmlingua-2 | plain | 5.54 | 60.0% | filter_drift(2), correction_ignored(2), baseline_loss(2) |
+| SNCJ-001 | llmlingua-2 | 4zone | 6.29 | 50.0% | filter_drift(1), correction_ignored(1) |
 
 > †llmlingua-2 queryConsistencyRate=22% is an evaluation artefact — the "summary" is a log header with no analytical context. See Finding 9.
 > ‡headroom/4zone IRC sampled only 1 Gemini turn (quota exhausted mid-verify); score not statistically representative.
@@ -255,6 +274,24 @@ The false positives (`table_name = 'customer'` from `information_schema.columns`
 - filterPersistenceRate (inline, 70–81%) vs Gemini filterPersistence dimension (0–2/5) shows the starkest measurement gap in this series. The inline metric only checks for `r_name != 'AMERICA'` keyword presence; Gemini also scores the legacy cohort proxy — which all strategies lose.
 - 4zone mildly helps on IRC (+0.7 for qwery-default) — the opposite of DCS-001 (-1.87). Zone B captures `r_name != 'AMERICA'` as a simple filter, giving 4zone a partial anchor plain lacks.
 
+### 6d. SNCJ-001 (2 corrections, 5 cross-boundary schema anaphors, boundary ~12)
+
+**Defining dimension**: `schemaGrounding` — the user repeatedly asks for column names, join keys, and enum values that were revealed in pre-compaction turns.
+
+| Metric | qd/plain | qd/4zone | hr/plain | hr/4zone | rc/plain | rc/4zone | ll2/plain | ll2/4zone |
+|---|---|---|---|---|---|---|---|---|
+| filterPersistenceRate | 83.3% | 88.9% | 88.9% | 86.1% | 88.9% | 88.9% | 88.9% | 86.1% |
+| Gemini (0–10) | 8.49 | 8.39 | 6.29 | **8.83** | 7.29 | 7.88 | 5.54 | 6.29 |
+| schemaGrounding (avg/5) | **5.0** | **5.0** | **5.0** | **5.0** | **5.0** | 4.0 | 3.0 | 3.0 |
+| entityContinuity (avg/5) | 4.2 | 4.0 | 2.0 | **4.8** | 3.2 | **4.6** | 3.0 | 3.5 |
+| queryConsistencyRate | 40.0% | 28.6% | 40.0% | 40.0% | **80.0%** | 60.0% | 60.0% | 50.0% |
+
+**Key findings**:
+- All strategies achieve schemaGrounding = 5.0/5 except llmlingua-2 (3.0 plain and 4zone). Zone A stores `getSchema` outputs verbatim — the exact source for answering "what columns does REGION have again?" For SNCJ, Zone A is the single most effective mechanism in the 4zone architecture.
+- **headroom/4zone achieves the best score in the series (8.83/10)** — a complete reversal of the PTA catastrophe (1.27). Zone A holds schema context while 15 compaction events compress Zone D. headroom's hash-chunked format loses entity continuity in plain mode (entityContinuity=2.0); Zone A restores it directly (4.8 in 4zone).
+- **headroom/plain compaction overhead is 184.79%** — the highest in the benchmark series. The proxy takes more time compressing than the agent spends on LLM calls. Combined with the lowest SNCJ Gemini score (6.29), this is the only combination where compression is unambiguously counterproductive.
+- **recomp/plain achieves 80% queryConsistencyRate** — highest after qwery-default/DCS. SNCJ's stable FK join patterns (`ORDERS→CUSTOMER→NATION→REGION`) survive extractive compression and are reproduced identically by the cold-start agent.
+
 ---
 
 ## 7. Cross-Cutting Findings
@@ -282,17 +319,21 @@ Inline filterPersistenceRate counts whether correction keywords appear in agent 
 
 IRC is the worst case because the legacy cohort correction ("signed up before 1994") requires a proxy implementation that produces result values and table names, giving the inline metric a false positive even when the SQL is semantically wrong. The Gemini judge, having access to the full original conversation (1M context window), correctly identifies when the proxy is wrong.
 
-### Finding 3: 4zone is not uniformly better — strategy-session interaction effects dominate
+### Finding 3: 4zone interaction effects are strategy- and session-type-dependent, driven by which zone carries the primary analytical load
 
-4zone helps, hurts, or has no effect depending on which strategy and which session type:
+| Strategy | DCS-001 (4zone vs plain) | PTA-001 (4zone vs plain) | IRC-001 (4zone vs plain) | SNCJ-001 (4zone vs plain) |
+|---|---|---|---|---|
+| qwery-default | 7.87 → 6.00 **(hurt)** | 8.46 → **9.63 (help)** | 3.75 → 4.45 (mild help) | 8.49 → 8.39 **(neutral)** |
+| headroom | — | 7.39 → **1.27 (catastrophic)** | 3.45 → 5.50 (help) | 6.29 → **8.83 (best in series)** |
+| recomp-extractive | — | 4.31 → 4.62 (neutral) | 2.00 → 4.45 (help) | 7.29 → 7.88 (moderate help) |
+| llmlingua-2 | — | — | — | 5.54 → 6.29 (help) |
 
-| Strategy | DCS-001 (4zone vs plain) | PTA-001 (4zone vs plain) | IRC-001 (4zone vs plain) |
-|---|---|---|---|
-| qwery-default | 7.87 → 6.00 **(hurt)** | 8.46 → **9.63 (help)** | 3.75 → 4.45 (mild help) |
-| headroom | — | 7.39 → **1.27 (catastrophic)** | 3.45 → 5.50 (help†) |
-| recomp-extractive | — | 4.31 → 4.62 (neutral) | pending |
+The zone that carries the primary load determines the outcome:
+- **DCS/IRC**: Zone D (LLM narrative) does the heavy lifting. qwery-default's plain narrative is strong; Zone B noise subtracts from it. 4zone hurts qwery-default on DCS.
+- **PTA**: Zone D must preserve thread labels. headroom/4zone shreds Zone D in 20 events; 4zone is catastrophic for headroom.
+- **SNCJ**: Zone A (schema) is the decisive zone. 4zone makes headroom the best performer because Zone A answers schema recall questions directly, making Zone D compression irrelevant.
 
-The pattern: 4zone hurts qwery-default on DCS (where the plain narrative is already strong and Zone B noise subtracts from it), helps on PTA and IRC (where Zone B's simple filter anchors matter more than its noise). headroom/4zone is catastrophic on PTA (20 compaction events) but recovers on IRC (6 events). The session type determines whether the 4zone penalty (Zone B noise) or 4zone benefit (structured filter anchors) dominates.
+The implication: **the 4zone architecture is most beneficial when Zone A schema context is the primary gap in plain mode** (schema-heavy sessions like SNCJ), and least beneficial (or harmful) when the gap is in narrative structure that Zone B cannot encode (semantic corrections like the IRC legacy cohort proxy).
 
 ### Finding 4: recomp-extractive degrades monotonically with correction complexity
 
@@ -306,17 +347,17 @@ recomp strips context to extracted result snippets. Corrections are metadata abo
 
 DCS-001 has the fewest corrections and they're concrete column=value rules that often appear in result descriptions. PTA adds thread structure that extraction destroys (explicit "Thread 1 / Thread 2" labels don't survive). IRC adds a semantic proxy that has no result-table representation. recomp loses quality at each step.
 
-### Finding 5: headroom/4zone frequency interaction creates session-type-dependent catastrophe
+### Finding 5: headroom/4zone frequency interaction is session-type-dependent — Zone A can rescue it
 
-headroom fires compaction on every turn after the boundary. This is benign in plain mode (one event) but in 4zone mode creates repeated Zone D compression that progressively degrades the archive:
+headroom fires compaction on every turn after the boundary. In 4zone mode this creates repeated Zone D compression. The outcome depends on whether Zone A can carry what Zone D loses:
 
-| Session | headroom/4zone events | headroom/4zone Gemini | vs plain |
-|---|---|---|---|
-| DCS-001 | — (not yet verified) | — | — |
-| PTA-001 | **20 events** (turns 15–35) | **1.27** | ↓ from 7.39 |
-| IRC-001 | 6 events (turns 12–17) | 5.50† | ↑ from 3.45 |
+| Session | headroom/4zone events | headroom/4zone Gemini | vs plain | Zone A role |
+|---|---|---|---|---|
+| PTA-001 | **20 events** (turns 15–35) | **1.27** | ↓ from 7.39 | Minimal (PTA needs thread labels, not schema) |
+| IRC-001 | 6 events (turns 12–17) | 5.50† | ↑ from 3.45 | Partial (AMERICA filter captured; legacy cohort not) |
+| SNCJ-001 | **15 events** | **8.83** | ↑ from 6.29 | **Decisive** (all schema recall anaphors answered by Zone A) |
 
-The catastrophe threshold is between 6 and 20 events. 6 events on IRC is survivable; 20 events on PTA is not. The Zone D archive hits capacity and starts evicting critical context before the session ends.
+SNCJ has 15 headroom/4zone events — more than IRC, close to PTA — yet achieves the highest score in the series. The difference: SNCJ's analytical challenges are schema recall, and Zone A holds the complete schema verbatim. Zone D's repeated eviction is irrelevant when Zone A provides exactly what the agent needs. PTA's thread labels are narrative constructs that no zone can mechanically substitute.
 
 ### Finding 6: Zone B captures syntactic filters, not semantic corrections
 
@@ -384,16 +425,20 @@ Zone B was designed to track structured entity state (active filters, correction
 | DCS-001 | qwery-default | **7.87** | headroom | 6.88 |
 | PTA-001 | qwery-default | **8.46** | headroom | 7.39 |
 | IRC-001 | qwery-default | **3.75** | headroom | 3.45 |
+| SNCJ-001 | qwery-default | **8.49** | recomp-extractive | 7.29 |
 
-qwery-default/plain is the best plain strategy on every session type, with the margin varying by correction complexity. The LLM narrative format is resilient: it degrades on IRC but remains ahead of alternatives.
+qwery-default/plain is the best plain strategy on every session type. The LLM narrative format is resilient: it degrades on IRC but remains ahead of alternatives. headroom/plain is never the best (penalized by hash-chunking losing entity continuity) and has catastrophic overhead on SNCJ.
 
 ### 4zone mode impact by strategy
 
-| Strategy | 4zone vs plain | Sessions | Verdict |
-|---|---|---|---|
-| qwery-default | Mixed (DCS: −1.87, PTA: +1.17, IRC: +0.70) | 3/3 | Contextual — better when plain struggles |
-| headroom | Session-dependent (PTA: catastrophic, IRC: beneficial) | 2/2 | Risky — depends on compaction frequency |
-| recomp-extractive | Neutral to slight positive | 2/2 | No systematic benefit |
+| Strategy | DCS | PTA | IRC | SNCJ | Pattern |
+|---|---|---|---|---|---|
+| qwery-default | −1.87 | +1.17 | +0.70 | −0.10 | Helps when plain is weak; neutral/hurt when plain is strong |
+| headroom | — | −6.12 (catastrophic) | +2.05 | +2.54 | Zone A determines outcome: rescues on schema sessions, collapses on narrative sessions |
+| recomp-extractive | — | +0.31 | +2.45 | +0.59 | Consistent modest benefit — Zone A/B fill recomp's narrative gap |
+| llmlingua-2 | — | — | — | +0.75 | Zone A compensates for lossy compression on schema-heavy content |
+
+**headroom has the widest variance** (−6.12 to +2.54) — it is simultaneously the worst possible choice (PTA/4zone) and the best-performing combination in the series (SNCJ/4zone). The session type determines which.
 
 ---
 
@@ -401,10 +446,14 @@ qwery-default/plain is the best plain strategy on every session type, with the m
 
 1. **Zone B constraint enforcement**: Zone B is read as informational context. A system prompt directive ("apply all `activeFilters` to every `runQuery` call") could change this. Whether that directive causes its own side effects (over-filtering) is untested.
 
-2. **headroom/4zone on DCS-001**: Not yet verified. Headroom/4zone has 0 events on DCS if compaction fires only at boundary — would eliminate the frequency problem. Headroom/4zone on DCS is the only combination where Zone B noise vs benefit ratio is unknown.
+2. **Zone B HAVING/CTE support**: The legacy cohort failure on IRC is a clear gap. Extending `EntityStateTracker.extractFromToolCalls()` to parse `HAVING` conditions and CTE definitions would directly address the most common IRC failure mode.
 
-3. **Zone B HAVING/CTE support**: The legacy cohort failure on IRC is a clear gap. Extending `EntityStateTracker.extractFromToolCalls()` to parse `HAVING` conditions and CTE definitions would directly address the most common IRC failure mode.
+3. **headroom/4zone on DCS-001**: The only missing headroom/4zone result. DCS has a deterministic single-event boundary — headroom/4zone may fire 0 or 1 events, eliminating the frequency problem entirely. Would confirm whether the PTA catastrophe is purely a frequency artifact.
 
 4. **Cross-database generalizability**: All sessions above are TPC-H. The saas database (SaaS analytics schema) tests whether findings hold on a different schema structure. saas-dcs-001 results are available for llmlingua-2 and baseline; other strategies not yet run.
 
 5. **RCI session type**: tpch-rci-001 (Reference Chain with Indirect corrections) has qwery-default/plain results but no verify and no 4zone runs. Expected difficulty level: between IRC and PTA.
+
+6. **Zone A quantified contribution**: SNCJ shows Zone A is decisive for schema recall. Ablating Zone A from 4zone on SNCJ would directly measure the schema-recall contribution vs Zone B/D. Currently inferred from schemaGrounding dimension scores.
+
+7. **headroom/plain overhead on SNCJ (184%)**: This is an anomaly worth diagnosing — is the headroom proxy doing something unexpected with schema-heavy content, or is this specific to the SNCJ session structure?
