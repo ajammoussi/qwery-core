@@ -9,7 +9,7 @@ import {
   createBenchmarkRepositories,
 } from './runner.js';
 import type { BenchmarkConfig } from './runner.js';
-import type { CompressionMethod } from './types.js';
+import type { CompressionMethod, ContextMode } from './types.js';
 
 type DatasourceConfig = {
   provider: string;
@@ -163,7 +163,14 @@ function parseIndices(indicesStr: string, maxLength: number): number[] {
 async function main() {
   await loadBenchmarkEnv();
 
-  const { values } = parseArgs({
+  const rawArgs = process.argv.slice(2);
+  // Drop any stray `--` separators pnpm/npm may leave in the args. They land
+  // mid-string when compound scripts (e.g. `run:saas`) prepend their own flags
+  // and a downstream `--` would otherwise terminate option parsing.
+  const sanitizedArgs = rawArgs.filter((a) => a !== '--');
+
+  const { values, positionals } = parseArgs({
+    args: sanitizedArgs,
     options: {
       db: {
         type: 'string',
@@ -176,7 +183,7 @@ async function main() {
       model: {
         type: 'string',
         short: 'm',
-        default: 'ollama-cloud/minimax-m2.7',
+        default: 'ollama-cloud/minimax-m2.5',
       },
       'storage-dir': {
         type: 'string',
@@ -187,6 +194,10 @@ async function main() {
         type: 'string',
         short: 'c',
         default: 'baseline-no-compression',
+      },
+      'context-mode': {
+        type: 'string',
+        default: 'plain',
       },
       'copy-testcases': {
         type: 'boolean',
@@ -201,7 +212,7 @@ async function main() {
         short: 'i',
       },
     },
-    allowPositional: true,
+    allowPositionals: true,
   });
 
   if (values['copy-testcases']) {
@@ -212,7 +223,10 @@ async function main() {
   const type = values.type as string | undefined;
   const model = values.model;
   const storageDir = values['storage-dir'];
-  const compressionMethod = values['compression-method'] as CompressionMethod;
+  const positionalMethod = positionals[0];
+  const compressionMethod = (positionalMethod ??
+    values['compression-method']) as CompressionMethod;
+  const contextMode = values['context-mode'] as ContextMode;
   const limit = values.limit ? parseInt(values.limit, 10) : undefined;
   const indicesStr = values.indices as string | undefined;
 
@@ -241,6 +255,7 @@ async function main() {
   console.log(`Model: ${model}`);
   console.log(`Storage: ${storageDir}`);
   console.log(`Compression Method: ${compressionMethod}`);
+  console.log(`Context Mode: ${contextMode}`);
 
   const repositories = await createBenchmarkRepositories(storageDir!);
 
@@ -294,6 +309,7 @@ async function main() {
       datasourceId: datasourceIds[session.metadata.database] ?? '',
       storageDir,
       compressionMethod,
+      contextMode,
       repositories,
     };
 
@@ -336,7 +352,8 @@ async function main() {
   console.log(`Successful: ${successful}`);
   console.log(`Failed: ${failed}`);
   console.log(`Compression: ${compressionMethod}`);
-  console.log(`Results saved to: data/results/${compressionMethod}/`);
+  console.log(`Context Mode: ${contextMode}`);
+  console.log(`Results saved to: data/results/${compressionMethod}/${contextMode}/`);
 
   if (failed > 0) {
     console.log('\nFailed sessions:');

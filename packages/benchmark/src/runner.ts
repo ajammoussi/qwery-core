@@ -3,17 +3,25 @@ import type { Repositories } from '@qwery/domain/repositories';
 import { DatasourceKind } from '@qwery/domain/entities';
 import { runAgentToCompletion } from '@qwery/agent-factory-sdk/agents/run-agent-to-completion';
 import type { UIMessage } from '@qwery/agent-factory-sdk';
+import { SessionCompaction } from '@qwery/agent-factory-sdk';
 import type {
   BenchmarkSession,
   BenchmarkResult,
   TurnResult,
   ToolCallResult,
   CompressionMethod,
+  ContextMode,
   StoredMessage,
   StoredUsage,
   AssistantMessageDetail,
   MessagePartDetail,
   CompactionEvent,
+  SchemaAndConstraintsState,
+  ActiveWindowSummary,
+  CompressedArchiveSummary,
+  EntityStateSnapshot,
+  ZoneOverallSummary,
+  ZoneSnapshot,
 } from './types.js';
 import {
   convertMessageToStored,
@@ -27,6 +35,9 @@ import { Roles } from '@qwery/domain/common/roles';
 import { installStrategy } from './compaction/strategy.js';
 import type { LastCompaction } from './compaction/strategy.js';
 import { getStrategy } from './compaction/registry.js';
+import { startHeadroomProxy } from './compaction/proxy-manager.js';
+import type { HeadroomProxy } from './compaction/proxy-manager.js';
+import { extractToolCallsFromParts } from './utils/extract-tool-calls.js';
 
 export type BenchmarkConfig = {
   model?: string;
@@ -34,7 +45,16 @@ export type BenchmarkConfig = {
   datasourceId: string;
   storageDir?: string;
   compressionMethod?: CompressionMethod;
+  contextMode?: ContextMode;
   repositories?: Repositories;
+};
+
+type ZoneSnapshotData = {
+  schemaAndConstraints: SchemaAndConstraintsState;
+  entityState: EntityStateSnapshot;
+  activeWindow: ActiveWindowSummary;
+  compressedArchive: CompressedArchiveSummary;
+  summary: ZoneOverallSummary;
 };
 
 type ToolMetadataEvent = {
@@ -144,55 +164,7 @@ export async function createBenchmarkRepositories(
   return repositories;
 }
 
-function extractToolCallsFromParts(
-  parts: MessagePartDetail[],
-): ToolCallResult[] {
-  const toolCalls: ToolCallResult[] = [];
-
-  for (const part of parts) {
-    if (typeof part.type === 'string' && part.type.startsWith('tool-')) {
-      const toolPart = part as {
-        type: string;
-        toolCallId?: string;
-        toolName?: string;
-        input?: Record<string, unknown>;
-        output?: unknown;
-        errorText?: string;
-        state?: string;
-        isError?: boolean;
-      };
-
-      const existingCall = toolCalls.find(
-        (tc) => tc.toolCallId === toolPart.toolCallId,
-      );
-
-      if (existingCall) {
-        if (toolPart.output !== undefined) {
-          existingCall.toolOutput = toolPart.output;
-          existingCall.success = !toolPart.isError;
-        }
-        if (toolPart.errorText) {
-          existingCall.error = toolPart.errorText;
-          existingCall.success = false;
-        }
-      } else if (toolPart.toolName) {
-        toolCalls.push({
-          toolName: toolPart.toolName,
-          toolCallId: toolPart.toolCallId,
-          toolInput: toolPart.input ?? {},
-          toolOutput: toolPart.output,
-          executionTimeMs: 0,
-          success:
-            toolPart.state === 'output-available' ||
-            (toolPart.output !== undefined && !toolPart.isError),
-          error: toolPart.errorText,
-        });
-      }
-    }
-  }
-
-  return toolCalls;
-}
+// extractToolCallsFromParts is imported from ./utils/extract-tool-calls.js
 
 function extractTextFromParts(parts: MessagePartDetail[]): string {
   const textParts: string[] = [];
@@ -213,6 +185,7 @@ function detectCompactionEvent(args: {
   preTokens: number | null;
   turnNumber: number;
   method: CompressionMethod;
+  contextMode: ContextMode;
 }): CompactionEvent | undefined {
   const {
     storedMessages,
@@ -221,15 +194,36 @@ function detectCompactionEvent(args: {
     preTokens,
     turnNumber,
     method,
+    contextMode,
   } = args;
 
   let newSummary: StoredMessage | undefined;
   for (let i = scanFromIndex; i < storedMessages.length; i++) {
     const msg = storedMessages[i];
     if (!msg || msg.role !== 'assistant') continue;
-    const meta = msg.metadata as { summary?: boolean } | undefined;
+    const meta = msg.metadata as
+      | { summary?: boolean; type?: string }
+      | undefined;
     if (!meta?.summary) continue;
+    if (meta?.type === 'compaction') {
+      newSummary = msg;
+      break;
+    }
     newSummary = msg;
+  }
+
+  // If process ran (lastCompaction exists) but no summary was found with
+  // the exact metadata, fall back to the last new assistant message.
+  // Require latency > 50ms: a real LLM call takes hundreds of ms; anything
+  // shorter means process() returned early without generating a summary.
+  if (!newSummary && lastCompaction && lastCompaction.latencyMs > 50) {
+    for (let i = storedMessages.length - 1; i >= scanFromIndex; i--) {
+      const msg = storedMessages[i];
+      if (msg && msg.role === 'assistant') {
+        newSummary = msg;
+        break;
+      }
+    }
   }
 
   // Strategies that don't persist a summary message (e.g. baseline) won't have
@@ -239,23 +233,33 @@ function detectCompactionEvent(args: {
   }
 
   const summaryText = newSummary
-    ? extractTextFromParts((newSummary.content?.parts ?? []) as MessagePartDetail[])
+    ? extractTextFromParts(
+        (newSummary.content?.parts ?? []) as MessagePartDetail[],
+      )
     : undefined;
 
   const summaryTokens =
     newSummary?.metadata?.tokens?.output ??
     (summaryText ? Math.ceil(summaryText.length / 3.6) : undefined);
 
+  const tokensSaved =
+    typeof newSummary?.metadata?.compactionTokensSaved === 'number'
+      ? (newSummary.metadata.compactionTokensSaved as number)
+      : undefined;
+
   return {
     method,
+    contextMode,
     triggeredAt: 'turn-boundary',
     summaryText,
     summaryTokens,
-    preCompactionTokens: preTokens ?? lastCompaction?.preCompactionTokens ?? undefined,
+    preCompactionTokens:
+      preTokens ?? lastCompaction?.preCompactionTokens ?? undefined,
     latencyMs:
       lastCompaction && lastCompaction.turnNumber === turnNumber
         ? Math.round(lastCompaction.latencyMs)
         : 0,
+    tokensSaved,
   };
 }
 
@@ -299,35 +303,76 @@ export async function runSession(
 ): Promise<BenchmarkResult> {
   const compressionMethod =
     config.compressionMethod || 'baseline-no-compression';
-  const result = createEmptyResult(session, compressionMethod);
+  const contextMode = config.contextMode || 'plain';
+  const result = createEmptyResult(session, compressionMethod, contextMode);
 
   const repositories =
     config.repositories ??
     (await createBenchmarkRepositories(config.storageDir || 'qwery.db'));
 
-  const strategy = getStrategy(compressionMethod);
+  const strategy = getStrategy(compressionMethod, contextMode);
   const currentTurnRef = { value: 0 };
-  const { restore, lastCompactionRef, preTokensRef } = installStrategy(
-    strategy,
-    {
+  const { restore, lastCompactionRef, preTokensRef, getState } =
+    installStrategy(strategy, {
       boundaryTurn: session.metadata.compressionBoundaryTurn,
       currentTurnRef,
-    },
-  );
+    });
+
+  let headroomProxy: HeadroomProxy | undefined;
+  const previousHeadroomBaseUrl = process.env.HEADROOM_BASE_URL;
+  const previousHeadroomUrl = process.env.HEADROOM_URL;
+  if (compressionMethod === 'headroom') {
+    headroomProxy = await startHeadroomProxy();
+    process.env.HEADROOM_BASE_URL = headroomProxy.url;
+    process.env.HEADROOM_URL = headroomProxy.url;
+    console.log(`Headroom proxy started at ${headroomProxy.url}`);
+  }
 
   try {
-    return await runSessionWithStrategy({
+    const finalResult = await runSessionWithStrategy({
       session,
       config,
       compressionMethod,
+      contextMode,
       result,
       repositories,
       currentTurnRef,
       lastCompactionRef,
       preTokensRef,
+      getState,
     });
+
+    if (getState) {
+      finalResult.finalZoneSnapshot = getState({
+        excludeRaw: true,
+      }) as ZoneSnapshotData;
+    }
+
+    // Reorder finalZoneSnapshot to appear after turns and before metrics in JSON output
+    const { metrics, errors, ...rest } = finalResult;
+    const ordered = rest as BenchmarkResult;
+    ordered.metrics = metrics;
+    ordered.errors = errors;
+
+    await saveResult(ordered, compressionMethod, contextMode);
+
+    return ordered;
   } finally {
     restore();
+    if (headroomProxy) {
+      headroomProxy.kill();
+      console.log('Headroom proxy stopped');
+    }
+    if (previousHeadroomBaseUrl === undefined) {
+      delete process.env.HEADROOM_BASE_URL;
+    } else {
+      process.env.HEADROOM_BASE_URL = previousHeadroomBaseUrl;
+    }
+    if (previousHeadroomUrl === undefined) {
+      delete process.env.HEADROOM_URL;
+    } else {
+      process.env.HEADROOM_URL = previousHeadroomUrl;
+    }
   }
 }
 
@@ -335,21 +380,28 @@ async function runSessionWithStrategy(args: {
   session: BenchmarkSession;
   config: BenchmarkConfig;
   compressionMethod: CompressionMethod;
+  contextMode: ContextMode;
   result: BenchmarkResult;
   repositories: Repositories;
   currentTurnRef: { value: number };
   lastCompactionRef: { value: LastCompaction };
   preTokensRef: { value: number | null };
+  getState?: (options?: {
+    prune?: boolean;
+    excludeRaw?: boolean;
+  }) => Record<string, unknown>;
 }): Promise<BenchmarkResult> {
   const {
     session,
     config,
     compressionMethod,
+    contextMode,
     result,
     repositories,
     currentTurnRef,
     lastCompactionRef,
     preTokensRef,
+    getState,
   } = args;
 
   const conversationId = uuidv4();
@@ -368,7 +420,8 @@ async function runSessionWithStrategy(args: {
     isPublic: false,
   };
 
-  const savedConversation = await repositories.conversation.create(conversation);
+  const savedConversation =
+    await repositories.conversation.create(conversation);
   const conversationSlug = savedConversation.slug;
   result.conversationId = conversationId;
   result.conversationSlug = conversationSlug;
@@ -470,10 +523,64 @@ async function runSessionWithStrategy(args: {
 
       let compactionEvent: CompactionEvent | undefined;
 
+      if (agentResult.usage) {
+        const rawTokens = {
+          input: agentResult.usage.promptTokens,
+          output: agentResult.usage.completionTokens,
+          reasoning: 0,
+          cache: { read: 0, write: 0 },
+        };
+        const isOverflow = await (SessionCompaction.isOverflow as any)({
+          tokens: rawTokens,
+          model: config.model,
+          messages: [...conversationMessages, ...finishedMessages],
+        });
+
+        if (isOverflow) {
+          const preCompactionMessages =
+            await repositories.message.findByConversationId(conversationId);
+          const lastPersistedId = preCompactionMessages.at(-1)?.id ?? userMessageId;
+          await SessionCompaction.process({
+            parentID: lastPersistedId,
+            messages: preCompactionMessages,
+            conversationSlug,
+            abort: abortController.signal,
+            auto: true,
+            repositories,
+          });
+        }
+      } else {
+        // Fallback: always check overflow for boundary-based strategies even when usage is missing
+        const rawTokens = {
+          input: 0,
+          output: 0,
+          reasoning: 0,
+          cache: { read: 0, write: 0 },
+        };
+        const isOverflow = await (SessionCompaction.isOverflow as any)({
+          tokens: rawTokens,
+          model: config.model,
+          messages: [...conversationMessages, ...finishedMessages],
+        });
+
+        if (isOverflow) {
+          const preCompactionMessages =
+            await repositories.message.findByConversationId(conversationId);
+          const lastPersistedId = preCompactionMessages.at(-1)?.id ?? userMessageId;
+          await SessionCompaction.process({
+            parentID: lastPersistedId,
+            messages: preCompactionMessages,
+            conversationSlug,
+            abort: abortController.signal,
+            auto: true,
+            repositories,
+          });
+        }
+      }
+
       try {
-        const persistedMessages = await repositories.message.findByConversationId(
-          conversationId,
-        );
+        const persistedMessages =
+          await repositories.message.findByConversationId(conversationId);
         const storedMessages = persistedMessages.map(convertMessageToStored);
         const assistantMessagesFromStore = extractAssistantMessagesFromTurn(
           storedMessages,
@@ -495,6 +602,7 @@ async function runSessionWithStrategy(args: {
           preTokens: preTokensRef.value,
           turnNumber: turn.turnNumber,
           method: compressionMethod,
+          contextMode,
         });
         // Reset for the next turn so a stale latency doesn't leak forward.
         lastCompactionRef.value = null;
@@ -569,6 +677,19 @@ async function runSessionWithStrategy(args: {
         }
       }
 
+      // Capture per-turn zone snapshot if getState is available (4zone mode)
+      let zonesSnapshot: ZoneSnapshot | undefined;
+      if (getState) {
+        const state = getState({ prune: true }) as ZoneSnapshotData;
+        zonesSnapshot = {
+          schemaAndConstraints: state.schemaAndConstraints,
+          entityState: state.entityState,
+          activeWindow: state.activeWindow,
+          compressedArchive: state.compressedArchive,
+          summary: state.summary,
+        };
+      }
+
       const turnResult: TurnResult = {
         turnNumber: turn.turnNumber,
         userMessage: turn.content,
@@ -582,6 +703,7 @@ async function runSessionWithStrategy(args: {
         cachedInputTokens,
         cost: totalCost,
         compactionEvent,
+        zonesSnapshot,
       };
 
       result.turns.push(turnResult);
@@ -618,34 +740,32 @@ async function runSessionWithStrategy(args: {
       result.turns.push(turnResult);
     }
   }
-    // 
-    //   try {
-    //     const dbMessages =
-    //       await repositories.message.findByConversationId(conversationId);
-    //     result.messages = dbMessages.map(convertMessageToStored);
-    //   } catch (error) {
-    //     result.errors.push(
-    //       `Failed to retrieve messages: ${error instanceof Error ? error.message : String(error)}`,
-    //     );
-    //   }
-    // 
-    //   try {
-    //     const dbUsages =
-    //       await repositories.usage.findByConversationId(conversationId);
-    //     result.usages = dbUsages.map(convertUsageToStored);
-    //   } catch (error) {
-    //     result.errors.push(
-    //       `Failed to retrieve usages: ${error instanceof Error ? error.message : String(error)}`,
-// );
-// } 
-// 
-// Enrich turns with session annotations
-result.turns = enrichTurnsWithAnnotations(result.turns, session);
+  //
+  //   try {
+  //     const dbMessages =
+  //       await repositories.message.findByConversationId(conversationId);
+  //     result.messages = dbMessages.map(convertMessageToStored);
+  //   } catch (error) {
+  //     result.errors.push(
+  //       `Failed to retrieve messages: ${error instanceof Error ? error.message : String(error)}`,
+  //     );
+  //   }
+  //
+  //   try {
+  //     const dbUsages =
+  //       await repositories.usage.findByConversationId(conversationId);
+  //     result.usages = dbUsages.map(convertUsageToStored);
+  //   } catch (error) {
+  //     result.errors.push(
+  //       `Failed to retrieve usages: ${error instanceof Error ? error.message : String(error)}`,
+  // );
+  // }
+  //
+  // Enrich turns with session annotations
+  result.turns = enrichTurnsWithAnnotations(result.turns, session);
 
-result.completedAt = new Date().toISOString();
-result.metrics = calculateMetrics(result.turns);
-
-  await saveResult(result, compressionMethod);
+  result.completedAt = new Date().toISOString();
+  result.metrics = calculateMetrics(result.turns, session);
 
   return result;
 }
@@ -679,14 +799,17 @@ export async function ensureDatasource(
     };
 
     const hasConfigChanged =
-      JSON.stringify(foundDatasource.config) !== JSON.stringify(normalizedConfig);
+      JSON.stringify(foundDatasource.config) !==
+      JSON.stringify(normalizedConfig);
     const hasProviderChanged =
       foundDatasource.datasource_provider !== provider ||
       foundDatasource.datasource_driver !== provider;
 
     if (hasConfigChanged || hasProviderChanged) {
       await repositories.datasource.update({
-        ...(found as unknown as Parameters<typeof repositories.datasource.update>[0]),
+        ...(found as unknown as Parameters<
+          typeof repositories.datasource.update
+        >[0]),
         datasource_provider: provider,
         datasource_driver: provider,
         config: normalizedConfig,

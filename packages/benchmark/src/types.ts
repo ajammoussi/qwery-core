@@ -69,7 +69,11 @@ export type CompressionMethod =
   | 'longllmlingua'
   | 'sliding-window'
   | 'qwery-default'
-  | 'entity-state';
+  | 'entity-state'
+  | 'headroom'
+  | 'recomp-extractive';
+
+export type ContextMode = 'plain' | '4zone';
 
 export type MessagePartDetail =
   | { type: 'text'; text: string; state?: 'streaming' | 'done' }
@@ -152,6 +156,94 @@ export interface AssistantMessageDetail {
   metadata?: Record<string, unknown>;
 }
 
+export interface ZoneSnapshot {
+  schemaAndConstraints?: SchemaAndConstraintsState;
+  entityState?: EntityStateSnapshot;
+  activeWindow?: ActiveWindowSummary;
+  compressedArchive?: CompressedArchiveSummary;
+  summary?: ZoneOverallSummary;
+}
+
+export interface SchemaAndConstraintsState {
+  segments: Array<{
+    type: string;
+    content: {
+      header?: string;
+      raw?: string;
+      parsed?: unknown;
+      parseError?: string;
+      truncated?: boolean;
+    };
+    tokens: number;
+  }>;
+  totalSegments: number;
+  totalTokens: number;
+  description: string;
+}
+
+export interface EntityStateSnapshot {
+  segments: Array<{
+    type: string;
+    content: {
+      header?: string;
+      raw?: string;
+      parsed?: Record<string, unknown>;
+      parseError?: string;
+      truncated?: boolean;
+    };
+    tokens: number;
+  }>;
+  totalSegments: number;
+  totalTokens: number;
+  description: string;
+  parsedState?: Record<string, unknown>;
+}
+
+export interface ActiveWindowSummary {
+  turnNumbers: number[];
+  messageCount: number;
+  segmentComposition: {
+    userTurns: number;
+    assistantTurns: number;
+    totalSegments: number;
+  };
+  latestMessagePreview: string;
+  totalTokens: number;
+  description: string;
+}
+
+export interface CompressedArchiveSummary {
+  segmentCount: number;
+  segmentComposition: {
+    compactedArchives: number;
+    archivedTurns: number;
+    totalSegments: number;
+  };
+  latestSegmentPreview: string;
+  totalTokens: number;
+  description: string;
+}
+
+export interface ZoneOverallSummary {
+  totalZoneTokens: number;
+  zoneTokens: {
+    schemaAndConstraints: number;
+    entityState: number;
+    activeWindow: number;
+    compressedArchive: number;
+  };
+  activeWindow: {
+    maxTurns: number;
+    currentTurns: number;
+    isFull: boolean;
+  };
+  archive: {
+    maxSegments: number;
+    currentSegments: number;
+    isFull: boolean;
+  };
+}
+
 export interface TurnResult {
   turnNumber: number;
   userMessage: string;
@@ -168,16 +260,23 @@ export interface TurnResult {
   annotations?: TurnAnnotations;
   // Populated when a compaction strategy ran during this turn
   compactionEvent?: CompactionEvent;
+  // Per-turn snapshot of zone states (only in 4zone mode)
+  zonesSnapshot?: ZoneSnapshot;
 }
 
 export interface CompactionEvent {
   method: CompressionMethod;
+  contextMode: ContextMode;
   triggeredAt: 'turn-boundary' | 'token-overflow' | 'forced';
   summaryText?: string;
   structuredState?: Record<string, unknown>;
   summaryTokens?: number;
   preCompactionTokens?: number;
   latencyMs: number;
+  // Absolute tokens removed from the conversation by this event, as reported by
+  // the strategy. When set, compressionRatio is computed as the real prompt
+  // reduction: (preCompactionTokens - tokensSaved) / preCompactionTokens.
+  tokensSaved?: number;
 }
 
 export interface ToolCallResult {
@@ -188,6 +287,38 @@ export interface ToolCallResult {
   executionTimeMs: number;
   success: boolean;
   error?: string;
+}
+
+export type GeminiFailureCategory =
+  | 'filter_drift'        // an established filter was not applied
+  | 'entity_confusion'    // wrong entity, date range, or category referenced
+  | 'baseline_loss'       // prior analytical baseline or reference value not retained
+  | 'correction_ignored'  // an explicit user correction from an earlier turn was ignored
+  | 'thread_bleed'        // PTA: correction from Thread A applied in Thread B (or vice versa)
+  | 'callback_miss'       // DCS/RCI: agent failed to recall a specific fact from a distant turn
+  | 'schema_hallucination' // SNCJ: agent referenced a non-existent table or column
+  | 'dead_end_regression' // RCI: agent re-pursued a hypothesis already ruled out
+  | 'none';
+
+export interface GeminiDimensionScore {
+  score: number;      // 0–5
+  reasoning: string;  // one-sentence explanation
+}
+
+export interface GeminiJudgeResult {
+  dimensions: {
+    // Core dimensions — always present
+    filterPersistence: GeminiDimensionScore;
+    entityContinuity: GeminiDimensionScore;
+    correctionPersistence: GeminiDimensionScore;
+    analyticalThread: GeminiDimensionScore;
+    // Type-specific extras — present only when applicable
+    callbackResolution?: GeminiDimensionScore;  // DCS + RCI: recall facts from distant turns
+    threadIsolation?: GeminiDimensionScore;     // PTA: Thread A corrections must not bleed into Thread B
+    schemaGrounding?: GeminiDimensionScore;     // SNCJ: correct table/column recall after compression
+  };
+  failureCategories: GeminiFailureCategory[];
+  overall: number;  // weighted avg across applicable dimensions, normalized to 0–10
 }
 
 export interface SessionMetrics {
@@ -205,9 +336,29 @@ export interface SessionMetrics {
   filterPersistenceRate: number | null;
   entityRecallAccuracy: number | null;
   referenceResolutionAccuracy: number | null;
+  toolSuccessRate: number | null;
   // Strategy-level aggregates; null when no compaction event was observed
   compressionRatio: number | null;
+  compactionTokensSaved: number | null;
   compactionLatencyMs: number | null;
+  // Sum of ALL compaction event latencies across the session
+  totalCompactionLatencyMs: number | null;
+  // totalCompactionLatencyMs / totalResponseTimeMs * 100
+  compactionOverheadPct: number | null;
+  // % of runQuery calls with syntactically valid SQL (null if no runQuery calls)
+  sqlValidityRate: number | null;
+  // % of runQuery SQL where all table refs appear in getSchema output (null if no schema captured)
+  schemaGroundingRate: number | null;
+  // % of re-executed post-compaction queries matching stored row count (null until verify:consistency runs)
+  queryConsistencyRate: number | null;
+  // Structured Gemini judge result (null until verify:consistency runs)
+  geminiJudge: GeminiJudgeResult | null;
+  // Convenience scalar: geminiJudge.overall (null until verify:consistency runs)
+  geminiContextScore: number | null;
+  // 4-zone only: % of persistedCorrections correctly reflected in Zone B entity state (null for non-4zone or until verify:consistency runs)
+  entityStateAccuracy: number | null;
+  // Per-turn Gemini judge results with full reasoning text (null until verify:consistency runs)
+  geminiJudgePerTurn: Array<{ turnNumber: number } & GeminiJudgeResult> | null;
 }
 
 export interface BenchmarkResult {
@@ -215,12 +366,13 @@ export interface BenchmarkResult {
   database: string;
   conversationType: string;
   compressionMethod: CompressionMethod;
+  contextMode: ContextMode;
   conversationId: string;
   conversationSlug: string;
   startedAt: string;
   completedAt: string;
   turns: TurnResult[];
+  finalZoneSnapshot?: Record<string, unknown>; // Final state of the zone context
   metrics: SessionMetrics;
   errors: string[];
-  // Legacy fields removed: messages and usages arrays (redundant with per-turn data)
 }

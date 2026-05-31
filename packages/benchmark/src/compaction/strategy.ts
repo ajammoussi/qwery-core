@@ -18,6 +18,7 @@ export type StrategyHooks = {
   isOverflow?: typeof SessionCompaction.isOverflow;
   process: typeof SessionCompaction.process;
   prune?: typeof SessionCompaction.prune;
+  getState?: (options?: { prune?: boolean; excludeRaw?: boolean }) => Record<string, unknown>;
 };
 
 export type CompactionStrategyFactory = (
@@ -50,6 +51,7 @@ export type InstallResult = {
    * as `preCompactionTokens` in the resulting CompactionEvent.
    */
   preTokensRef: { value: number | null };
+  getState?: (options?: { prune?: boolean; excludeRaw?: boolean }) => Record<string, unknown>;
 };
 
 /**
@@ -112,7 +114,12 @@ export function installStrategy(
     SessionCompaction.prune = originals.prune;
   };
 
-  return { restore, lastCompactionRef, preTokensRef };
+  return {
+    restore,
+    lastCompactionRef,
+    preTokensRef,
+    getState: hooks.getState,
+  };
 }
 
 /**

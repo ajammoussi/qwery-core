@@ -5,11 +5,20 @@ import type {
   ToolCallResult,
   SessionMetrics,
   CompressionMethod,
+  ContextMode,
   StoredMessage,
   StoredUsage,
   MessagePartDetail,
   AssistantMessageDetail,
+  AnaphoricReference,
+  BenchmarkCallback,
+  CompactionEvent,
 } from './types.js';
+import {
+  extractKnownTables,
+  computeSQLValidityRate,
+  computeSchemaGroundingRate,
+} from './sql-analyzer.js';
 import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -59,8 +68,16 @@ export async function loadAllSessions(
 export async function saveResult(
   result: BenchmarkResult,
   compressionMethod: CompressionMethod = 'baseline-no-compression',
+  contextMode: ContextMode = 'plain',
 ): Promise<string> {
-  const baseDir = join(__dirname, '..', 'data', 'results', compressionMethod);
+  const baseDir = join(
+    __dirname,
+    '..',
+    'data',
+    'results',
+    compressionMethod,
+    contextMode,
+  );
   const resultDir = join(
     baseDir,
     result.database,
@@ -75,7 +92,10 @@ export async function saveResult(
   return filePath;
 }
 
-export function calculateMetrics(turns: TurnResult[]): SessionMetrics {
+export function calculateMetrics(
+  turns: TurnResult[],
+  session?: BenchmarkSession,
+): SessionMetrics {
   const totalTurns = turns.length;
   const totalInputTokens = turns.reduce((sum, t) => sum + t.inputTokens, 0);
   const totalOutputTokens = turns.reduce((sum, t) => sum + t.outputTokens, 0);
@@ -98,14 +118,146 @@ export function calculateMetrics(turns: TurnResult[]): SessionMetrics {
     0,
   );
 
-  const compactionTurn = turns.find((t) => t.compactionEvent);
-  const compactionLatencyMs = compactionTurn?.compactionEvent?.latencyMs ?? null;
-  const preTokens = compactionTurn?.compactionEvent?.preCompactionTokens;
-  const postTokens = compactionTurn?.compactionEvent?.summaryTokens;
-  const compressionRatio =
-    preTokens && postTokens
-      ? Math.round((postTokens / preTokens) * 1000) / 1000
+  // Collect all compaction events across the session
+  const compactionEvents = turns
+    .map((t) => t.compactionEvent)
+    .filter((e): e is CompactionEvent => !!e);
+
+  // Keep first-event latency for backward compat with existing result JSON files
+  const compactionLatencyMs = compactionEvents[0]?.latencyMs ?? null;
+
+  // Sum ALL compaction event latencies
+  const totalCompactionLatencyMs =
+    compactionEvents.length > 0
+      ? compactionEvents.reduce((sum, e) => sum + e.latencyMs, 0)
       : null;
+
+  const compactionOverheadPct =
+    totalCompactionLatencyMs !== null && totalResponseTimeMs > 0
+      ? Math.round((totalCompactionLatencyMs / totalResponseTimeMs) * 10000) /
+        100
+      : null;
+
+  // Fraction of the prompt that survives a compaction event (lower = more
+  // compression). When the strategy reports the absolute tokens it removed,
+  // measure the real reduction against the captured prompt size:
+  //   (preCompactionTokens - tokensSaved) / preCompactionTokens.
+  // Otherwise fall back to the rough summaryTokens/preCompactionTokens heuristic
+  // (used by replace-the-history strategies like qwery-default).
+  const eventRatio = (
+    e: NonNullable<(typeof compactionEvents)[number]>,
+  ): number | null => {
+    const pre = e.preCompactionTokens;
+    if (typeof pre !== 'number' || pre <= 0) return null;
+    if (typeof e.tokensSaved === 'number') {
+      return Math.max(0, pre - e.tokensSaved) / pre;
+    }
+    if (typeof e.summaryTokens === 'number') {
+      return e.summaryTokens / pre;
+    }
+    return null;
+  };
+
+  const ratios = compactionEvents
+    .map((e) => (e ? eventRatio(e) : null))
+    .filter((r): r is number => typeof r === 'number');
+  const compressionRatio =
+    ratios.length > 0
+      ? Math.round((ratios.reduce((a, b) => a + b, 0) / ratios.length) * 1000) /
+        1000
+      : null;
+
+  const tokensSavedTotal = compactionEvents.reduce(
+    (sum: number, e: (typeof compactionEvents)[number]) =>
+      sum + (e && typeof e.tokensSaved === 'number' ? e.tokensSaved : 0),
+    0,
+  );
+  const compactionTokensSaved = tokensSavedTotal > 0 ? tokensSavedTotal : null;
+
+  // SQL quality metrics
+  const knownTables = extractKnownTables(turns);
+  const sqlValidityRate = computeSQLValidityRate(turns);
+  const schemaGroundingRate = computeSchemaGroundingRate(turns, knownTables);
+
+  // --- Quality metrics (require session annotations) ---
+
+  // Metric 1: Filter Persistence Rate
+  // For each persistedCorrection, check whether post-boundary turns honor it.
+  // "Honored" = correction keywords appear in agentResponse or SQL tool inputs.
+  let filterPersistenceRate: number | null = null;
+  if (session && session.persistedCorrections.length > 0) {
+    const boundary = session.metadata.compressionBoundaryTurn;
+    const postTurns = turns.filter((t) => t.turnNumber > boundary);
+    if (postTurns.length > 0) {
+      let honored = 0;
+      let total = 0;
+      for (const correction of session.persistedCorrections) {
+        const keywords = correction.correctionText
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 3);
+        for (const turn of postTurns) {
+          total++;
+          const text = (
+            turn.agentResponse +
+            ' ' +
+            turn.toolCalls.map((tc) => JSON.stringify(tc.toolInput)).join(' ')
+          ).toLowerCase();
+          if (keywords.some((kw) => text.includes(kw))) honored++;
+        }
+      }
+      filterPersistenceRate =
+        total > 0 ? Math.round((honored / total) * 1000) / 1000 : null;
+    }
+  }
+
+  // Metric 2: Reference Resolution Rate
+  // For callbacks and anaphoric references that cross the compression boundary,
+  // check if the expected entity/resolution keywords appear in the response.
+  let referenceResolutionAccuracy: number | null = null;
+  if (session) {
+    const crossBoundaryRefs = [
+      ...session.callbacks.filter((c) => c.crossesCompressionBoundary),
+      ...(session.anaphoricReferences ?? []).filter(
+        (a) => a.crossesCompressionBoundary,
+      ),
+    ];
+    if (crossBoundaryRefs.length > 0) {
+      let resolved = 0;
+      for (const ref of crossBoundaryRefs) {
+        const turn = turns.find((t) => t.turnNumber === ref.sourceTurn);
+        if (!turn) continue;
+        const expected =
+          'expectedEntity' in ref
+            ? (ref as BenchmarkCallback).expectedEntity
+            : (ref as AnaphoricReference).expectedResolution;
+        const keywords = expected
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 3);
+        if (
+          keywords.some((kw) => turn.agentResponse.toLowerCase().includes(kw))
+        ) {
+          resolved++;
+        }
+      }
+      referenceResolutionAccuracy =
+        Math.round((resolved / crossBoundaryRefs.length) * 1000) / 1000;
+    }
+  }
+
+  // Metric 3: Tool Success Rate
+  // % of turns where all runQuery calls succeeded. Requires Fix 1 (toolName inference).
+  let toolSuccessRate: number | null = null;
+  const turnsWithTools = turns.filter((t) => t.toolCalls.length > 0);
+  if (turnsWithTools.length > 0) {
+    const successTurns = turnsWithTools.filter((t) => {
+      const queryTools = t.toolCalls.filter((tc) => tc.toolName === 'runQuery');
+      return queryTools.length === 0 || queryTools.every((tc) => tc.success);
+    }).length;
+    toolSuccessRate =
+      Math.round((successTurns / turnsWithTools.length) * 1000) / 1000;
+  }
 
   return {
     totalTurns,
@@ -123,11 +275,22 @@ export function calculateMetrics(turns: TurnResult[]): SessionMetrics {
       totalTurns > 0
         ? Math.round((totalToolCalls / totalTurns) * 100) / 100
         : 0,
-    filterPersistenceRate: null,
+    filterPersistenceRate,
     entityRecallAccuracy: null,
-    referenceResolutionAccuracy: null,
+    referenceResolutionAccuracy,
+    toolSuccessRate,
     compressionRatio,
+    compactionTokensSaved,
     compactionLatencyMs,
+    totalCompactionLatencyMs,
+    compactionOverheadPct,
+    sqlValidityRate,
+    schemaGroundingRate,
+    queryConsistencyRate: null,
+    geminiJudge: null,
+    geminiContextScore: null,
+    entityStateAccuracy: null,
+    geminiJudgePerTurn: null,
   };
 }
 
@@ -262,12 +425,14 @@ export function extractAssistantMessagesFromTurn(
 export function createEmptyResult(
   session: BenchmarkSession,
   compressionMethod: CompressionMethod = 'baseline-no-compression',
+  contextMode: ContextMode = 'plain',
 ): BenchmarkResult {
   return {
     sessionId: session.id,
     database: session.metadata.database,
     conversationType: session.metadata.conversationType,
     compressionMethod,
+    contextMode,
     conversationId: '',
     conversationSlug: '',
     startedAt: new Date().toISOString(),
@@ -288,8 +453,19 @@ export function createEmptyResult(
       filterPersistenceRate: null,
       entityRecallAccuracy: null,
       referenceResolutionAccuracy: null,
+      toolSuccessRate: null,
       compressionRatio: null,
+      compactionTokensSaved: null,
       compactionLatencyMs: null,
+      totalCompactionLatencyMs: null,
+      compactionOverheadPct: null,
+      sqlValidityRate: null,
+      schemaGroundingRate: null,
+      queryConsistencyRate: null,
+      geminiJudge: null,
+      geminiContextScore: null,
+      entityStateAccuracy: null,
+      geminiJudgePerTurn: null,
     },
     errors: [],
   };

@@ -3,23 +3,37 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "verify:consistency": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/verify-consistency.ts",
     "run": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts",
     "run:tpch": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --db tpch",
     "run:saas": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --db saas",
     "run:baseline": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method baseline-no-compression",
     "run:qwery-default": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method qwery-default",
-    "run:compression": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method",
+    "run:headroom": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method headroom",
+    "run:recomp": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method recomp-extractive",
+    "run:llmlingua-2": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts --compression-method llmlingua-2",
+    "run:compression": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/run-all.ts",
     "verify:strategy": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/verify-strategy.ts",
+    "inspect:llmlingua-2": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/inspect-llmlingua-2.ts",
     "extract": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/extract-results.ts",
     "extract:baseline": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/extract-results.ts baseline-no-compression",
     "validate": "node --import ./src/shims/register-global-require.mjs --experimental-specifier-resolution=node --loader ts-node/esm src/validate-session.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@atjsh/llmlingua-2": "^2.0.3",
+    "@google/genai": "^1.0.0",
+    "@huggingface/transformers": "^3.5.2",
     "@qwery/agent-factory-sdk": "workspace:*",
     "@qwery/domain": "workspace:*",
     "@qwery/repository-file": "workspace:*",
     "@qwery/shared": "workspace:*",
+    "compromise": "^14.14.4",
+    "@tensorflow/tfjs": "^4.22.0",
+    "headroom-ai": "^0.1.0",
+    "js-tiktoken": "^1.0.21",
+    "onnxruntime-common": "^1.26.0",
+    "pg": "^8.13.1",
     "uuid": "^11.0.3"
   },
   "peerDependencies": {
@@ -29,9 +43,11 @@
     "@qwery/tsconfig": "workspace:*",
     "@swc/core": "^1.11.0",
     "@types/node": "^20.19.0",
+    "@types/pg": "^8.11.10",
     "ai": "^6.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "vitest": "catalog:"
   },
   "ts-node": {
     "swc": true,
