@@ -30,7 +30,7 @@
     "@qwery/shared": "workspace:*",
     "@qwery/telemetry": "workspace:*",
     "class-transformer": "^0.5.1",
-    "@insitetech.jp/dssrf": "^2.0.0",
+    "@insitetechjp/dssrf": "^2.0.0",
     "hono": "^4.10.7",
     "zod": "catalog:"
   },
